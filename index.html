@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Understory</title>
+<meta name="description" content="A mycorrhizal sound forest: trees, fungi, signals, sugar, fruit and spores grow, talk and mutate around you in 3D sound.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Italiana&family=Martian+Mono:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="css/understory.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="-30 -30 60 60" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.3"><circle r="9"/><circle cx="0" cy="-9" r="9"/><circle cx="7.79" cy="-4.5" r="9"/><circle cx="7.79" cy="4.5" r="9"/><circle cx="0" cy="9" r="9"/><circle cx="-7.79" cy="4.5" r="9"/><circle cx="-7.79" cy="-4.5" r="9"/><circle r="18" stroke-width="1"/><circle r="27" stroke-width="0.8"/></g></svg>
+      <div><h1>Understory</h1><p>a mycorrhizal sound forest</p></div>
+    </div>
+    <div class="seedbox">
+      <button class="seedcode" id="seedCode" title="Seed code. Click to copy a link to this seed.">······</button>
+      <div class="seedtxt"><b id="seedName">—</b><small id="seedMeta">—</small></div>
+    </div>
+    <div class="transport">
+      <button class="btn grow" id="grow" aria-pressed="false" title="Start or pause the forest (Space)">Grow</button>
+      <button class="btn" id="newSeed" title="Plant a completely new forest: new tuning, materials, species, climate and room (N)">New seed</button>
+      <button class="btn rec" id="rec" aria-pressed="false" title="Record the stereo master into the archive (R)"><i></i><span id="recTxt">Record</span></button>
+      <span class="rtime" id="rtime">00:00.0</span>
+    </div>
+    <div class="outbox">
+      <canvas id="meter" width="220" height="52" aria-label="Output level"></canvas>
+      <button class="btn small" id="modeBtn" title="Headphones: binaural 3D with interaural delay and head shadow. Speakers: stereo panning with distance and depth (H)">Headphones 3D</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage" id="stage" data-tool="listen">
+      <canvas id="scene"></canvas>
+      <div class="tools" id="tools" role="toolbar" aria-label="Tools"></div>
+      <div class="hud" id="hud"></div>
+      <div class="log" id="log" aria-live="polite"></div>
+      <div class="viewctl">
+        <button class="btn small" id="followBtn" aria-pressed="true" title="Turn the view with your head, so left on screen is left in your ears">Follow head</button>
+        <button class="btn small" id="zoomOut" title="Zoom out">−</button>
+        <button class="btn small" id="zoomIn" title="Zoom in">+</button>
+      </div>
+      <div class="hint" id="hint">
+        <h2 id="hintTitle">A forest is waiting</h2>
+        <p id="hintText">Every seed is a new forest: its own tuning, sounds, fungi, weather and room. You stand in the middle and hear everything around you.</p>
+        <p>Headphones give the full 3D image.</p>
+        <button class="btn grow" id="hintGrow">Grow</button>
+      </div>
+      <div class="drop" id="drop" hidden>Drop to sow into the soil</div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <h2>Ecosystem</h2>
+        <p class="sub">How the forest lives. It runs on its own; these set its temperament.</p>
+        <div class="sliders" id="ecoS"></div>
+        <div class="row">
+          <button class="btn small" id="rainBtn" title="Call a rain shower">Call rain</button>
+          <button class="btn small" id="deerBtn" title="Send deer to browse a tree: it raises an alarm">Send deer</button>
+          <button class="btn small" id="sowBtn" title="Load your own recording into the soil. Fruit and bark voices will grow from it.">Sow a sound</button>
+          <input type="file" id="sowFile" accept="audio/*" hidden>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Space</h2>
+        <p class="sub">You are the listener in the centre. Drag on the forest floor to turn, drag your head to walk, or let it drift.</p>
+        <div class="sliders" id="spaceS"></div>
+        <div class="row">
+          <button class="btn small" id="driftBtn" aria-pressed="false" title="Let the listener wander toward whatever is happening">Drift</button>
+          <button class="btn small" id="centreBtn" title="Walk back to the centre">Back to centre</button>
+          <button class="btn small" id="calmBtn" title="Clear reverb tails and fade back in">Calm</button>
+        </div>
+      </section>
+      <section class="panel layers">
+        <h2>Layers</h2>
+        <p class="sub">Mix the five voices of the forest.</p>
+        <div class="sliders" id="layerS"></div>
+      </section>
+      <section class="panel">
+        <h2>Archive</h2>
+        <p class="sub">Recordings are 24-bit stereo WAV, kept in this browser. Save the ones you want to keep.</p>
+        <div class="player">
+          <canvas id="pwave"></canvas>
+          <div class="ptrans">
+            <button class="btn small" id="pPlay" disabled>Play</button>
+            <button class="btn small" id="pSave" disabled>Save WAV</button>
+            <span class="ptime" id="pTime">no take selected</span>
+          </div>
+        </div>
+        <div class="lib" id="lib"></div>
+        <div class="status" id="status"></div>
+        <div class="foot"><button class="btn small" id="saveAll" hidden>Save all as zip</button></div>
+      </section>
+      <section class="panel notes">
+        <h2>How it lives</h2>
+        <p><b>Trees</b> hum in the seed's tuning, louder by day. They make sugar in the light; the hub tree is the one with the most fungal links.</p>
+        <p><b>Hyphae</b> grow from their tips, branch, fuse with themselves into loops and bond to roots. You hear the growing tips ticking near you.</p>
+        <p><b>Sugar</b> flows from fed trees to shaded ones by pressure. Cords that carry it thicken; unused ones wither. A warm tone travels along the cords when it moves.</p>
+        <p><b>Signals</b> are spike trains that travel along hyphae at walking pace. Nodes ring when they fire and pass the signal on. A wounded tree sends a faster, harsher alarm; trees that hear it harden their sound.</p>
+        <p><b>Fruit</b> appears after rain when a fungus has stored enough. Its spores ride the wind around you and may land and grow into a new, mutated individual.</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<script src="js/sim.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

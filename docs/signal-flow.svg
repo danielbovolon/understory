@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12">
+  <rect width="960" height="420" fill="#0c0f0b"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#8e9786"/></marker></defs>
+  <g fill="none" stroke="#d9cfa8" stroke-opacity="0.12">
+    <circle cx="880" cy="70" r="30"/><circle cx="880" cy="40" r="30"/><circle cx="906" cy="55" r="30"/><circle cx="906" cy="85" r="30"/><circle cx="880" cy="100" r="30"/><circle cx="854" cy="85" r="30"/><circle cx="854" cy="55" r="30"/>
+  </g>
+  <text x="24" y="34" fill="#e6e1d1" font-size="20" font-family="Georgia, serif" letter-spacing="2">UNDERSTORY · signal flow</text>
+  <!-- seed -->
+  <rect x="24" y="64" width="190" height="150" fill="#141912" stroke="#e7b860"/>
+  <text x="38" y="88" fill="#e7b860" font-weight="bold">SEED</text>
+  <text x="38" y="110" fill="#e6e1d1">tuning + root</text>
+  <text x="38" y="128" fill="#e6e1d1">2 soil materials</text>
+  <text x="38" y="146" fill="#e6e1d1">1–3 fungal genomes</text>
+  <text x="38" y="164" fill="#e6e1d1">tree partials</text>
+  <text x="38" y="182" fill="#e6e1d1">climate</text>
+  <text x="38" y="200" fill="#e6e1d1">reverb room</text>
+  <!-- ecology -->
+  <rect x="254" y="64" width="250" height="250" fill="#141912" stroke="#9fe6c8"/>
+  <text x="268" y="88" fill="#9fe6c8" font-weight="bold">ECOLOGY  (js/sim.js)</text>
+  <text x="268" y="112" fill="#e6e1d1">trees: light → sugar</text>
+  <text x="268" y="132" fill="#e6e1d1">hyphal tips: grow, branch,</text>
+  <text x="268" y="148" fill="#e6e1d1">   fuse, bond to roots</text>
+  <text x="268" y="168" fill="#e6e1d1">flow: pressure → sugar,</text>
+  <text x="268" y="184" fill="#e6e1d1">   use → thicker cords</text>
+  <text x="268" y="204" fill="#e6e1d1">nodes: spike trains travel</text>
+  <text x="268" y="224" fill="#e6e1d1">alarms → tree defence</text>
+  <text x="268" y="244" fill="#e6e1d1">fruit → spores → mutation</text>
+  <text x="268" y="264" fill="#e6e1d1">rain · wind · day/night</text>
+  <text x="268" y="296" fill="#8e9786">you: walk · touch · wound ·</text>
+  <text x="268" y="310" fill="#8e9786">     plant · sow · cut</text>
+  <!-- voices -->
+  <rect x="544" y="64" width="170" height="150" fill="#141912" stroke="#e6e1d1"/>
+  <text x="558" y="88" fill="#e6e1d1" font-weight="bold">56 VOICES</text>
+  <text x="558" y="110" fill="#e6e1d1">modal  · node rings</text>
+  <text x="558" y="128" fill="#e6e1d1">drone  · trees, sugar</text>
+  <text x="558" y="146" fill="#e6e1d1">grain  · fruit, bark</text>
+  <text x="558" y="164" fill="#e6e1d1">tick   · tips, spores</text>
+  <text x="558" y="182" fill="#e6e1d1">chirp  · spike words</text>
+  <text x="558" y="200" fill="#e6e1d1">noise  · rain, wind, soil</text>
+  <!-- spatial -->
+  <rect x="544" y="240" width="170" height="130" fill="#141912" stroke="#9fe6c8"/>
+  <text x="558" y="264" fill="#9fe6c8" font-weight="bold">3D PER VOICE</text>
+  <text x="558" y="286" fill="#e6e1d1">delay per ear</text>
+  <text x="558" y="302" fill="#e6e1d1">  → ITD + doppler</text>
+  <text x="558" y="320" fill="#e6e1d1">head shadow, rear,</text>
+  <text x="558" y="336" fill="#e6e1d1">below, air absorption</text>
+  <text x="558" y="354" fill="#e6e1d1">distance → reverb send</text>
+  <!-- master -->
+  <rect x="754" y="160" width="182" height="210" fill="#141912" stroke="#ff6f5c"/>
+  <text x="768" y="184" fill="#ff6f5c" font-weight="bold">MASTER</text>
+  <text x="768" y="206" fill="#e6e1d1">5 layer faders</text>
+  <text x="768" y="226" fill="#e6e1d1">8-line FDN reverb</text>
+  <text x="768" y="246" fill="#e6e1d1">DC block</text>
+  <text x="768" y="266" fill="#e6e1d1">look-ahead limiter</text>
+  <text x="768" y="282" fill="#e6e1d1">  −1 dBFS</text>
+  <text x="768" y="306" fill="#e6e1d1">→ output</text>
+  <text x="768" y="326" fill="#e7b860">→ recorder: 24-bit</text>
+  <text x="768" y="342" fill="#e7b860">  WAV → archive</text>
+  <text x="768" y="358" fill="#8e9786">  (Soil feeds it back)</text>
+  <g stroke="#8e9786" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M214 139 H250"/><path d="M504 139 H540"/><path d="M629 214 V236"/><path d="M714 305 H750"/>
+    <path d="M845 370 V396 H120 V218"/>
+  </g>
+  <text x="300" y="410" fill="#8e9786">a take can be fed back into the soil as material for new voices</text>
+</svg>
