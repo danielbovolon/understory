@@ -38,6 +38,7 @@ npm run build      # → dist/understory.html (self-contained) and dist/artifact
 ```bash
 npm test           # engine stress test: random, dense and extreme voices; checks NaN, ceiling, CPU
 npm run test:sim   # succession run headless for an hour per seed, printed every 5 minutes
+npm run test:events   # every happening in every season, the crowding cap, and a save/restore round trip
 npm run test:mix   # ecology + engine together offline; loudness per 10 s (add a layer index 0–4 to solo it)
 ```
 
@@ -76,7 +77,9 @@ The biology behind each part, with sources, is in [docs/how-it-lives.md](docs/ho
 | **Alarms** | A tree browsed by deer, or wounded by you, sends faster and harsher trains. Trees that receive them raise their defence. | The receiving trees grow rougher, brighter and start to tremble, then calm down over time. |
 | **Fruit & spores** | Mushrooms are built from the hosts' recent sugar (Högberg 2001) and form at the colony edge after rain, most in autumn. Spores are flicked off by Buller's drop, lifted by the cap's evaporative updraft (Dressaire 2016) and carried on the wind. They can germinate into new, mutated individuals. | A granular bloom; tiny launch clicks; spores passing around you with doppler. |
 | **Decomposers** | They break litter down into nutrient patches. Some glow in darkness under circadian control (Oliveira 2015). | A faint shimmer over the litter at night. |
-| **Weather** | The real day and night, temperature, rain showers, drying soil, and wind that turns and gusts. | Rain falls around you, the wind circles, and the soil hums and crackles beneath you. |
+| **Weather** | The real day and night, temperature, rain or snow, drying soil, and wind that turns and gusts. | Rain falls around you, the wind circles, and the soil hums and crackles beneath you. |
+| **Birds & animals** | Songbirds arrive once there is a canopy and sing most at dawn. Owls call at night. Woodpeckers drum on standing dead trunks. In summer there are crickets; in the autumn rut, red deer roar. | A sparse layer of calls placed in the treetops around you. |
+| **Seasons** | Winter brings snow, whose cover absorbs sound, and frost cracks in hard frost. Spring has the strongest dawn chorus and a flush of growth. Summer has crickets, fireflies and distant thunder. Autumn has falling leaves, mushrooms and the red deer rut. | The forest sounds different in every season, even with the same seed. |
 
 ### Seeds
 Every seed is a different forest, and each one sets all of the following:
@@ -91,10 +94,52 @@ Every seed is a different forest, and each one sets all of the following:
 
 The seeds lie on the centres of the **flower of life**, which also lies on the forest floor. The seed code is in the URL hash (`#LARCH9`), so a link reopens the same forest.
 
+### Happenings
+Six things that happen in real forests. The forest brings each of them on its own, more often in its season, and you can call any of them yourself. Each button shows a bar while its happening is running.
+
+| Happening | What it does |
+|---|---|
+| **Call rain / snow** | Wets the soil and boosts the fungi's electrical activity. Below freezing it falls as snow, and the snow cover makes the forest hushed and dry-sounding. |
+| **Send deer** | Deer browse a tree. It sends an alarm through the network, and the trees that receive it harden their sound. |
+| **Windstorm** | Trunks creak, branches break into litter, and spores are lifted high. A weakened tree may be thrown; its root plate tears open mineral soil, and a seedling comes up in the light gap. |
+| **Dry spell** | Ten minutes without rain. Thirsty trees click, water moves from deep roots to seedlings at night, and long-distance fungi with water-carrying cords keep trading while the others falter. |
+| **Nutcrackers / jays** | They harvest a seed-bearing tree and bury its seeds in caches. Forgotten caches sprout. The Swiss stone pine depends on nutcrackers; jays plant oak woods. |
+| **Squirrel** | Eats a mushroom and digs truffles. The spores pass through its gut and start new fungi near other trees (mycophagy). |
+
 ### Space
 - **Headphones 3D:** each ear reads every voice from its own delay line, at its distance to that ear divided by the speed of sound. Interaural time difference and doppler fall out of the geometry. Head shadow, darkening for sources behind and below, air absorption and a distance-dependent reverb send give direction and depth.
 - **Speakers stereo:** equal-power panning, with the same distance and depth cues.
-- **Distance** scales every distance you hear. **Autopan** turns your head continuously, so the whole field revolves around you. **Drift** lets the listener wander toward whatever is happening.
+- **Distance** scales every distance you hear. **Autopan** turns your head continuously, so the whole field revolves around you.
+- **Where you listen**, six options:
+  - **Drift** wanders slowly toward whatever is happening.
+  - **Ride along** travels with whatever moves through the forest: sugar, water, a spike train, a spore, a squirrel.
+  - **Under the soil** puts you among the hyphae. Everything above ground is muffled and dulled through the earth, and the soil's echo shrinks.
+  - **Into the canopy** lifts you 11 m up among birds and wind.
+  - **Back to centre** returns you to the ground at the centre.
+  - **Calm** clears the reverb tails.
+
+### Layers
+- **Six layers:** trees; signals & sugar; growth; fruit & spores; weather & soil; birds & animals.
+- **Level and shape.** Each layer has a level, and a ⋯ button opens two gentle nudges:
+  - Trees: register, tone
+  - Signals: pace, register
+  - Growth: density, tone
+  - Fruit: grain, register
+  - Weather: tone, width
+  - Birds: activity, distance
+- **Nudges are biases, not settings.** Pitches stay in the seed's tuning and the forest keeps choosing and mutating within them. Double-click a nudge to let the forest decide.
+- **Change** sets how restless the sound world is:
+  - Every 12–25 minutes the tonal centre leans toward a related key and every voice glides there over minutes.
+  - A slow timbre tide brightens and darkens the forest.
+  - Each fungus's voice mutates a little every few minutes.
+- **Crowding is capped:** at most ten foreground events from the forest itself plus a few animal calls sound at once, and spontaneous activity thins out when the forest is busy.
+
+### Forests
+Every forest you stay with for two minutes, or keep explicitly, is saved in this browser's IndexedDB with a thumbnail. The save holds the whole living state: every hypha, tree, fungus, seed and nutrient patch, along with your settings and nudges.
+- **Autosave** runs every 20 seconds and when you leave the page.
+- **Continue** opens a saved forest. Opening the page returns you to the forest you were last in.
+- **While you are away the forest waits for you**, but the sky moves on to the real hour.
+- Forests can be renamed and deleted.
 
 ### Tools on the forest floor
 | Key | Tool | Action |
@@ -106,7 +151,7 @@ The seeds lie on the centres of the **flower of life**, which also lies on the f
 | 5 | Sow spores | Click to start a new, mutated fungal individual |
 | 6 | Cut | Drag across hyphae to cut them; click a tree to fell it (it pours its sugar into the network as it dies) |
 
-There are also buttons for **Call rain**, **Send deer** and **Sow a sound**. Sow a sound loads your own recording into the soil, and fruit and bark voices then grow from it. You can also drop an audio file on the forest.
+**Sow a sound** in the Layers panel loads your own recording into the soil, and fruit and bark voices then grow from it. You can also drop an audio file on the forest.
 
 ### Archive
 - **Record** captures the limiter output as 24-bit stereo WAV into the archive, which lives in this browser's IndexedDB. Each take remembers the seed, the stage, the forest's age and its clock time.
@@ -151,6 +196,7 @@ tools/build-standalone.mjs single-file build → dist/
 tools/stress-test.mjs      offline engine stress test
 tools/sim-test.mjs         headless ecology run
 tools/mix-test.mjs         ecology + engine offline loudness check
+tools/events-test.mjs      happenings, seasons, crowding cap, save/restore
 tools/load.mjs             loads the browser sources into Node for the tests
 docs/how-it-lives.md       the biology and how it maps onto the system
 docs/signal-flow.svg       diagram

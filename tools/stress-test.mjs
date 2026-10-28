@@ -12,7 +12,7 @@ function run(label, cfg) {
   const send = (m) => p.port.onmessage({ data: m });
   const mat = new Float32Array(SR * 4); for (let i = 0; i < mat.length; i++) mat[i] = Math.sin(i * 0.03) * 0.5 + (R() - 0.5) * 0.4;
   send({ t: 'mat', slot: 0, data: mat }); send({ t: 'mat', slot: 1, data: mat });
-  send({ t: 'g', mode: cfg.mode, depth: cfg.depth, wet: cfg.wet, master: cfg.master, layers: [cfg.lay, cfg.lay, cfg.lay, cfg.lay, cfg.lay], rev: { size: cfg.size, rt: cfg.rt, damp: 0.5, pre: 0.04 } });
+  send({ t: 'g', mode: cfg.mode, depth: cfg.depth, wet: cfg.wet, master: cfg.master, layers: [cfg.lay, cfg.lay, cfg.lay, cfg.lay, cfg.lay, cfg.lay], under: cfg.under || 0, absorb: cfg.absorb || 0, rev: { size: cfg.size, rt: cfg.rt, damp: 0.5, pre: 0.04 } });
   send({ t: 'fade', to: 1, time: 0.01 });
   let id = 1; const live = new Set();
   const out = [new Float32Array(128), new Float32Array(128)];
@@ -25,7 +25,7 @@ function run(label, cfg) {
       for (let s = 0; s < spawns; s++) {
         const k = (R() * 6) | 0; const ex = cfg.extreme;
         const P = {
-          gain: ex ? 2 : 0.2 + R() * 0.4, layer: (R() * 5) | 0, att: ex ? 0.001 : 0.01 + R(), rel: ex ? 0.005 : 0.1 + R() * 2,
+          gain: ex ? 2 : 0.2 + R() * 0.4, layer: (R() * 6) | 0, att: ex ? 0.001 : 0.01 + R(), rel: ex ? 0.005 : 0.1 + R() * 2,
           dur: k === 1 || k === 5 ? (R() < 0.5 ? 0 : 1 + R() * 4) : 0, send: ex ? 2 : R(), x: (R() - 0.5) * 60, y: (R() - 0.5) * 60, z: (R() - 0.5) * 8,
           f: ex ? (R() < 0.5 ? 5 : 30000) : 40 + R() * 2000, r: [1, 2.1 + R(), 3.7, 6.1], d: ex ? [20, 20, 20, 20] : [0.5, 0.3, 0.2, 0.1], a: [1, 0.6, 0.4, 0.2],
           hard: R(), breath: ex ? 1 : R() * 0.3, bq: ex ? 100 : 2 + R() * 10, bright: ex ? 1 : R(), inh: ex ? 1 : R() * 0.5, det: 8,
@@ -62,6 +62,7 @@ let all = true;
 all &= run('binaural, moderate', { mode: 0, depth: 1, wet: 0.35, master: 0.8, lay: 1, size: 1, rt: 3, dense: false, extreme: false });
 all &= run('speakers, dense', { mode: 1, depth: 0.5, wet: 0.6, master: 1, lay: 1.5, size: 2, rt: 8, dense: true, extreme: false });
 all &= run('extreme params, dense', { mode: 0, depth: 2.5, wet: 1.5, master: 1.5, lay: 2, size: 2.6, rt: 14, dense: true, extreme: true });
+all &= run('underground, snow', { mode: 0, depth: 1, wet: 0.5, master: 1, lay: 1, size: 1.5, rt: 5, dense: true, extreme: false, under: 1, absorb: 1 });
 all &= run('all zero', { mode: 0, depth: 0.2, wet: 0, master: 0, lay: 0, size: 0.3, rt: 0.3, dense: false, extreme: false });
 console.log(all ? '\nALL PASS' : '\nSOME FAILED');
 process.exit(all ? 0 : 1);

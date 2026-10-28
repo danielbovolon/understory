@@ -60,30 +60,43 @@
         <div class="sliders" id="ecoS"></div>
         <p class="note" id="timeNote">Real time: one forest day lasts a day.</p>
         <div class="seasonrow"><label for="season">Season</label>
-          <select id="season" title="The sky follows your real clock and date. Choose a season to hear another time of year: day length, temperature, leaf fall and fruiting change.">
+          <select id="season" title="The sky follows your real clock and date. Choose a season to hear another time of year: day length, temperature, snow, birds, leaf fall and fruiting change.">
             <option value="now">Now (today's date)</option><option value="spring">Spring · May</option><option value="summer">Summer · July</option><option value="autumn">Autumn · October</option><option value="winter">Winter · January</option>
           </select></div>
-        <div class="row">
-          <button class="btn small" id="rainBtn" title="Call a rain shower">Call rain</button>
-          <button class="btn small" id="deerBtn" title="Send deer to browse a tree: it raises an alarm">Send deer</button>
-          <button class="btn small" id="sowBtn" title="Load your own recording into the soil. Fruit and bark voices will grow from it.">Sow a sound</button>
-          <input type="file" id="sowFile" accept="audio/*" hidden>
-        </div>
+        <h3>Happenings</h3>
+        <p class="sub">Things that happen in a real forest. The forest also brings them on its own, more in their season.</p>
+        <div class="grid6" id="happen"></div>
       </section>
       <section class="panel">
         <h2>Space</h2>
-        <p class="sub">You are the listener in the centre. Drag on the forest floor to turn, drag your head to walk, or let it drift.</p>
+        <p class="sub">You are the listener. Drag on the forest floor to turn, drag your head to walk, or let the forest carry you.</p>
         <div class="sliders" id="spaceS"></div>
-        <div class="row">
-          <button class="btn small" id="driftBtn" aria-pressed="false" title="Let the listener wander toward whatever is happening">Drift</button>
-          <button class="btn small" id="centreBtn" title="Walk back to the centre">Back to centre</button>
-          <button class="btn small" id="calmBtn" title="Clear reverb tails and fade back in">Calm</button>
+        <h3>Where you listen</h3>
+        <div class="grid6">
+          <button class="btn opt" id="driftBtn" aria-pressed="false" title="Wander slowly toward whatever is happening"><b>Drift</b><small>wander toward life</small></button>
+          <button class="btn opt" id="rideBtn" aria-pressed="false" title="Travel with whatever moves through the network: sugar, water, signals or animals"><b>Ride along</b><small>travel with the flow</small></button>
+          <button class="btn opt" id="underBtn" aria-pressed="false" title="Sink into the soil among the hyphae. The world above is muffled through the earth."><b>Under the soil</b><small>the mycelium's ear</small></button>
+          <button class="btn opt" id="canopyBtn" aria-pressed="false" title="Climb into the canopy: birds and wind close, the soil far below"><b>Into the canopy</b><small>among birds and wind</small></button>
+          <button class="btn opt" id="centreBtn" title="Walk back to the centre of the flower of life, on the ground"><b>Back to centre</b><small>to the first circle</small></button>
+          <button class="btn opt" id="calmBtn" title="Clear reverb tails and fade gently back in"><b>Calm</b><small>clear the air</small></button>
         </div>
       </section>
       <section class="panel layers">
         <h2>Layers</h2>
-        <p class="sub">Mix the five voices of the forest.</p>
-        <div class="sliders" id="layerS"></div>
+        <p class="sub">Six voices of the forest. You can lean on each one a little; the forest keeps mutating around your choices.</p>
+        <div class="sliders" id="changeS"></div>
+        <div id="layerS"></div>
+        <div class="row">
+          <button class="btn small" id="sowBtn" title="Load your own recording into the soil. Fruit and bark voices will grow from it.">Sow a sound</button>
+          <button class="btn small" id="resetShape" title="Return every layer to the forest's own character">Let the forest decide</button>
+          <input type="file" id="sowFile" accept="audio/*" hidden>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Forests</h2>
+        <p class="sub" id="forestNote">Every forest you stay with for two minutes is kept here, in this browser. Come back and continue it any time.</p>
+        <div class="forests" id="forestList"></div>
+        <div class="row"><button class="btn small" id="keepBtn" title="Keep this forest now">Keep this forest</button></div>
       </section>
       <section class="panel">
         <h2>Archive</h2>
@@ -107,6 +120,8 @@
         <p><b>The market.</b> Fungi forage nutrients from patches in the soil and trade them to their trees. Trees pay carbon in proportion to what each partner delivers, and send more below ground when they are short of nutrients.</p>
         <p><b>Flow.</b> Sugar moves between trees by pressure through shared cords; cords that carry it thicken, unused ones wither. At night, deep-rooted trees lift water and pass it through the hyphae to seedlings.</p>
         <p><b>Signals.</b> Spike trains travel along hyphae; activity rises after rain and in warmth. Wounded or browsed trees send alarms. Thirsty trees click.</p>
+        <p><b>Animals.</b> Songbirds need a canopy and sing most at dawn; owls call at night; woodpeckers drum on dead trunks. Nutcrackers and jays bury seeds and forget some; squirrels eat fungi and plant their spores elsewhere.</p>
+        <p><b>Seasons.</b> Winter snow absorbs sound and hard frost cracks trunks; spring brings the dawn chorus and a flush of growth; summer nights have crickets, fireflies and distant thunder; autumn has falling leaves, mushrooms and the red deer rut.</p>
         <p><b>Fruit.</b> Mushrooms are built from the trees' recent sugar. They appear at the colony edge after rain, flick their spores off with tiny clicks, and some decomposers glow at night.</p>
       </section>
     </aside>

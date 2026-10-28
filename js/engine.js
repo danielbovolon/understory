@@ -23,7 +23,7 @@ function num(v, d) { return (typeof v === 'number' && isFinite(v)) ? v : d; }
 function arr4(a, d) { const o = new Float32Array(4); for (let i = 0; i < 4; i++) o[i] = (a && isFinite(a[i])) ? a[i] : d[i]; return o; }
 
 const MAT = [new Float32Array(SR), new Float32Array(SR)];
-const LAYERS = new Float32Array([1, 1, 1, 1, 1]);
+const LAYERS = new Float32Array([1, 1, 1, 1, 1, 1]);
 
 // ---------------------------------------------------------------- generators
 class Voice {
@@ -51,7 +51,7 @@ class Voice {
   start(id, k, p) {
     this.reset();
     this.on = true; this.id = id; this.k = k; this.gate = 1;
-    this.gain = num(p.gain, 0.3); this.layer = clamp(num(p.layer, 0) | 0, 0, 4);
+    this.gain = num(p.gain, 0.3); this.layer = clamp(num(p.layer, 0) | 0, 0, 5);
     this.att = Math.max(0.001, num(p.att, 0.01)); this.rel = Math.max(0.005, num(p.rel, 0.4));
     this.dur = num(p.dur, 0); this.send = num(p.send, 0.5);
     this.tx = this.px = num(p.x, 0); this.ty = this.py = num(p.y, 0); this.tz = this.pz = num(p.z, 0);
@@ -383,6 +383,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     this.map = new Map();
     this.rev = new FDN();
     this.lis = { x: 0, y: 0, z: 1.6, yaw: 0, tx: 0, ty: 0, tz: 1.6, tyaw: 0 };
+    this.under = 0; this.underT = 0; this.absorb = 0; this.absorbT = 0;
     this.mode = 0; this.depth = 1; this.wet = 0.35; this.master = 0.8; this.fade = 0; this.fadeT = 1; this.fadeRate = 1 / (1.5 * SR);
     this.revInL = new Float32Array(BLK); this.revInR = new Float32Array(BLK);
     this.revOL = new Float32Array(BLK); this.revOR = new Float32Array(BLK);
@@ -423,7 +424,9 @@ class UnderstoryEngine extends AudioWorkletProcessor {
         if (m.depth !== undefined) this.depth = clamp(num(m.depth, 1), 0.2, 2.5);
         if (m.wet !== undefined) this.wet = clamp(num(m.wet, 0.3), 0, 1.5);
         if (m.master !== undefined) this.master = clamp(num(m.master, 0.8), 0, 1.5);
-        if (m.layers) for (let i = 0; i < 5; i++) LAYERS[i] = clamp(num(m.layers[i], 1), 0, 2);
+        if (m.under !== undefined) this.underT = clamp(num(m.under, 0), 0, 1);
+        if (m.absorb !== undefined) this.absorbT = clamp(num(m.absorb, 0), 0, 1);
+        if (m.layers) for (let i = 0; i < 6; i++) LAYERS[i] = clamp(num(m.layers[i], 1), 0, 2);
         if (m.rev) this.rev.configure(num(m.rev.size, 1), num(m.rev.rt, 3), num(m.rev.damp, 0.5), num(m.rev.pre, 0.03));
         break;
       }
@@ -456,6 +459,9 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     let dy = l.tyaw - l.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); l.yaw += dy * lk;
     const cy = Math.cos(l.yaw), sy = Math.sin(l.yaw);
     const depth = this.depth, bin = this.mode === 0;
+    // listener underground: the world above is muffled through soil; snow cover absorbs highs and reverb
+    this.under += (this.underT - this.under) * 0.01; this.absorb += (this.absorbT - this.absorb) * 0.004;
+    const un = this.under, ab = this.absorb;
     for (const v of this.voices) {
       if (!v.on) continue;
       v.render(n);
@@ -476,9 +482,10 @@ class UnderstoryEngine extends AudioWorkletProcessor {
       const lat = clamp(ex / d, -1, 1), back = Math.max(0, -ey / d), below = Math.max(0, -ez / d);
       const dist = Math.min(d, 55);
       let dLt, dRt, gLt, gRt, fL, fR;
-      const g = Math.pow(1.2 / Math.max(1.2, dist), 0.9);
+      const aboveGround = v.pz > 0.05 ? 1 : 0;
+      const g = Math.pow(1.2 / Math.max(1.2, dist), 0.9) * (1 - 0.5 * un * aboveGround) * (1 + 0.6 * un * (1 - aboveGround));
       const air = 1 / (1 + dist / 35);
-      const tone = (1 - 0.45 * back) * (1 - 0.3 * below) * air;
+      const tone = (1 - 0.45 * back) * (1 - 0.3 * below) * air * (1 - 0.45 * ab) * (1 - 0.9 * un * aboveGround);
       if (bin) {
         const dl = Math.sqrt((ex + EAR) * (ex + EAR) + ey * ey + ez * ez), dr = Math.sqrt((ex - EAR) * (ex - EAR) + ey * ey + ez * ez);
         dLt = Math.min(dl, 55) / C_SOUND * SR; dRt = Math.min(dr, 55) / C_SOUND * SR;
@@ -492,8 +499,8 @@ class UnderstoryEngine extends AudioWorkletProcessor {
         fL = fR = 17000 * tone;
       }
       dLt = clamp(dLt, 1, BUF - 4); dRt = clamp(dRt, 1, BUF - 4);
-      const cLt = 1 - Math.exp(-TAU * Math.max(300, fL) / SR), cRt = 1 - Math.exp(-TAU * Math.max(300, fR) / SR);
-      const rvt = v.send * Math.pow(1.2 / Math.max(1.2, dist), 0.35) * (0.3 + 0.7 * Math.min(1, dist / 18));
+      const cLt = 1 - Math.exp(-TAU * Math.max(120, fL) / SR), cRt = 1 - Math.exp(-TAU * Math.max(120, fR) / SR);
+      const rvt = v.send * Math.pow(1.2 / Math.max(1.2, dist), 0.35) * (0.3 + 0.7 * Math.min(1, dist / 18)) * (1 - 0.55 * ab) * (1 - 0.6 * un);
       if (v.first) { v.dL = dLt; v.dR = dRt; v.gL = gLt; v.gR = gRt; v.cL = cLt; v.cR = cRt; v.rv = rvt; v.first = false; }
       const ddL = (dLt - v.dL) / n, ddR = (dRt - v.dR) / n, dgL = (gLt - v.gL) / n, dgR = (gRt - v.gR) / n;
       const dcL = (cLt - v.cL) / n, dcR = (cRt - v.cR) / n, drv = (rvt - v.rv) / n, de = (e1 - e0) / n;

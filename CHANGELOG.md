@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.0
+- Six happenings, each brought by the forest in its season or called by you: rain/snow, deer, windstorm (creaking, broken branches, windthrow and gap regeneration), dry spell (drought clicks, night water, water-carrying fungi favoured), nutcrackers/jays (seed caching; forgotten caches sprout), squirrel (mycophagy: eats fungi, plants spores).
+- Six ways to listen: Drift, Ride along (travel with sugar, water, signals, spores or animals), Under the soil (muffled world above), Into the canopy, Back to centre, Calm.
+- Six layers with levels and two nudges each, including a new Birds & animals layer; nudges bias the forest without fixing it. Change control for the slow drift of the sound world (tonal centre glides to related keys, timbre tide, somatic drift of fungal voices).
+- Birds and animals: dawn and dusk chorus that needs a canopy, owls, crickets, woodpeckers on standing dead wood, red deer rut; dead trees now stand as snags before they fall into litter.
+- Seasons: snow cover that absorbs highs and reverb, frost cracks, spring growth flush, summer thunder, crickets and fireflies, autumn leaf fall.
+- Forests are saved in the browser (autosave every 20 s and on leaving) and listed with thumbnails; continue any forest later; the page reopens the last one.
+- Crowding cap on foreground sounds; gentler alarms; fewer simultaneous pings and signals.
+- Larger slider and button touch targets on phones.
+
 ## 2.0.0
 - Two clocks: the sky follows the real local clock and date (sun for 46.5° N, day length, temperature, season); Time runs 0.25×–24×; Season control.
 - Every forest starts as bare soil and grows through seven stages over about an hour at 1×: seed bank germination on the flower of life, spore rain from upwind, early-stage then late-stage fungi, then decomposers.

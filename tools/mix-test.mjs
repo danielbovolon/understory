@@ -7,11 +7,11 @@ const p = new Proc(); const send = (m) => p.port.onmessage({ data: m });
 const seed = S.makeSeed(code);
 const live = new Set(); let nid = 1; const moves = [];
 const audio = { ready: true, spawn(k, q) { const id = nid++; live.add(id); send({ t: 'spawn', id, k, p: q }); return id; }, set(id, q) { if (live.has(id)) send({ t: 'set', id, p: q }); }, rel(id, r) { if (live.has(id)) send({ t: 'rel', id, r }); }, alive(id) { return live.has(id); }, move(id, x, y, z) { moves.push(id, x, y, z); } };
-const lay = [1, 1, 1, 1, 0.8]; if (layerSolo !== undefined && layerSolo !== '-') for (let i = 0; i < 5; i++) lay[i] = i == layerSolo ? 1 : 0;
+const lay = [1, 1, 1, 1, 0.8, 0.9]; if (layerSolo !== undefined && layerSolo !== '-') for (let i = 0; i < 6; i++) lay[i] = i == layerSolo ? 1 : 0;
 send({ t: 'mat', slot: 0, data: S.makeMaterial(seed, SR) }); send({ t: 'mat', slot: 1, data: S.makeMaterial(seed, SR) });
 const rv = seed.rev; send({ t: 'g', mode: 0, depth: 1, wet: 0.45, master: 0.8, layers: lay, rev: { size: rv.size, rt: rv.rt, damp: rv.damp, pre: rv.pre } }); send({ t: 'fade', to: 1, time: 0.5 });
 const pre = +(process.argv[5] || 0);
-const w = new S.World(seed, audio, { log: () => { }, now: new Date(2026, 9, 15, 13, 0, 0) });
+const w = new S.World(seed, audio, { log: () => { }, now: new Date(2026, 4, 15, 6, 30, 0) });
 if (pre) { audio.ready = false; for (let i = 0; i < pre * 60 * 20; i++) w.step(0.05); audio.ready = true; console.log(`(grown silently for ${pre} min: ${w.trees.length} trees, mean size ${w.meanSize().toFixed(2)}, ${w.genets.size} fungi, ${w.edges.size} hyphae)`); }
 const out = [new Float32Array(128), new Float32Array(128)];
 let pk = 0, sq = 0, n = 0, gr = 1, maxv = 0; const rows = [];

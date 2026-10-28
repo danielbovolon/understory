@@ -112,6 +112,64 @@ Khait et al. (2023) recorded airborne ultrasonic clicks (20–100 kHz) from toma
 - **Thickening:** conductance grows with flow and decays without it. Cords that lead to a discovered nutrient patch also thicken, and cords of a trading fungus are maintained. This follows observations of cord-forming fungi (Bebber, Fricker, Boddy).
 - **Pruning:** hyphae that thin out below a threshold are pruned and become litter.
 
+## Happenings
+- **Windstorm.** Wind loads trees until branches break and weakened trees are thrown.
+  - A thrown tree's root plate tears up mineral soil, and the gap in the canopy lets light reach the floor.
+  - Gap regeneration is how many forests renew themselves.
+  - Here the storm adds litter, lifts spores from fruit bodies, may throw a stressed or old tree, exposes a mineral nutrient patch, and schedules a seedling in the gap.
+- **Dry spell.**
+  - Soil dries, so trees click more under drought (Khait et al. 2023).
+  - Deep-rooted trees pass water to seedlings through the hyphae at night (Querejeta et al. 2003).
+  - Fungi whose rhizomorphs carry water keep trading longest. The study found this for *Cortinarius*; here, long-distance exploration types get the advantage.
+- **Seed-caching birds.**
+  - The spotted nutcracker (*Nucifraga caryocatactes*) buries Swiss stone pine seeds in thousands of small caches. The caches it never recovers are the main way *Pinus cembra* regenerates.
+  - Eurasian jays do the same with acorns and spread oak woods.
+  - Forests named after conifers get nutcrackers; the others get jays.
+  - In the system a third of the caches are forgotten and sprout a few minutes later.
+- **Squirrels and mycophagy.**
+  - Squirrels and other small mammals eat mushrooms and dig up truffles (hypogeous fungi).
+  - The spores survive the gut and are deposited elsewhere in the droppings. Many truffle-forming ectomycorrhizal fungi, such as *Rhizopogon*, rely on this.
+  - The squirrel eats a fruit body if one is standing, digs near trees, disturbs a few hyphae, and leaves spores that may germinate a minute or two later.
+
+## Birds and animals
+- **Songbirds** need forest structure. Here they appear once the canopy has grown and sing in the treetops.
+  - The dawn chorus peaks in the hour or two after sunrise, with a smaller chorus at dusk.
+  - It is strongest in spring and quietest in winter, and is subdued in rain and storms.
+  - Each seed has its own three songbirds, each with a distinct phrase shape.
+- **Owls** call at night, most in autumn and winter, when tawny owls establish territories.
+- **Woodpeckers** drum on standing dead wood, most in late winter and spring.
+  - Dead trees now stand as snags for a while before they crumble into litter.
+  - That standing dead wood is habitat for beetles, birds and decomposers.
+- **Crickets** sing on warm summer nights, even over open ground.
+- **Red deer** roar at dusk and night during the autumn rut (September–October).
+- **Animal sounds are synthesised, not recorded,** and kept sparse. They have their own small share of the foreground.
+
+## Seasons
+- **Winter:**
+  - Below about 1.5 °C precipitation falls as snow.
+  - The snow cover builds up, melts in warmth and feeds the soil moisture.
+  - Fresh snow is highly sound-absorbent, so the cover dulls high frequencies, shortens and dries the reverb, and quietens the soil.
+  - In hard frost (below −4 °C at night) large trees can split with a loud frost crack, because the outer wood contracts faster than the core.
+- **Spring:** a flush of root and hyphal growth and the strongest dawn chorus.
+- **Summer:** crickets and fireflies on warm nights, distant thunder in summer rain, more dry spells.
+- **Autumn:** leaf and needle fall feeds the litter, mushrooms fruit most, nutcrackers and jays cache seeds, and red deer are in the rut.
+
+## Where you listen
+- **Under the soil.** Sound from above ground reaches you through the earth: strongly low-passed, quieter, with less reverb. The mycelium's own sounds are close.
+- **Into the canopy.** You listen 11 m up, where birds and wind are near and the soil is far below.
+- **Ride along.** You travel with packets of sugar or water, spike trains, spores or animals as they move through the forest.
+
+## The slow drift of the sound world
+This part is aesthetic, not biology. It keeps long listening from settling into a loop. The Change control sets how restless it is.
+- **Tonal centre:** every 12–25 minutes it leans toward a related key (a fourth, a fifth, a third or a step), and all voices glide there over minutes.
+- **Timbre tide:** a slow random walk brightens and darkens the trees and breathes the reverb.
+- **Somatic drift:** every few minutes each fungus's voice mutates a little.
+- **Nudges:** your nudges in the Layers panel are biases on top of this, and the forest keeps choosing within them.
+
+## Keeping the space uncrowded
+- The forest's own foreground events (signal trains, node rings, trades, clicks, effects) share ten places at once. Animals get a little room of their own.
+- When the forest is busy, spontaneous spiking and animal calls thin out instead of piling up.
+
 ## Sources
 - R. Agerer (2001), *Exploration types of ectomycorrhizae*, Mycorrhiza 11.
 - A. Adamatzky (2022), *Language of fungi derived from their electrical spiking activity*, Royal Society Open Science.
@@ -124,6 +182,8 @@ Khait et al. (2023) recorded airborne ultrasonic clicks (20–100 kHz) from toma
 - I. Khait et al. (2023), *Sounds emitted by plants under stress are airborne and informative*, Cell.
 - E. T. Kiers et al. (2011), *Reciprocal rewards stabilize cooperation in the mycorrhizal symbiosis*, Science.
 - T. Klein, R. T. W. Siegwolf, C. Körner (2016), *Belowground carbon trade among tall trees in a temperate forest*, Science.
+- H. Mattes (1982), *Die Lebensgemeinschaft von Tannenhäher und Arve* (nutcracker and Swiss stone pine), Eidg. Anstalt für das forstliche Versuchswesen, Bericht 241.
+- A. W. Claridge, T. W. May (1994), *Mycophagy among Australian mammals*, Australian Journal of Ecology 19.
 - A. G. Oliveira et al. (2015), *Circadian control sheds light on fungal bioluminescence*, Current Biology.
 - J. I. Querejeta, L. M. Egerton-Warburton, M. F. Allen (2003), *Direct nocturnal water transfer from oaks to their mycorrhizal symbionts during severe soil drying*, Oecologia.
 - S. W. Simard et al. (1997), *Net transfer of carbon between ectomycorrhizal tree species in the field*, Nature.

@@ -59,15 +59,18 @@ const audio = {
 };
 
 // ---------------------------------------------------------------- state
-const P = { time: 1, growth: 1, chatter: 1, bloom: 1, mutation: 1, moisture: 0.5, wind: 0.4, depth: 1, spin: 0, wet: 0.45, room: 0.5, master: 0.8, layers: [1, 1, 1, 1, 0.8] };
-const state = { season: 'now', running: false, everStarted: false, seed: null, mode: 0, follow: true, drift: false, tool: 'listen', matB: false, matBName: '', pregrow: false, walk: null, driftT: 0, recording: false };
+const P = { time: 1, growth: 1, chatter: 1, bloom: 1, mutation: 1, moisture: 0.5, wind: 0.4, change: 0.5, depth: 1, spin: 0, wet: 0.45, room: 0.5, master: 0.8, layers: [1, 1, 1, 1, 0.8, 0.9], char: CHAR_DEFAULT() };
+const P_DEFAULT = JSON.parse(JSON.stringify(P));
+const state = { height: 'ground', ride: false, rideObj: null, rideWait: 0, forestId: null, forestName: '', kept: false, season: 'now', running: false, everStarted: false, seed: null, mode: 0, follow: true, drift: false, tool: 'listen', matB: false, matBName: '', pregrow: false, walk: null, driftT: 0, recording: false };
 let world = null;
-const listener = { x: 0, y: 0, yaw: 0 };
+const listener = { x: 0, y: 0, z: 1.6, yaw: 0 };
+const HEIGHTS = { ground: 1.6, under: -0.7, canopy: 11 };
 
 function sendGlobals() {
   if (!audio.node || !state.seed) return;
   const rv = state.seed.rev;
-  audio.post({ t: 'g', mode: state.mode, depth: P.depth, wet: P.wet, master: P.master, layers: P.layers, rev: { size: rv.size * (0.55 + P.room * 0.9), rt: rv.rt * (0.35 + P.room * 1.3), damp: rv.damp, pre: rv.pre } });
+  const ab = world ? world.absorb : 0, tide = world ? world.tide : 0.5;
+  audio.post({ t: 'g', mode: state.mode, depth: P.depth, wet: P.wet * (0.85 + 0.3 * tide), master: P.master, layers: P.layers, under: state.height === 'under' ? 1 : 0, absorb: ab, rev: { size: rv.size * (0.55 + P.room * 0.9), rt: rv.rt * (0.35 + P.room * 1.3) * (1 - 0.45 * ab), damp: Math.min(1, rv.damp + 0.3 * ab), pre: rv.pre } });
 }
 function sendMaterials() {
   if (!audio.ctx || !audio.node || !state.seed) return;
@@ -76,23 +79,54 @@ function sendMaterials() {
   if (!state.matB) { const m2 = makeMaterial({ ...state.seed, matParams: { ...state.seed.matParams, seed: state.seed.matParams.seed ^ 0x5bd1e995, mix: 1 - state.seed.matParams.mix } }, audio.ctx.sampleRate); audio.post({ t: 'mat', slot: 1, data: m2 }, [m2.buffer]); }
 }
 
-async function loadSeed(code) {
-  const seed = makeSeed(code);
-  if (audio.node) { audio.post({ t: 'fade', to: 0, time: 0.5 }); await new Promise(r => setTimeout(r, 560)); audio.kill(); }
-  state.seed = seed;
-  // every forest starts as bare soil at the real time of day
-  world = new World(seed, audio, { log: logLine, params: P, now: new Date(), month: state.season === 'now' ? undefined : SEASON_MONTH[state.season] });
-  world.matB = state.matB;
-  listener.x = 0; listener.y = 0; world.listener = listener; state.walk = null;
-  $('log').innerHTML = ''; lastLog = {};
-  $('seedCode').textContent = code;
-  $('seedName').textContent = seed.name;
+function headerFor(seed) {
+  $('seedCode').textContent = seed.code;
+  $('seedName').textContent = state.forestName || seed.name;
   const ecm = seed.species.filter(s => s.guild === 'ecm').map(s => s.genus), sap = seed.species.filter(s => s.guild === 'sapro').map(s => s.genus);
   $('seedMeta').textContent = `${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · spores of ${ecm.join(', ')} and ${sap.join(', ')} in the air · room ${seed.rev.rt.toFixed(1)} s`;
-  try { history.replaceState(null, '', '#' + code); } catch (e) { }
-  if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
-  logLine(`Seed ${code}. Bare soil, ${MONTHS[world.month]}, ${fmtClock(world.clockH)}. ${seed.nTrees} seeds lie on the flower of life. Nothing has grown yet.`, 'stage');
+  try { history.replaceState(null, '', '#' + seed.code); } catch (e) { }
 }
+async function swapOut() { if (audio.node) { audio.post({ t: 'fade', to: 0, time: 0.5 }); await new Promise(r => setTimeout(r, 560)); audio.kill(); } }
+function seasonMonth() { return state.season === 'now' ? undefined : SEASON_MONTH[state.season]; }
+async function loadSeed(code) {
+  await saveForest();
+  const seed = makeSeed(code);
+  await swapOut();
+  state.seed = seed; state.forestId = 'f' + Date.now(); state.forestName = seed.name; state.kept = false;
+  // every forest starts as bare soil at the real time of day
+  world = new World(seed, audio, { log: logLine, params: P, char: P.char, now: new Date(), month: seasonMonth() });
+  world.matB = state.matB;
+  listener.x = 0; listener.y = 0; world.listener = listener; state.walk = null; state.rideObj = null;
+  $('log').innerHTML = ''; lastLog = {};
+  headerFor(seed);
+  if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
+  showHint('Bare soil', 'Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind. Over the next hour a forest will grow around you, in its own tuning, under the real sky of this hour.', 'Grow');
+  logLine(`Seed ${code}. Bare soil, ${MONTHS[world.month]}, ${fmtClock(world.clockH)}. ${seed.nTrees} seeds lie on the flower of life. Nothing has grown yet.`, 'stage');
+  renderForests();
+}
+async function continueForest(rec) {
+  if (rec.id !== state.forestId) await saveForest();
+  const seed = makeSeed(rec.code);
+  await swapOut();
+  state.seed = seed; state.forestId = rec.id; state.forestName = rec.name || seed.name; state.kept = true;
+  // the forest's temperament and the listener's nudges come back with it
+  if (rec.P) { for (const k in rec.P) if (k !== 'char' && k in P) P[k] = Array.isArray(rec.P[k]) ? rec.P[k].slice() : rec.P[k]; while (P.layers.length < 6) P.layers.push(0.9); }
+  if (rec.char) for (const l in P.char) Object.assign(P.char[l], rec.char[l] || {});
+  state.season = rec.season || 'now'; $('season').value = state.season;
+  world = new World(seed, audio, { log: logLine, params: P, char: P.char, now: new Date(), month: seasonMonth() });
+  try { world.loadState(rec.data); } catch (e) { setStatus('This forest could not be restored. A new one begins.'); return loadSeed(randomCode()); }
+  world.matB = state.matB;
+  Object.assign(listener, rec.listener || { x: 0, y: 0, yaw: 0 }); listener.z = HEIGHTS.ground; state.height = 'ground'; world.listener = listener;
+  state.walk = null; state.rideObj = null;
+  $('log').innerHTML = ''; lastLog = {};
+  headerFor(seed); refreshSliders(); timeNote(); updateOptionButtons();
+  if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
+  const away = rec.visited ? Math.round((Date.now() - rec.visited) / 60000) : 0;
+  showHint(`Welcome back to ${state.forestName}`, `${STAGES[world.stage][0]}, forest age ${fmtAge(world.t)}. It waited for you${away > 1 ? ` for ${away < 120 ? away + ' minutes' : Math.round(away / 60) + ' hours'}` : ''}; the sky has moved on to the real hour.`, 'Continue');
+  logLine(`${state.forestName} continues: ${STAGES[world.stage][0].toLowerCase()}, ${world.trees.length} trees, ${world.genets.size} fungi. ${MONTHS[world.month]}, ${fmtClock(world.clockH)}.`, 'stage');
+  renderForests();
+}
+function showHint(title, text, btn) { if (state.running) return; $('hintTitle').textContent = title; $('hintText').textContent = text; $('hintGrow').textContent = btn; $('hint').hidden = false; }
 
 async function setRunning(on) {
   if (on) {
@@ -109,7 +143,7 @@ async function setRunning(on) {
 }
 
 // ---------------------------------------------------------------- log + hud
-const LOGC = { stage: 'bone', water: 'hypha', bond: 'hypha', fuse: 'hypha', touch: 'hypha', carbon: 'spore', fruit: 'spore', spore: 'spore', alarm: 'alarm', clash: 'alarm', cut: 'alarm', weather: 'dim', death: 'dim', tree: 'geo' };
+const LOGC = { drift: 'bone', fauna: 'geo', stage: 'bone', water: 'hypha', bond: 'hypha', fuse: 'hypha', touch: 'hypha', carbon: 'spore', fruit: 'spore', spore: 'spore', alarm: 'alarm', clash: 'alarm', cut: 'alarm', weather: 'dim', death: 'dim', tree: 'geo' };
 let lastLog = {};
 function logLine(text, cat) {
   const now = performance.now();
@@ -133,14 +167,15 @@ function updateHud() {
   const wdeg = ((w.windDir * 180 / Math.PI) % 360 + 360) % 360; const wn = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(wdeg / 45) % 8];
   const st = STAGES[w.stage];
   $('hud').innerHTML = `<span class="clock">${fmtClock(w.clockH)}</span>
-  <span>${MONTHS[w.month]} · ${skyWord(w)} · sun ${fmtClock(w.sun.rise)}–${fmtClock(w.sun.set)}</span>
+  <span>${MONTHS[w.month]}, ${w.season()} · ${skyWord(w)} · sun ${fmtClock(w.sun.rise)}–${fmtClock(w.sun.set)}</span>
   <span><b>${w.temp.toFixed(0)} °C</b> · ${w.rainT > 0 ? '<b>raining</b> · ' : ''}soil moisture <b>${Math.round(Math.min(1, w.moist) * 100)}%</b></span>
-  <span>wind <b>${(w.windStr * 3).toFixed(1)} m/s</b> from ${wn}</span>
+  <span>wind <b>${(w.windStr * 3).toFixed(1)} m/s</b> from ${wn}${w.stormT > 0 ? ' · <b>storm</b>' : ''}${w.dryT > 0 ? ' · <b>dry spell</b>' : ''}${w.snow > 0.03 ? ` · snow cover <b>${Math.round(w.snow * 100)}%</b>` : ''}</span>
   <span class="hudstage">${st[0]}</span>
   <span>forest age <b>${fmtAge(w.t)}</b></span>
   <span><b>${w.trees.length}</b> trees · <b>${w.genets.size}</b> fungi · <b>${w.edges.size}</b> hyphae · <b>${w.tips.length}</b> tips</span>
   <span><b>${w.signals.length}</b> signals · <b>${w.carbon.length + w.water.length}</b> in transit · <b>${w.fruits.length}</b> fruit · <b>${w.spores.length}</b> spores</span>
-  <span>voices <b>${audio.started ? audio.meter.nv : 0}</b>/56</span>`;
+  <span>${state.height === 'under' ? 'listening <b>under the soil</b> · ' : state.height === 'canopy' ? 'listening <b>in the canopy</b> · ' : ''}voices <b>${audio.started ? audio.meter.nv : 0}</b>/56</span>`;
+  updateHappenings();
 }
 function drawMeter() {
   const c = $('meter'), g = c.getContext('2d'); const W = c.width, H = c.height; g.clearRect(0, 0, W, H);
@@ -218,6 +253,11 @@ function draw(now) {
   const fc = flowerCenters(PETAL);
   fc.forEach((c, i) => { groundCircle(g, c[0], c[1], PETAL, 0, 64); g.strokeStyle = PAL.geo; g.globalAlpha = i < 7 ? 0.32 : 0.2; g.stroke(); });
   g.globalAlpha = 0.3; groundCircle(g, 0, 0, PETAL * 3, 0, 120); g.stroke(); groundCircle(g, 0, 0, PETAL * 3 + 0.6, 0, 120); g.stroke(); g.globalAlpha = 1;
+  // snow cover
+  if (w.snow > 0.02) { groundCircle(g, 0, 0, PLOT_R + 0.6, 0, 96); g.fillStyle = PAL.dark ? `rgba(225,232,240,${w.snow * 0.32})` : `rgba(255,255,255,${w.snow * 0.6})`; g.fill(); }
+  // listening from under the soil: the earth closes around you
+  const under = clamp01((1.6 - listener.z) / 2.3);
+  if (under > 0.02) { g.fillStyle = PAL.dark ? `rgba(48,34,20,${under * 0.45})` : `rgba(120,90,55,${under * 0.25})`; g.fillRect(0, 0, scene.w, scene.h); }
   // litter
   for (const l of w.litter) { groundCircle(g, l.x, l.y, 0.6 + l.a * 0.7, 0, 24); g.fillStyle = PAL.dark ? `rgba(120,90,50,${0.08 + l.a * 0.06})` : `rgba(110,80,40,${0.08 + l.a * 0.06})`; g.fill(); }
   // nutrient patches in the soil
@@ -266,6 +306,8 @@ function draw(now) {
   const spr = [];
   for (const t of w.trees) { const p = cam.proj(t.x, t.y, 0); if (p) spr.push([p[3], 'tree', t]); }
   for (const f of w.fruits) { const p = cam.proj(f.x, f.y, 0); if (p) spr.push([p[3], 'fruit', f]); }
+  for (const sn of w.snags) { const p = cam.proj(sn.x, sn.y, 0); if (p) spr.push([p[3], 'snag', sn]); }
+  for (const c of w.critters) { const p = cam.proj(c.x, c.y, c.z); if (p) spr.push([p[3], 'critter', c]); }
   for (const s of w.spores) { const p = cam.proj(s.x, s.y, s.z); if (p) spr.push([p[3], 'spore', s]); }
   { const p = cam.proj(listener.x, listener.y, 0); if (p) spr.push([p[3], 'me', listener]); }
   spr.sort((a, b) => b[0] - a[0]);
@@ -273,9 +315,14 @@ function draw(now) {
   for (const [, k, o] of spr) {
     if (k === 'tree') drawTree(g, o, w);
     else if (k === 'fruit') drawFruit(g, o, w);
+    else if (k === 'snag') drawSnag(g, o);
+    else if (k === 'critter') drawCritter(g, o, now);
     else if (k === 'spore') { const p = cam.proj(o.x, o.y, o.z), q = cam.proj(o.x, o.y, 0); if (!p) continue; if (q) { g.strokeStyle = PAL.spore; g.globalAlpha = 0.18; g.lineWidth = 1; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); g.globalAlpha = 1; } glowDot(g, p[0], p[1], Math.max(1.3, 0.07 * p[2]), PAL.spore, true); }
     else drawListener(g);
   }
+  // where animals call
+  for (const c of w.calls) { const p = cam.proj(c.x, c.y, c.z); if (!p) continue; const a = Math.min(1, c.t); const r = Math.max(4, 0.35 * p[2]) * (1.6 - c.t * 0.4); g.strokeStyle = PAL.bone; g.globalAlpha = a * 0.5; g.lineWidth = 1; g.beginPath(); g.arc(p[0], p[1], r, -2.4, -0.7); g.stroke(); g.beginPath(); g.arc(p[0], p[1], r * 1.6, -2.3, -0.8); g.stroke(); g.globalAlpha = 1; }
+  seasonParticles(g, w, now);
   // wind motes
   const wx = Math.sin(w.windDir) * w.windStr * 3, wy = Math.cos(w.windDir) * w.windStr * 3;
   if (scene.motes.length < 46) for (let i = 0; i < 46; i++) scene.motes.push({ x: listener.x + (Math.random() - 0.5) * 40, y: listener.y + (Math.random() - 0.5) * 40, z: 1 + Math.random() * 6 });
@@ -288,7 +335,10 @@ function draw(now) {
   }
   g.globalAlpha = 1;
   // rain streaks
-  if (w.rainT > 0) {
+  if (w.rainT > 0 && w.snowing) {
+    g.fillStyle = PAL.dark ? 'rgba(235,240,250,0.7)' : 'rgba(150,160,180,0.7)';
+    for (let i = 0; i < 110; i++) { const x = (i * 97.3 + now * 0.012 * (1 + (i % 5) * 0.2) + Math.sin(now / 900 + i) * 12) % scene.w, y = (i * 53.7 + now * 0.03 * (1 + (i % 3) * 0.3)) % scene.h; g.beginPath(); g.arc(x, y, 1 + (i % 3) * 0.5, 0, TAU); g.fill(); }
+  } else if (w.rainT > 0) {
     g.strokeStyle = PAL.dark ? 'rgba(180,200,230,0.18)' : 'rgba(40,60,90,0.18)';
     g.beginPath(); for (let i = 0; i < 90; i++) { const x = Math.random() * scene.w, y = Math.random() * scene.h; g.moveTo(x, y); g.lineTo(x - 2, y + 9); } g.stroke();
   }
@@ -301,20 +351,22 @@ function draw(now) {
 }
 function drawTree(g, t, w) {
   const h = 0.3 + t.size * 3.6, rc = 0.2 + t.size * 1.15;
-  const pg = cam.proj(t.x, t.y, 0), pt = cam.proj(t.x, t.y, h); if (!pg || !pt) return;
+  const sw = Math.sin(performance.now() / (650 + t.id * 37) + t.id) * w.windStr * 0.22 * t.size * (w.stormT > 0 ? 2.2 : 1);
+  const tx = t.x + Math.sin(w.windDir) * sw, ty = t.y + Math.cos(w.windDir) * sw;
+  const pg = cam.proj(t.x, t.y, 0), pt = cam.proj(tx, ty, h); if (!pg || !pt) return;
   // roots zone and rings
   for (let i = 1; i <= Math.min(3, 1 + Math.floor(t.size * 2.5)); i++) { groundCircle(g, t.x, t.y, Math.max(0.08, t.size * 0.32 * i), 0, 28); g.strokeStyle = kinCol(t, 0.5 - i * 0.1); g.lineWidth = 1; g.stroke(); }
   if (t.hub) { groundCircle(g, t.x, t.y, 1.35, 0, 40); g.strokeStyle = PAL.spore; g.setLineDash([3, 3]); g.stroke(); g.setLineDash([]); }
   // trunk
   g.strokeStyle = kinCol(t, 0.75); g.lineWidth = Math.max(1, 0.12 * t.size * pg[2]); g.beginPath(); g.moveTo(pg[0], pg[1]); g.lineTo(pt[0], pt[1]); g.stroke();
   // canopy
-  groundCircle(g, t.x, t.y, rc, h, 36);
+  groundCircle(g, tx, ty, rc, h, 36);
   const sug = clamp01(t.sugar / 2);
   g.fillStyle = kinCol(t, 0.12 + sug * 0.22 + t.flash * 0.25); g.fill();
   g.strokeStyle = t.defense > 0.2 ? PAL.alarm : kinCol(t, 0.9); g.lineWidth = 1 + t.flash * 1.5 + t.defense; g.stroke();
-  if (t.stress > 0.1) { groundCircle(g, t.x, t.y, rc + 0.3 + Math.sin(performance.now() / 90) * 0.1, h, 36); g.strokeStyle = PAL.alarm; g.globalAlpha = t.stress; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1; }
+  if (t.stress > 0.1) { groundCircle(g, tx, ty, rc + 0.3 + Math.sin(performance.now() / 90) * 0.1, h, 36); g.strokeStyle = PAL.alarm; g.globalAlpha = t.stress; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1; }
   if (t.flash > 0.1 && PAL.dark) { g.globalCompositeOperation = 'lighter'; glowDot(g, pt[0], pt[1], Math.max(2, 0.2 * pt[2]), kinCol(t, t.flash * 0.6), true); g.globalCompositeOperation = 'source-over'; }
-  if (t.drought > 0.4) { groundCircle(g, t.x, t.y, rc + 0.2, h, 36); g.strokeStyle = PAL.spore; g.setLineDash([2, 4]); g.globalAlpha = t.drought; g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
+  if (t.drought > 0.4) { groundCircle(g, tx, ty, rc + 0.2, h, 36); g.strokeStyle = PAL.spore; g.setLineDash([2, 4]); g.globalAlpha = t.drought; g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
   g.fillStyle = PAL.dim; g.globalAlpha = 0.9; g.fillText((t.hub ? 'HUB · ' : '') + 'T' + t.id + (t.dying > 0 ? ' †' : ''), pt[0], pt[1] - Math.max(6, rc * pt[2] * 0.35) - 4); g.globalAlpha = 1;
 }
 function drawFruit(g, f, w) {
@@ -327,17 +379,63 @@ function drawFruit(g, f, w) {
   if (f.phase === 'spore') { g.strokeStyle = PAL.spore; g.lineWidth = 1; g.beginPath(); g.arc(pc[0], pc[1], r * (1.4 + Math.sin(performance.now() / 200) * 0.2), 0, TAU); g.stroke(); }
 }
 function drawListener(g) {
-  const L = listener; const pg = cam.proj(L.x, L.y, 0), ph = cam.proj(L.x, L.y, 1.6); if (!pg || !ph) return;
+  const L = listener; const pg = cam.proj(L.x, L.y, 0), ph = cam.proj(L.x, L.y, L.z); if (!pg || !ph) return;
   groundCircle(g, L.x, L.y, 3, 0, 48); g.strokeStyle = PAL.bone; g.globalAlpha = 0.18; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1;
   g.strokeStyle = PAL.bone; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(pg[0], pg[1]); g.lineTo(ph[0], ph[1]); g.stroke(); g.globalAlpha = 1;
   const r = Math.max(5, 0.32 * ph[2]);
   const fx = Math.sin(L.yaw), fy = Math.cos(L.yaw);
-  const pn = cam.proj(L.x + fx * 0.9, L.y + fy * 0.9, 1.6);
-  const pl = cam.proj(L.x - fy * 0.34, L.y + fx * 0.34, 1.6), pr = cam.proj(L.x + fy * 0.34, L.y - fx * 0.34, 1.6);
+  const pn = cam.proj(L.x + fx * 0.9, L.y + fy * 0.9, L.z);
+  const pl = cam.proj(L.x - fy * 0.34, L.y + fx * 0.34, L.z), pr = cam.proj(L.x + fy * 0.34, L.y - fx * 0.34, L.z);
   g.fillStyle = PAL.soil; g.strokeStyle = PAL.bone; g.lineWidth = 1.6; g.beginPath(); g.arc(ph[0], ph[1], r, 0, TAU); g.fill(); g.stroke();
   if (pn) { g.beginPath(); g.moveTo(ph[0], ph[1]); g.lineTo(pn[0], pn[1]); g.stroke(); }
   g.fillStyle = PAL.hypha; for (const q of [pl, pr]) if (q) { g.beginPath(); g.arc(q[0], q[1], Math.max(2, r * 0.3), 0, TAU); g.fill(); }
   scene.head = [ph[0], ph[1], r];
+}
+function drawSnag(g, sn) {
+  const h = 0.6 + sn.size * 2.6 * Math.max(0.3, 1 - sn.t / sn.life);
+  const pg = cam.proj(sn.x, sn.y, 0), pt = cam.proj(sn.x, sn.y, h); if (!pg || !pt) return;
+  g.strokeStyle = PAL.dim; g.globalAlpha = 0.85; g.lineWidth = Math.max(1, 0.11 * sn.size * pg[2]); g.beginPath(); g.moveTo(pg[0], pg[1]); g.lineTo(pt[0], pt[1]); g.stroke();
+  const pb = cam.proj(sn.x + 0.4, sn.y, h * 0.7); if (pb) { g.lineWidth = 1; g.beginPath(); g.moveTo((pg[0] + pt[0]) / 2 + (pt[0] - pg[0]) * 0.2, (pg[1] + pt[1]) / 2 + (pt[1] - pg[1]) * 0.2); g.lineTo(pb[0], pb[1]); g.stroke(); }
+  g.globalAlpha = 1;
+}
+function drawCritter(g, c, now) {
+  const p = cam.proj(c.x, c.y, c.z); if (!p) return; const s = Math.max(3, 0.25 * p[2]);
+  if (c.kind === 'bird') {
+    const fl = Math.sin(now / 90 + c.s) * 0.5;
+    g.strokeStyle = PAL.bone; g.lineWidth = 1.4; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * (0.3 + fl)); g.quadraticCurveTo(p[0] - s * 0.4, p[1] - s * 0.1, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] - s * 0.1, p[0] + s, p[1] - s * (0.3 + fl)); g.stroke();
+    const q = cam.proj(c.x, c.y, 0); if (q) { g.fillStyle = PAL.dim; g.globalAlpha = 0.25; g.beginPath(); g.ellipse(q[0], q[1], s * 0.6, s * 0.25, 0, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  } else {
+    g.fillStyle = PAL.dark ? '#c4683a' : '#9a4a22'; g.beginPath(); g.ellipse(p[0], p[1], s * 0.55, s * 0.35, 0, 0, TAU); g.fill();
+    g.strokeStyle = g.fillStyle; g.lineWidth = Math.max(1.5, s * 0.3); g.beginPath(); g.moveTo(p[0] - s * 0.4, p[1]); g.quadraticCurveTo(p[0] - s * 1.1, p[1] - s * 0.9, p[0] - s * 0.5, p[1] - s * 1.2); g.stroke();
+  }
+}
+// seasonal particles: falling leaves in autumn, fireflies on summer nights
+function seasonParticles(g, w, now) {
+  const s = w.season(), P2 = scene.parts || (scene.parts = []);
+  const big = w.trees.filter(t => t.size > 0.6);
+  const want = s === 'autumn' && big.length ? 40 : (s === 'summer' && w.light < 0.05 && w.temp > 12 ? 26 : 0);
+  if (P2.length && P2[0].kind !== (s === 'autumn' ? 'leaf' : 'fly')) P2.length = 0;
+  while (P2.length < want) {
+    if (s === 'autumn') { const t = big[Math.floor(Math.random() * big.length)]; const a = Math.random() * TAU, r = Math.random() * (0.3 + t.size); P2.push({ kind: 'leaf', x: t.x + Math.sin(a) * r, y: t.y + Math.cos(a) * r, z: 0.5 + t.size * 3.4, h: (state.seed.kinHue + t.kin * 32 + Math.random() * 25) % 360, ph: Math.random() * TAU }); }
+    else { const a = Math.random() * TAU, r = Math.random() * 16; P2.push({ kind: 'fly', x: listener.x + Math.sin(a) * r, y: listener.y + Math.cos(a) * r, z: 0.3 + Math.random() * 1.4, ph: Math.random() * TAU }); }
+  }
+  if (P2.length > want) P2.length = want;
+  const dt = 1 / 60;
+  for (let i = P2.length - 1; i >= 0; i--) {
+    const q = P2[i];
+    if (q.kind === 'leaf') {
+      q.z -= dt * 0.35; q.ph += dt * 2; q.x += Math.sin(w.windDir) * w.windStr * dt * 1.2 + Math.sin(q.ph) * dt * 0.4; q.y += Math.cos(w.windDir) * w.windStr * dt * 1.2;
+      if (q.z <= 0) { P2.splice(i, 1); continue; }
+      const p = cam.proj(q.x, q.y, q.z); if (!p) continue; const r = Math.max(1.5, 0.09 * p[2]);
+      g.fillStyle = PAL.dark ? hsl(q.h, 70, 55, 0.85) : hsl(q.h, 70, 42, 0.85); g.beginPath(); g.ellipse(p[0], p[1], r, r * (0.35 + 0.3 * Math.abs(Math.sin(q.ph))), q.ph, 0, TAU); g.fill();
+    } else {
+      q.ph += dt; q.x += Math.sin(q.ph * 0.7 + i) * dt * 0.3; q.y += Math.cos(q.ph * 0.5 + i) * dt * 0.3;
+      const on = Math.max(0, Math.sin(q.ph * 1.7 + i * 1.3)); if (on < 0.6) continue;
+      const p = cam.proj(q.x, q.y, q.z); if (!p) continue;
+      const prev = g.globalCompositeOperation; if (PAL.dark) g.globalCompositeOperation = 'lighter';
+      glowDot(g, p[0], p[1], Math.max(1.2, 0.05 * p[2]), `rgba(200,255,120,${(on - 0.6) * 2.2})`, true); g.globalCompositeOperation = prev;
+    }
+  }
 }
 function drawCompass(g) {
   const x = scene.w - 34, y = 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
@@ -432,6 +530,8 @@ function initInput() {
 }
 
 // ---------------------------------------------------------------- sliders
+const UI = { sliders: [] };
+function refreshSliders() { for (const s of UI.sliders) { s.inp.value = s.o.get(); s.show(); } }
 function slider(box, o) {
   const row = document.createElement('div'); row.className = 'sl';
   const id = 'sl-' + o.id;
@@ -442,7 +542,8 @@ function slider(box, o) {
   const show = () => { const v = +inp.value; out.textContent = o.fmt ? o.fmt(v) : v.toFixed(2); inp.style.setProperty('--p', ((v - o.min) / (o.max - o.min) * 100) + '%'); };
   inp.addEventListener('input', () => { o.set(+inp.value); show(); });
   inp.addEventListener('dblclick', () => { if (o.def !== undefined) { inp.value = o.def; o.set(o.def); show(); } });
-  show(); box.appendChild(row);
+  show(); box.appendChild(row); UI.sliders.push({ inp, show, o });
+  return row;
 }
 const pct = (v) => Math.round(v * 100) + '%';
 const mul = (v) => v.toFixed(2) + '×';
@@ -468,8 +569,63 @@ function buildSliders() {
   S(sp, 'wet', 'Reverb', 0, 1.2, 0.45, pct, 'Level of the forest room.', sendGlobals);
   S(sp, 'room', 'Room', 0, 1, 0.5, pct, 'Size and decay of the room, around the seed\'s own character.', sendGlobals);
   S(sp, 'master', 'Volume', 0, 1.2, 0.8, pct, 'Master level, before the limiter.', sendGlobals);
-  const names = [['Trees', 'spore'], ['Signals & sugar', 'hypha'], ['Growth', 'geo'], ['Fruit & spores', 'spore'], ['Weather & soil', 'dim']];
-  names.forEach(([n, c], i) => slider(la, { id: 'layer' + i, label: n.split(' ')[0], min: 0, max: 1.5, def: 1, fmt: pct, help: n, color: `var(--${c})`, get: () => P.layers[i], set: (v) => { P.layers[i] = v; sendGlobals(); } }));
+  S($('changeS'), 'change', 'Change', 0, 1, 0.5, (v) => v < 0.15 ? 'still' : v < 0.4 ? 'slow' : v < 0.7 ? 'drifting' : 'restless', 'How restless the sound world is: how often the tonal centre drifts, how far the timbre tide swings, how quickly each fungus’s voice mutates.');
+  buildLayers(la);
+}
+const LAYER_DEFS = [
+  { key: 'trees', name: 'Trees', color: 'spore', nudges: [['reg', 'Register', 'lower', 'higher'], ['tone', 'Tone', 'darker', 'brighter']] },
+  { key: 'signals', name: 'Signals & sugar', color: 'hypha', nudges: [['pace', 'Pace', 'slower', 'quicker'], ['reg', 'Register', 'lower', 'higher']] },
+  { key: 'growth', name: 'Growth', color: 'geo', nudges: [['density', 'Density', 'sparser', 'busier'], ['tone', 'Tone', 'darker', 'brighter']] },
+  { key: 'fruit', name: 'Fruit & spores', color: 'spore', nudges: [['grain', 'Grain', 'finer', 'coarser'], ['reg', 'Register', 'lower', 'higher']] },
+  { key: 'weather', name: 'Weather & soil', color: 'dim', nudges: [['tone', 'Tone', 'darker', 'brighter'], ['width', 'Width', 'closer', 'wider']] },
+  { key: 'fauna', name: 'Birds & animals', color: 'bone', nudges: [['activity', 'Activity', 'rarer', 'livelier'], ['dist', 'Distance', 'nearer', 'farther']] },
+];
+function buildLayers(box) {
+  LAYER_DEFS.forEach((L, i) => {
+    const wrap = document.createElement('div'); wrap.className = 'layer'; box.appendChild(wrap);
+    const row = slider(wrap, { id: 'layer' + i, label: L.name, min: 0, max: 1.5, def: i === 4 ? 0.8 : i === 5 ? 0.9 : 1, fmt: pct, help: `Level of ${L.name.toLowerCase()}`, color: `var(--${L.color})`, get: () => P.layers[i], set: (v) => { P.layers[i] = v; sendGlobals(); } });
+    const tog = document.createElement('button'); tog.className = 'shape'; tog.textContent = '⋯'; tog.title = `Shape ${L.name.toLowerCase()}`; tog.setAttribute('aria-expanded', 'false'); row.appendChild(tog);
+    const nd = document.createElement('div'); nd.className = 'nudges'; nd.hidden = true; wrap.appendChild(nd);
+    tog.onclick = () => { nd.hidden = !nd.hidden; tog.setAttribute('aria-expanded', String(!nd.hidden)); };
+    for (const [k, label, lo, hi] of L.nudges) {
+      const r = document.createElement('div'); r.className = 'nudge'; const id = `nd-${L.key}-${k}`;
+      r.innerHTML = `<label for="${id}">${label}</label><span>${lo}</span><input type="range" id="${id}" min="-1" max="1" step="0.01"><span>${hi}</span>`;
+      r.title = `A gentle bias. The forest still chooses within it. Double-click to let the forest decide.`;
+      const inp = r.querySelector('input');
+      const show = () => { inp.style.setProperty('--p', ((+inp.value + 1) / 2 * 100) + '%'); };
+      const o = { get: () => P.char[L.key][k], set: (v) => { P.char[L.key][k] = v; } };
+      inp.value = o.get(); show();
+      inp.addEventListener('input', () => { o.set(+inp.value); show(); });
+      inp.addEventListener('dblclick', () => { inp.value = 0; o.set(0); show(); });
+      UI.sliders.push({ inp, show, o }); nd.appendChild(r);
+    }
+  });
+}
+const HAPPEN = [
+  ['rain', () => world && world.temp < 1.5 ? 'Call snow' : 'Call rain', () => world && world.temp < 1.5 ? 'snow hushes the forest' : 'wakes the fungi', 'Rain wets the soil and sets the mycelium talking. Below freezing it falls as snow, and snow absorbs sound.', () => world.startRain(240, 'user')],
+  ['deer', () => 'Send deer', () => 'a tree raises the alarm', 'Deer browse a tree; it sends an alarm through the fungal network and its neighbours harden.', () => { const big = world.trees.filter(t => t.size > 0.3); if (!big.length) { logHelp('There is nothing for deer to browse yet.'); return false; } world.stressTree(big[Math.floor(Math.random() * big.length)], 'deer'); return true; }],
+  ['storm', () => 'Windstorm', () => 'creaks, breaks, opens gaps', 'Gusts make trunks creak and branches break, lift spores high, and may throw a weakened tree. The gap lets light in for new seedlings.', () => world.windstorm('user')],
+  ['dry', () => 'Dry spell', () => 'thirst, clicks, night water', 'Ten minutes without rain. Trees click with drought stress, deep roots share water at night, water-carrying fungi gain the upper hand.', () => world.drySpell('user')],
+  ['cache', () => world && world.seed.cacher === 'nutcrackers' ? 'Nutcrackers' : 'Jays', () => 'bury seeds, forget some', 'Seed-caching birds harvest a mature tree and bury its seeds. The caches they forget become new seedlings.', () => world.cachers('user')],
+  ['squirrel', () => 'Squirrel', () => 'eats fungi, plants spores', 'A red squirrel eats mushrooms and digs truffles. The spores pass its gut and start new fungi where it goes.', () => world.squirrels('user')],
+];
+function buildHappenings() {
+  const box = $('happen');
+  for (const [k, label, sub, help, fn] of HAPPEN) {
+    const b = document.createElement('button'); b.className = 'btn hap'; b.id = 'hap-' + k; b.title = help;
+    b.innerHTML = `<b></b><small></small><i></i>`;
+    b.onclick = async () => { if (!world) return; if (!state.running) await setRunning(true); if (fn() !== false) updateHappenings(); };
+    box.appendChild(b);
+  }
+  updateHappenings();
+}
+function updateHappenings() {
+  if (!world) return;
+  for (const [k, label, sub] of HAPPEN) {
+    const b = $('hap-' + k); if (!b) continue; const v = world.ev[k] || 0, m = world.evMax[k] || 1;
+    b.querySelector('b').textContent = label(); b.querySelector('small').textContent = v > 0 ? 'happening now' : sub();
+    b.disabled = v > 0; b.style.setProperty('--p', v > 0 ? clamp01(v / m) : 0);
+  }
 }
 
 // ---------------------------------------------------------------- recording
@@ -515,16 +671,63 @@ function fmtTime(s) { const m = Math.floor(s / 60), ss = s - m * 60; return `${S
 
 // ---------------------------------------------------------------- archive (IndexedDB, falls back to memory)
 const db = {
-  h: null, mem: [],
-  async open() { try { this.h = await new Promise((res, rej) => { const r = indexedDB.open('understory', 1); r.onupgradeneeded = () => r.result.createObjectStore('takes', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); } catch (e) { this.h = null; } },
-  tx(mode) { return this.h.transaction('takes', mode).objectStore('takes'); },
-  async all() { if (!this.h) return this.mem.slice(); try { return await new Promise((res, rej) => { const r = this.tx('readonly').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); }); } catch (e) { return this.mem.slice(); } },
-  async put(t) { if (!this.h) { this.mem = this.mem.filter(x => x.id !== t.id); this.mem.push(t); return; } try { await new Promise((res, rej) => { const r = this.tx('readwrite').put(t); r.onsuccess = res; r.onerror = () => rej(r.error); }); } catch (e) { this.mem.push(t); setStatus('This browser would not store the take; it is kept until you close the page. Save it now.'); } },
-  async del(id) { this.mem = this.mem.filter(x => x.id !== id); if (!this.h) return; try { await new Promise((res) => { const r = this.tx('readwrite').delete(id); r.onsuccess = res; r.onerror = res; }); } catch (e) { } },
+  h: null, mem: { takes: [], forests: [] }, opened: null,
+  open() {
+    if (this.opened) return this.opened;
+    this.opened = (async () => { try { this.h = await new Promise((res, rej) => { const r = indexedDB.open('understory', 2); r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('takes')) d.createObjectStore('takes', { keyPath: 'id' }); if (!d.objectStoreNames.contains('forests')) d.createObjectStore('forests', { keyPath: 'id' }); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); r.onblocked = () => rej(new Error('blocked')); }); } catch (e) { this.h = null; } })();
+    return this.opened;
+  },
+  tx(store, mode) { return this.h.transaction(store, mode).objectStore(store); },
+  async all(store = 'takes') { if (!this.h) return this.mem[store].slice(); try { return await new Promise((res, rej) => { const r = this.tx(store, 'readonly').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); }); } catch (e) { return this.mem[store].slice(); } },
+  async put(t, store = 'takes') { this.mem[store] = this.mem[store].filter(x => x.id !== t.id); if (!this.h) { this.mem[store].push(t); return; } try { await new Promise((res, rej) => { const r = this.tx(store, 'readwrite').put(t); r.onsuccess = res; r.onerror = () => rej(r.error); }); } catch (e) { this.mem[store].push(t); setStatus(store === 'takes' ? 'This browser would not store the take; it is kept until you close the page. Save it now.' : 'This browser would not store the forest; it lives until you close the page.'); } },
+  async del(id, store = 'takes') { this.mem[store] = this.mem[store].filter(x => x.id !== id); if (!this.h) return; try { await new Promise((res) => { const r = this.tx(store, 'readwrite').delete(id); r.onsuccess = res; r.onerror = res; }); } catch (e) { } },
 };
+// ---------------------------------------------------------------- forests: saved and continued
+let forests = [];
+let saving = false;
+function thumbnail() {
+  try { const c = document.createElement('canvas'); c.width = 192; c.height = 120; const g = c.getContext('2d'); const sw = scene.cv.width, sh = scene.cv.height; const ar = 192 / 120; let w = sw, h = sw / ar; if (h > sh) { h = sh; w = sh * ar; } g.drawImage(scene.cv, (sw - w) / 2, (sh - h) / 2, w, h, 0, 0, 192, 120); return c.toDataURL('image/jpeg', 0.7); } catch (e) { return ''; }
+}
+async function saveForest(force) {
+  if (!world || !state.forestId || saving) return;
+  if (!force && !state.kept && world.t < 120) return;
+  saving = true;
+  try {
+    const prev = forests.find(f => f.id === state.forestId);
+    const { char, ...rest } = P;
+    const rec = { id: state.forestId, name: state.forestName || (prev && prev.name) || state.seed.name, code: state.seed.code, created: prev ? prev.created : Date.now(), visited: Date.now(), age: world.t, stage: STAGES[world.stage][0], trees: world.trees.length, fungi: world.genets.size, thumb: thumbnail() || (prev && prev.thumb) || '', data: world.serialize(), P: JSON.parse(JSON.stringify(rest)), char: JSON.parse(JSON.stringify(char)), season: state.season, listener: { x: listener.x, y: listener.y, yaw: listener.yaw } };
+    state.kept = true;
+    await db.put(rec, 'forests');
+    forests = [rec, ...forests.filter(f => f.id !== rec.id)].sort((a, b) => (b.visited || 0) - (a.visited || 0));
+    renderForests();
+  } finally { saving = false; }
+}
+function ago(ts) { const m = Math.round((Date.now() - ts) / 60000); if (m < 1) return 'just now'; if (m < 60) return `${m} min ago`; const h = Math.round(m / 60); if (h < 36) return `${h} h ago`; return new Date(ts).toLocaleDateString(); }
+function renderForests() {
+  const box = $('forestList'); if (!box) return; box.innerHTML = '';
+  $('keepBtn').hidden = !!forests.find(f => f.id === state.forestId);
+  if (!forests.length) { box.innerHTML = '<div class="empty">No forests kept yet. Stay with this one for two minutes, or press Keep this forest.</div>'; return; }
+  for (const f of forests) {
+    const el = document.createElement('div'); el.className = 'forest'; const cur = f.id === state.forestId; el.setAttribute('aria-current', String(cur));
+    el.innerHTML = `${f.thumb ? `<img alt="">` : '<div class="noimg"></div>'}<div><input class="fn" id="fn-${f.id}" aria-label="Forest name"><div class="fm"></div><div class="fa"></div></div>`;
+    if (f.thumb) el.querySelector('img').src = f.thumb;
+    const nm = el.querySelector('.fn'); nm.value = f.name;
+    nm.addEventListener('change', async () => { f.name = nm.value.trim() || f.name; if (cur) { state.forestName = f.name; $('seedName').textContent = f.name; } await db.put(f, 'forests'); });
+    el.querySelector('.fm').textContent = `${f.stage} · age ${fmtAge(f.age)} · ${f.trees} trees, ${f.fungi} fungi · seed ${f.code} · ${cur ? 'here now' : ago(f.visited)}`;
+    const acts = el.querySelector('.fa');
+    const B = (label, title, fn) => { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = label; b.title = title; b.onclick = fn; acts.appendChild(b); return b; };
+    if (!cur) B('Continue', 'Return to this forest', () => continueForest(f));
+    const del = B('✕', 'Delete this forest', async () => {
+      if (!del.dataset.arm) { del.dataset.arm = '1'; del.textContent = 'Delete?'; setTimeout(() => { if (del.isConnected) { delete del.dataset.arm; del.textContent = '✕'; } }, 2500); return; }
+      await db.del(f.id, 'forests'); forests = forests.filter(x => x.id !== f.id);
+      if (cur) { state.forestId = null; await loadSeed(randomCode()); } else renderForests();
+    });
+    box.appendChild(el);
+  }
+}
 let takes = [];
 const player = { id: null, buf: null, src: null, startAt: 0, offset: 0, playing: false, gain: null };
-async function loadArchive() { await db.open(); takes = (await db.all()).sort((a, b) => b.id - a.id); renderLib(); if (takes[0]) selectTake(takes[0].id); }
+async function loadArchive() { await db.open(); takes = (await db.all('takes')).sort((a, b) => b.id - a.id); renderLib(); if (takes[0]) selectTake(takes[0].id); }
 function renderLib() {
   const lib = $('lib'); lib.innerHTML = '';
   $('saveAll').hidden = takes.length < 2 || !saver.ok;
@@ -649,11 +852,36 @@ async function sowFile(file) {
 async function takeToSoil(t) { try { const buf = await decodeTake(t); await bufferToSoil(buf, t.name); } catch (e) { setStatus('Could not decode this take.'); } }
 
 // ---------------------------------------------------------------- misc controls
+function setHeight(h) {
+  state.height = state.height === h ? 'ground' : h; updateOptionButtons(); sendGlobals();
+  if (state.height === 'under') logLine('You sink into the soil among the hyphae. Signals pass close by; the world above is muffled through the earth.', 'touch');
+  else if (state.height === 'canopy') logLine('You climb into the canopy. Birds and wind are close; the soil is far below.', 'touch');
+  else logLine('You stand on the forest floor again.', 'touch');
+}
+function updateOptionButtons() {
+  $('underBtn').setAttribute('aria-pressed', String(state.height === 'under')); $('canopyBtn').setAttribute('aria-pressed', String(state.height === 'canopy'));
+  $('driftBtn').setAttribute('aria-pressed', String(state.drift)); $('rideBtn').setAttribute('aria-pressed', String(state.ride));
+}
+function rideStep(dt) {
+  const w = world; let o = state.rideObj;
+  const alive = o && (w.carbon.includes(o) || w.water.includes(o) || w.signals.includes(o) || w.critters.includes(o) || w.spores.includes(o));
+  if (!alive) {
+    state.rideObj = null; state.rideWait -= dt; if (state.rideWait > 0) return; state.rideWait = 1.5;
+    const pool = [...w.critters.map(c => [c, c.kind === 'squirrel' ? 'the squirrel' : `a ${w.seed.cacher === 'nutcrackers' ? 'nutcracker' : 'jay'}`]), ...w.carbon.map(c => [c, 'sugar on its way between trees']), ...w.water.map(c => [c, 'water lifted from deep roots']), ...w.signals.filter(s => s.voice).map(s => [s, 'a spike train']), ...w.spores.filter(s => s.voice).map(s => [s, 'a drifting spore'])];
+    if (!pool.length) return;
+    pool.sort((a, b) => Math.hypot(a[0].x - listener.x, a[0].y - listener.y) - Math.hypot(b[0].x - listener.x, b[0].y - listener.y));
+    const [obj, desc] = pool[Math.min(pool.length - 1, Math.floor(Math.random() * 2))]; state.rideObj = obj;
+    logLine(`Riding along with ${desc}.`, 'touch'); return;
+  }
+  const dx = o.x - listener.x, dy = o.y - listener.y, d = Math.hypot(dx, dy);
+  listener.x += dx * Math.min(1, dt * 2.2); listener.y += dy * Math.min(1, dt * 2.2);
+  if (d > 0.05) { let a = Math.atan2(dx, dy) - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * Math.min(1, dt * 1.2); }
+}
 function toggleMode() { state.mode = state.mode ? 0 : 1; $('modeBtn').textContent = state.mode ? 'Speakers stereo' : 'Headphones 3D'; sendGlobals(); }
 function newSeed() { loadSeed(randomCode()); }
 
 // ---------------------------------------------------------------- main loop
-let last = 0, hudT = 0;
+let last = 0, hudT = 0, globT = 0;
 function frame(ts) {
   const dt = Math.min(0.05, Math.max(0, (ts - last) / 1000)); last = ts;
   if (world) {
@@ -665,15 +893,18 @@ function frame(ts) {
       let mx = 0, my = 0; if (k.has('w')) { mx += fx; my += fy; } if (k.has('s')) { mx -= fx; my -= fy; } if (k.has('d')) { mx += fy; my -= fx; } if (k.has('a')) { mx -= fy; my += fx; }
       if (k.has('q')) listener.yaw -= 1.2 * dt; if (k.has('e')) listener.yaw += 1.2 * dt;
       if (mx || my) { listener.x += mx * 3 * dt; listener.y += my * 3 * dt; state.walk = null; }
-      if (state.drift) driftStep(dt);
+      if (state.drift && !state.ride) driftStep(dt);
+      if (state.ride) rideStep(dt);
       if (state.walk) {
         const dx = state.walk.x - listener.x, dy = state.walk.y - listener.y, d = Math.hypot(dx, dy);
         if (d < 0.2) state.walk = null; else { const sp = Math.min(d, (state.drift ? 0.8 : 2.4) * dt); listener.x += dx / d * sp; listener.y += dy / d * sp; if (state.drift) { let a = Math.atan2(dx, dy) - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * 0.25 * dt; } }
       }
       const r = Math.hypot(listener.x, listener.y); if (r > PLOT_R + 3) { listener.x *= (PLOT_R + 3) / r; listener.y *= (PLOT_R + 3) / r; }
     }
+    listener.z += (HEIGHTS[state.height] - listener.z) * Math.min(1, dt * 0.9);
     world.frameVoices();
-    audio.post({ t: 'lis', x: listener.x, y: listener.y, z: 1.6, yaw: listener.yaw });
+    audio.post({ t: 'lis', x: listener.x, y: listener.y, z: listener.z, yaw: listener.yaw });
+    globT += dt; if (globT > 2) { globT = 0; sendGlobals(); }
     audio.flush();
     // camera follows the head
     cam.tx += (listener.x - cam.tx) * 0.08; cam.ty += (listener.y - cam.ty) * 0.08;
@@ -702,7 +933,7 @@ function driftStep(dt) {
 }
 
 // ---------------------------------------------------------------- boot
-function boot() {
+async function boot() {
   readPalette();
   const mq = window.matchMedia('(prefers-color-scheme: light)'); mq.addEventListener && mq.addEventListener('change', readPalette);
   new MutationObserver(readPalette).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -711,20 +942,33 @@ function boot() {
   $('grow').onclick = () => setRunning(!state.running); $('hintGrow').onclick = () => setRunning(true);
   $('newSeed').onclick = newSeed; $('rec').onclick = toggleRec; $('modeBtn').onclick = toggleMode;
   $('seedCode').onclick = async () => { const c = state.seed.code; try { await navigator.clipboard.writeText(c); setStatus(`Seed code ${c} copied.`); } catch (e) { setStatus(`Seed code: ${c}`); } };
-  $('rainBtn').onclick = () => world && world.startRain(45);
-  $('deerBtn').onclick = () => world && world.trees.length && world.stressTree(world.trees[Math.floor(Math.random() * world.trees.length)], 'deer');
+  buildHappenings();
+  $('rideBtn').onclick = () => { state.ride = !state.ride; state.rideObj = null; state.rideWait = 0; if (state.ride) { state.drift = false; state.walk = null; } updateOptionButtons(); };
+  $('underBtn').onclick = () => setHeight('under'); $('canopyBtn').onclick = () => setHeight('canopy');
+  $('resetShape').onclick = () => { for (const l in P.char) for (const k in P.char[l]) P.char[l][k] = 0; P.change = 0.5; refreshSliders(); logLine('Every layer is back to the forest’s own character.', 'drift'); };
+  $('keepBtn').onclick = async () => { state.kept = true; await saveForest(true); setStatus(`${state.forestName} is kept in Forests.`); };
   $('sowBtn').onclick = () => $('sowFile').click(); $('sowFile').onchange = (e) => { const f = e.target.files[0]; if (f) sowFile(f); e.target.value = ''; };
-  $('driftBtn').onclick = () => { state.drift = !state.drift; $('driftBtn').setAttribute('aria-pressed', String(state.drift)); state.walk = null; state.driftT = 0; };
-  $('centreBtn').onclick = () => { state.walk = { x: 0, y: 0 }; state.drift = false; $('driftBtn').setAttribute('aria-pressed', 'false'); };
+  $('driftBtn').onclick = () => { state.drift = !state.drift; state.walk = null; state.driftT = 0; if (state.drift) state.ride = false; updateOptionButtons(); };
+  $('centreBtn').onclick = () => { state.walk = { x: 0, y: 0 }; state.drift = false; state.ride = false; if (state.height !== 'ground') setHeight(state.height); updateOptionButtons(); };
   $('calmBtn').onclick = () => { audio.post({ t: 'calm' }); logLine('Calm: reverb tails cleared, fading back in.', 'weather'); };
   $('followBtn').onclick = () => { state.follow = !state.follow; $('followBtn').setAttribute('aria-pressed', String(state.follow)); if (!state.follow) cam.yaw = 0; };
   $('zoomIn').onclick = () => { cam.dist = Math.max(10, cam.dist / 1.2); }; $('zoomOut').onclick = () => { cam.dist = Math.min(80, cam.dist * 1.2); };
   $('pPlay').onclick = togglePlay; $('pSave').onclick = () => { const t = takes.find(x => x.id === player.id); if (t) saveTake(t); };
   $('pwave').addEventListener('click', seekPlayer); $('saveAll').onclick = saveAll;
   $('season').onchange = (e) => setSeason(e.target.value); timeNote();
-  const h = (location.hash || '').replace('#', '').toUpperCase();
-  loadSeed(/^[A-Z0-9]{4,10}$/.test(h) ? h : randomCode());
-  loadArchive(); initSaver();
   requestAnimationFrame(frame);
+  // forests are kept in this browser; open the one you were in, or a new one
+  await db.open();
+  forests = (await db.all('forests')).sort((a, b) => (b.visited || 0) - (a.visited || 0));
+  const h = (location.hash || '').replace('#', '').toUpperCase();
+  const byCode = /^[A-Z0-9]{4,10}$/.test(h) ? forests.find(f => f.code === h) : null;
+  if (byCode) await continueForest(byCode);
+  else if (/^[A-Z0-9]{4,10}$/.test(h)) await loadSeed(h);
+  else if (forests.length) await continueForest(forests[0]);
+  else await loadSeed(randomCode());
+  loadArchive(); initSaver();
+  setInterval(() => { if (state.running) saveForest(); }, 20000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveForest(); });
+  window.addEventListener('pagehide', () => saveForest());
 }
 boot();
