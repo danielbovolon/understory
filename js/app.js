@@ -60,7 +60,7 @@ const audio = {
 
 // ---------------------------------------------------------------- state
 const P = { time: 1, growth: 1, chatter: 1, bloom: 1, mutation: 1, moisture: 0.5, wind: 0.4, depth: 1, spin: 0, wet: 0.45, room: 0.5, master: 0.8, layers: [1, 1, 1, 1, 0.8] };
-const state = { running: false, everStarted: false, seed: null, mode: 0, follow: true, drift: false, tool: 'listen', matB: false, matBName: '', pregrow: false, walk: null, driftT: 0, recording: false };
+const state = { season: 'now', running: false, everStarted: false, seed: null, mode: 0, follow: true, drift: false, tool: 'listen', matB: false, matBName: '', pregrow: false, walk: null, driftT: 0, recording: false };
 let world = null;
 const listener = { x: 0, y: 0, yaw: 0 };
 
@@ -80,20 +80,18 @@ async function loadSeed(code) {
   const seed = makeSeed(code);
   if (audio.node) { audio.post({ t: 'fade', to: 0, time: 0.5 }); await new Promise(r => setTimeout(r, 560)); audio.kill(); }
   state.seed = seed;
-  world = new World(seed, audio, { log: logLine, params: P });
+  // every forest starts as bare soil at the real time of day
+  world = new World(seed, audio, { log: logLine, params: P, now: new Date(), month: state.season === 'now' ? undefined : SEASON_MONTH[state.season] });
   world.matB = state.matB;
   listener.x = 0; listener.y = 0; world.listener = listener; state.walk = null;
-  // grow a few silent seconds so the first view already shows a young network
-  state.pregrow = true; audio.mute = true;
-  for (let i = 0; i < 520; i++) world.step(0.05);
-  audio.mute = false; state.pregrow = false; world.dropVoices();
-  $('log').innerHTML = '';
+  $('log').innerHTML = ''; lastLog = {};
   $('seedCode').textContent = code;
-  $('seedName').textContent = `${seed.name}, ${seed.mood}`;
-  $('seedMeta').textContent = `${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · ${seed.species.length} fungal ${seed.species.length > 1 ? 'species' : 'species'} · room ${seed.rev.rt.toFixed(1)} s`;
+  $('seedName').textContent = seed.name;
+  const ecm = seed.species.filter(s => s.guild === 'ecm').map(s => s.genus), sap = seed.species.filter(s => s.guild === 'sapro').map(s => s.genus);
+  $('seedMeta').textContent = `${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · spores of ${ecm.join(', ')} and ${sap.join(', ')} in the air · room ${seed.rev.rt.toFixed(1)} s`;
   try { history.replaceState(null, '', '#' + code); } catch (e) { }
   if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
-  logLine(`New seed ${code}: ${seed.nTrees} trees planted on the flower of life, ${seed.species.length} fungal individual${seed.species.length > 1 ? 's' : ''} in the soil.`, 'tree');
+  logLine(`Seed ${code}. Bare soil, ${MONTHS[world.month]}, ${fmtClock(world.clockH)}. ${seed.nTrees} seeds lie on the flower of life. Nothing has grown yet.`, 'stage');
 }
 
 async function setRunning(on) {
@@ -111,33 +109,37 @@ async function setRunning(on) {
 }
 
 // ---------------------------------------------------------------- log + hud
-const LOGC = { bond: 'hypha', fuse: 'hypha', touch: 'hypha', carbon: 'spore', fruit: 'spore', spore: 'spore', alarm: 'alarm', clash: 'alarm', cut: 'alarm', weather: 'dim', death: 'dim', tree: 'geo' };
+const LOGC = { stage: 'bone', water: 'hypha', bond: 'hypha', fuse: 'hypha', touch: 'hypha', carbon: 'spore', fruit: 'spore', spore: 'spore', alarm: 'alarm', clash: 'alarm', cut: 'alarm', weather: 'dim', death: 'dim', tree: 'geo' };
 let lastLog = {};
 function logLine(text, cat) {
-  if (state.pregrow) return;
   const now = performance.now();
   const gap = (cat === 'fuse' || cat === 'clash') ? 15000 : 2500;
-  if (lastLog[cat] && now - lastLog[cat] < gap && cat !== 'tree' && cat !== 'touch') return;
+  if (lastLog[cat] && now - lastLog[cat] < gap && cat !== 'tree' && cat !== 'touch' && cat !== 'stage') return;
   lastLog[cat] = now;
   const box = $('log'); const p = document.createElement('p');
   p.textContent = text; p.style.setProperty('--c', `var(--${LOGC[cat] || 'dim'})`);
   box.appendChild(p);
+  if (cat === 'stage') p.className = "logstage";
   while (box.children.length > 5) box.removeChild(box.firstChild);
   [...box.children].forEach((c, i, a) => { c.style.opacity = String(0.35 + 0.65 * (i + 1) / a.length); });
 }
 function setStatus(t) { $('status').textContent = t || ''; }
-function dayWord(ph) { const s = Math.sin(ph * TAU); if (Math.abs(s) < 0.2) return ph < 0.5 ? (ph < 0.25 ? 'dawn' : 'dusk') : (ph > 0.75 ? 'dawn' : 'dusk'); return s > 0 ? 'day' : 'night'; }
+function fmtClock(h) { const hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
+function fmtAge(t) { const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = Math.floor(t) % 60; return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min ${String(s).padStart(2, '0')} s`; }
+function skyWord(w) { const h = w.clockH, s = w.sun; if (h < s.rise - 0.6 || h > s.set + 0.6) return 'night'; if (h < s.rise + 0.7) return 'dawn'; if (h > s.set - 0.7) return 'dusk'; return 'day'; }
 function updateHud() {
   if (!world) return;
-  const w = world; const h = (6 + w.dayPhase * 24) % 24; const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+  const w = world;
   const wdeg = ((w.windDir * 180 / Math.PI) % 360 + 360) % 360; const wn = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(wdeg / 45) % 8];
-  let sig = w.signals.length;
-  $('hud').innerHTML = `<span class="clock">${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}</span>
-  <span>${dayWord(w.dayPhase)} · light <b>${Math.round(w.light * 100)}%</b></span>
-  <span>${w.rainT > 0 ? '<b>raining</b> · ' : ''}moisture <b>${Math.round(Math.min(1, w.moist) * 100)}%</b></span>
+  const st = STAGES[w.stage];
+  $('hud').innerHTML = `<span class="clock">${fmtClock(w.clockH)}</span>
+  <span>${MONTHS[w.month]} · ${skyWord(w)} · sun ${fmtClock(w.sun.rise)}–${fmtClock(w.sun.set)}</span>
+  <span><b>${w.temp.toFixed(0)} °C</b> · ${w.rainT > 0 ? '<b>raining</b> · ' : ''}soil moisture <b>${Math.round(Math.min(1, w.moist) * 100)}%</b></span>
   <span>wind <b>${(w.windStr * 3).toFixed(1)} m/s</b> from ${wn}</span>
+  <span class="hudstage">${st[0]}</span>
+  <span>forest age <b>${fmtAge(w.t)}</b></span>
   <span><b>${w.trees.length}</b> trees · <b>${w.genets.size}</b> fungi · <b>${w.edges.size}</b> hyphae · <b>${w.tips.length}</b> tips</span>
-  <span><b>${sig}</b> signals · <b>${w.carbon.length}</b> sugar · <b>${w.fruits.length}</b> fruit · <b>${w.spores.length}</b> spores</span>
+  <span><b>${w.signals.length}</b> signals · <b>${w.carbon.length + w.water.length}</b> in transit · <b>${w.fruits.length}</b> fruit · <b>${w.spores.length}</b> spores</span>
   <span>voices <b>${audio.started ? audio.meter.nv : 0}</b>/56</span>`;
 }
 function drawMeter() {
@@ -218,6 +220,19 @@ function draw(now) {
   g.globalAlpha = 0.3; groundCircle(g, 0, 0, PETAL * 3, 0, 120); g.stroke(); groundCircle(g, 0, 0, PETAL * 3 + 0.6, 0, 120); g.stroke(); g.globalAlpha = 1;
   // litter
   for (const l of w.litter) { groundCircle(g, l.x, l.y, 0.6 + l.a * 0.7, 0, 24); g.fillStyle = PAL.dark ? `rgba(120,90,50,${0.08 + l.a * 0.06})` : `rgba(110,80,40,${0.08 + l.a * 0.06})`; g.fill(); }
+  // nutrient patches in the soil
+  for (const p of w.patches) {
+    if (p.a < 0.03) continue; const q = cam.proj(p.x, p.y, 0); if (!q) continue;
+    const r = Math.max(1, 0.05 * q[2]); g.fillStyle = p.org ? (PAL.dark ? 'rgba(170,130,80,' : 'rgba(120,80,30,') + (0.25 + 0.2 * Math.min(1, p.a)) + ')' : (PAL.dark ? 'rgba(190,195,205,' : 'rgba(90,95,110,') + (0.25 + 0.2 * Math.min(1, p.a)) + ')';
+    for (let k = 0; k < 5; k++) { const a = k * 2.4 + p.x, d = 0.25 + (k % 3) * 0.22; const qq = cam.proj(p.x + Math.sin(a) * d, p.y + Math.cos(a) * d, 0); if (qq) { g.beginPath(); g.arc(qq[0], qq[1], r, 0, TAU); g.fill(); } }
+    if (p.found) { groundCircle(g, p.x, p.y, 0.9, 0, 20); g.strokeStyle = PAL.hypha; g.globalAlpha = 0.25; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1; }
+  }
+  // seeds still waiting in the soil
+  for (const b of w.seedbank) {
+    if (b.done) continue; const q = cam.proj(b.x, b.y, 0); if (!q) continue;
+    const near = clamp01(1 - (b.t - w.t) / 40); const pulse = 0.5 + 0.5 * Math.sin(now / 600 + b.x);
+    g.fillStyle = PAL.spore; g.globalAlpha = 0.25 + near * 0.5 * pulse; g.beginPath(); g.arc(q[0], q[1], Math.max(1.5, 0.08 * q[2]), 0, TAU); g.fill(); g.globalAlpha = 1;
+  }
   // hyphae
   g.globalCompositeOperation = add; g.lineCap = 'round'; g.lineJoin = 'round';
   for (const e of w.edges.values()) {
@@ -226,6 +241,7 @@ function draw(now) {
     g.lineWidth = Math.max(0.5, (0.025 + 0.05 * Math.min(3, e.D)) * pm[2]);
     g.strokeStyle = gcol(gn, Math.min(1, (0.22 + 0.25 * Math.min(1, e.D) + 0.5 * e.act) * young * (PAL.dark ? 1 : 1.7)), e.act);
     polyline(g, e.pts, -0.05); g.stroke();
+    if (gn && gn.glow > 0.05 && PAL.dark) { g.strokeStyle = `hsla(105,95%,62%,${0.35 * gn.glow})`; g.lineWidth += 3; g.stroke(); }
   }
   for (const tip of w.tips) {
     const gn = w.genets.get(tip.g); g.strokeStyle = gcol(gn, 0.55); const p0 = cam.proj(tip.x, tip.y, -0.05); if (!p0) continue;
@@ -242,6 +258,7 @@ function draw(now) {
   // signals and sugar
   for (const s of w.signals) { const p = cam.proj(s.x, s.y, -0.05); if (!p) continue; glowDot(g, p[0], p[1], Math.max(1.6, (s.alarm ? 0.14 : 0.1) * p[2]), s.alarm ? PAL.alarm : gcol(w.genets.get(s.g), 1, 1.5), true); }
   for (const c of w.carbon) { const p = cam.proj(c.x, c.y, 0); if (!p) continue; glowDot(g, p[0], p[1], Math.max(2, 0.17 * p[2]), PAL.spore, true); }
+  for (const c of w.water) { const p = cam.proj(c.x, c.y, -0.05); if (!p) continue; glowDot(g, p[0], p[1], Math.max(2, 0.15 * p[2]), PAL.dark ? '#8fc4ff' : '#2a64b8', true); }
   g.globalCompositeOperation = 'source-over';
   // flashes
   for (const f of w.flashes) { groundCircle(g, f.x, f.y, 0.5 + (2 - f.t) * 1.5, 0, 32); g.strokeStyle = f.c === 'alarm' ? PAL.alarm : PAL.hypha; g.globalAlpha = Math.min(1, f.t) * 0.7; g.lineWidth = 1.2; g.stroke(); g.globalAlpha = 1; }
@@ -283,10 +300,10 @@ function draw(now) {
   drawCompass(g);
 }
 function drawTree(g, t, w) {
-  const h = 1.8 + t.size * 2.6, rc = 0.7 + t.size * 0.9;
+  const h = 0.3 + t.size * 3.6, rc = 0.2 + t.size * 1.15;
   const pg = cam.proj(t.x, t.y, 0), pt = cam.proj(t.x, t.y, h); if (!pg || !pt) return;
   // roots zone and rings
-  for (let i = 1; i <= 3; i++) { groundCircle(g, t.x, t.y, t.size * 0.32 * i, 0, 28); g.strokeStyle = kinCol(t, 0.5 - i * 0.1); g.lineWidth = 1; g.stroke(); }
+  for (let i = 1; i <= Math.min(3, 1 + Math.floor(t.size * 2.5)); i++) { groundCircle(g, t.x, t.y, Math.max(0.08, t.size * 0.32 * i), 0, 28); g.strokeStyle = kinCol(t, 0.5 - i * 0.1); g.lineWidth = 1; g.stroke(); }
   if (t.hub) { groundCircle(g, t.x, t.y, 1.35, 0, 40); g.strokeStyle = PAL.spore; g.setLineDash([3, 3]); g.stroke(); g.setLineDash([]); }
   // trunk
   g.strokeStyle = kinCol(t, 0.75); g.lineWidth = Math.max(1, 0.12 * t.size * pg[2]); g.beginPath(); g.moveTo(pg[0], pg[1]); g.lineTo(pt[0], pt[1]); g.stroke();
@@ -297,6 +314,7 @@ function drawTree(g, t, w) {
   g.strokeStyle = t.defense > 0.2 ? PAL.alarm : kinCol(t, 0.9); g.lineWidth = 1 + t.flash * 1.5 + t.defense; g.stroke();
   if (t.stress > 0.1) { groundCircle(g, t.x, t.y, rc + 0.3 + Math.sin(performance.now() / 90) * 0.1, h, 36); g.strokeStyle = PAL.alarm; g.globalAlpha = t.stress; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1; }
   if (t.flash > 0.1 && PAL.dark) { g.globalCompositeOperation = 'lighter'; glowDot(g, pt[0], pt[1], Math.max(2, 0.2 * pt[2]), kinCol(t, t.flash * 0.6), true); g.globalCompositeOperation = 'source-over'; }
+  if (t.drought > 0.4) { groundCircle(g, t.x, t.y, rc + 0.2, h, 36); g.strokeStyle = PAL.spore; g.setLineDash([2, 4]); g.globalAlpha = t.drought; g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
   g.fillStyle = PAL.dim; g.globalAlpha = 0.9; g.fillText((t.hub ? 'HUB · ' : '') + 'T' + t.id + (t.dying > 0 ? ' †' : ''), pt[0], pt[1] - Math.max(6, rc * pt[2] * 0.35) - 4); g.globalAlpha = 1;
 }
 function drawFruit(g, f, w) {
@@ -305,6 +323,7 @@ function drawFruit(g, f, w) {
   g.strokeStyle = PAL.bone; g.globalAlpha = 0.8; g.lineWidth = Math.max(1, 0.08 * pb[2]); g.beginPath(); g.moveTo(pb[0], pb[1]); g.lineTo(pc[0], pc[1]); g.stroke(); g.globalAlpha = 1;
   const r = (0.2 + f.size * 0.4) * pc[2];
   g.fillStyle = gcol(gn, 0.9, 0.5); g.beginPath(); g.ellipse(pc[0], pc[1], r, r * 0.55, 0, Math.PI, 0); g.fill();
+  if (gn && gn.glow > 0.05 && PAL.dark) { g.globalCompositeOperation = 'lighter'; glowDot(g, pc[0], pc[1], r * 0.8, `hsla(105,95%,62%,${0.5 * gn.glow})`, true); g.globalCompositeOperation = 'source-over'; }
   if (f.phase === 'spore') { g.strokeStyle = PAL.spore; g.lineWidth = 1; g.beginPath(); g.arc(pc[0], pc[1], r * (1.4 + Math.sin(performance.now() / 200) * 0.2), 0, TAU); g.stroke(); }
 }
 function drawListener(g) {
@@ -427,10 +446,17 @@ function slider(box, o) {
 }
 const pct = (v) => Math.round(v * 100) + '%';
 const mul = (v) => v.toFixed(2) + '×';
+const SEASON_MONTH = { spring: 4, summer: 6, autumn: 9, winter: 0 };
+function timeNote() { const x = P.time; const day = 24 / x; $('timeNote').textContent = x === 1 ? 'Real time: one forest day lasts a day.' : `One forest day lasts ${day >= 1 ? (day >= 10 ? Math.round(day) : day.toFixed(1)) + ' h' : Math.round(day * 60) + ' min'}.`; }
+function setSeason(v) {
+  state.season = v; if (!world) return;
+  const m = v === 'now' ? new Date().getMonth() : SEASON_MONTH[v]; world.month = m; world.doy = v === 'now' ? Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000) : Math.round(m * 30.4 + 15);
+  logLine(`Season set to ${MONTHS[m]}: day length, temperature, leaf fall and fruiting follow.`, 'weather');
+}
 function buildSliders() {
   const eco = $('ecoS'), sp = $('spaceS'), la = $('layerS');
   const S = (box, id, label, min, max, def, fmt, help, after) => slider(box, { id, label, min, max, def, fmt, help, get: () => P[id], set: (v) => { P[id] = v; if (after) after(v); } });
-  S(eco, 'time', 'Time', 0.25, 4, 1, mul, 'How fast the forest lives. Sound stays in real time; growth, flow and weather speed up.');
+  slider(eco, { id: 'time', label: 'Time', min: -2, max: Math.log2(24), step: 0.01, def: 0, fmt: (v) => { const x = Math.pow(2, v); return x < 0.99 ? x.toFixed(2) + '×' : x < 9.95 ? x.toFixed(1) + '×' : Math.round(x) + '×'; }, help: 'Speed of the clock. At 1× the sky follows the real clock and a forest takes about an hour to mature. Sound always plays in real time.', get: () => Math.log2(P.time), set: (v) => { P.time = Math.pow(2, v); timeNote(); } });
   S(eco, 'growth', 'Growth', 0, 2.5, 1, mul, 'Speed and branching of hyphal tips.');
   S(eco, 'chatter', 'Chatter', 0, 3, 1, mul, 'How often fungi fire spike trains on their own.');
   S(eco, 'bloom', 'Bloom', 0, 3, 1, mul, 'How readily fungi fruit when they are fed and the soil is wet.');
@@ -480,7 +506,7 @@ async function finishTake() {
   const blob = new Blob([wavHeader(rec.frames, rec.sr), ...rec.chunks], { type: 'audio/wav' });
   const peaks = new Array(600).fill(0); const pp = rec.peaks; for (let i = 0; i < pp.length; i++) { const j = Math.floor(i / pp.length * 600); peaks[j] = Math.max(peaks[j], pp[i]); }
   const n = takes.length + 1; const d = new Date();
-  const t = { id: Date.now(), name: `${state.seed.name} ${String(n).padStart(2, '0')}`, created: d.toISOString(), seedCode: state.seed.code, seedName: `${state.seed.name}, ${state.seed.mood}`, tuning: state.seed.tun.name, dur: rec.frames / rec.sr, sr: rec.sr, peaks, blob, mode: state.mode ? 'speakers' : 'binaural' };
+  const t = { id: Date.now(), name: `${state.seed.name} ${String(n).padStart(2, '0')}`, created: d.toISOString(), seedCode: state.seed.code, seedName: state.seed.name, tuning: state.seed.tun.name, forestAge: Math.round(world.t), stage: STAGES[world.stage][0], clock: fmtClock(world.clockH), month: MONTHS[world.month], dur: rec.frames / rec.sr, sr: rec.sr, peaks, blob, mode: state.mode ? 'speakers' : 'binaural' };
   rec.chunks = [];
   await db.put(t); takes.unshift(t); renderLib(); selectTake(t.id);
   setStatus(`Saved “${t.name}” (${fmtTime(t.dur)}, ${(blob.size / 1048576).toFixed(1)} MB).`);
@@ -509,7 +535,7 @@ function renderLib() {
     el.innerHTML = `<input class="tn" id="tn-${t.id}" value="" aria-label="Take name"><div class="tm"></div><div class="ta"></div>`;
     const nm = el.querySelector('.tn'); nm.value = t.name; nm.addEventListener('change', async () => { t.name = nm.value.trim() || t.name; await db.put(t); if (player.id === t.id) drawPlayer(); });
     el.querySelector('.tm').textContent = `${fmtTime(t.dur)} · ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · seed ${t.seedCode}`;
-    el.querySelector('.tm').title = `${t.seedName} · ${t.tuning} · ${t.mode}`;
+    el.querySelector('.tm').title = `${t.seedName} · ${t.tuning} · ${t.mode}${t.stage ? ` · ${t.stage}, forest age ${fmtAge(t.forestAge)}, ${t.month} ${t.clock}` : ''}`;
     const acts = el.querySelector('.ta');
     const B = (label, title, fn) => { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = label; b.title = title; b.onclick = fn; acts.appendChild(b); return b; };
     B('Open', 'Show this take in the player', () => selectTake(t.id));
@@ -579,7 +605,7 @@ const safeName = (s) => s.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') 
 function saveTake(t) { offerFile(`understory_${safeName(t.name)}_${t.seedCode}.wav`, t.blob); }
 async function saveAll() {
   const files = takes.map(t => ({ name: `understory_${safeName(t.name)}_${t.seedCode}.wav`, blob: t.blob }));
-  const manifest = takes.map(t => ({ file: `understory_${safeName(t.name)}_${t.seedCode}.wav`, name: t.name, created: t.created, seconds: +t.dur.toFixed(2), sampleRate: t.sr, bits: 24, channels: 2, seed: t.seedCode, forest: t.seedName, tuning: t.tuning, spatial: t.mode }));
+  const manifest = takes.map(t => ({ file: `understory_${safeName(t.name)}_${t.seedCode}.wav`, name: t.name, created: t.created, seconds: +t.dur.toFixed(2), sampleRate: t.sr, bits: 24, channels: 2, seed: t.seedCode, forest: t.seedName, tuning: t.tuning, spatial: t.mode, stage: t.stage, forestAgeSeconds: t.forestAge, forestClock: t.clock, month: t.month }));
   files.push({ name: 'understory-manifest.json', blob: new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' }) });
   const z = await zipStore(files);
   if (saver.inArtifact) { try { await saver.dl.save({ filename: 'understory-archive.zip', data: z }); setStatus('Saved understory-archive.zip.'); } catch (e) { setStatus('Save cancelled.'); } }
@@ -632,7 +658,7 @@ function frame(ts) {
   const dt = Math.min(0.05, Math.max(0, (ts - last) / 1000)); last = ts;
   if (world) {
     if (state.running) {
-      let sdt = dt * P.time; while (sdt > 0) { const s = Math.min(0.05, sdt); world.step(s); sdt -= s; }
+      let sdt = dt * P.time; while (sdt > 0) { const s = Math.min(0.08, sdt); world.step(s); sdt -= s; }
       listener.yaw += P.spin * 0.25 * dt;
       // walking
       const k = state.keys || new Set(); const fx = Math.sin(listener.yaw), fy = Math.cos(listener.yaw);
@@ -695,6 +721,7 @@ function boot() {
   $('zoomIn').onclick = () => { cam.dist = Math.max(10, cam.dist / 1.2); }; $('zoomOut').onclick = () => { cam.dist = Math.min(80, cam.dist * 1.2); };
   $('pPlay').onclick = togglePlay; $('pSave').onclick = () => { const t = takes.find(x => x.id === player.id); if (t) saveTake(t); };
   $('pwave').addEventListener('click', seekPlayer); $('saveAll').onclick = saveAll;
+  $('season').onchange = (e) => setSeason(e.target.value); timeNote();
   const h = (location.hash || '').replace('#', '').toUpperCase();
   loadSeed(/^[A-Z0-9]{4,10}$/.test(h) ? h : randomCode());
   loadArchive(); initSaver();

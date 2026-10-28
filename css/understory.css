@@ -125,6 +125,12 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50
 .foot { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
 .notes { color: var(--dim); font-size: 10px; line-height: 1.5; }
 .notes p { margin: 0 0 6px; }
+.note { margin: 8px 0 0; color: var(--dim); font-size: 10px; }
+.seasonrow { display: grid; grid-template-columns: 86px minmax(0, 1fr); align-items: center; gap: 8px; margin-top: 8px; }
+.seasonrow label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.seasonrow select { background: var(--bark); border: 1px solid var(--line); color: var(--bone); padding: 5px 6px; border-radius: 2px; font: inherit; font-size: 11px; min-width: 0; }
+.hud .hudstage { font: 400 17px/1.1 var(--f-display); color: var(--hypha); letter-spacing: 0.04em; margin-top: 4px; }
+.log p.logstage { font: 400 14px/1.35 var(--f-display); letter-spacing: 0.02em; color: var(--bone); background: color-mix(in srgb, var(--humus) 92%, transparent); }
 
 @media (max-width: 960px) {
   main { grid-template-columns: minmax(0, 1fr); }

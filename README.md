@@ -1,6 +1,13 @@
 # Understory
 
-**A mycorrhizal sound forest.** You stand in the middle of a small forest and hear it around you in 3D. Trees hum in the seed's tuning. Fungal hyphae grow between their roots, fuse into a network, carry sugar from tree to tree and pass electrical signals along their length. Wounded trees send alarms. After rain the fungi fruit, and their spores drift past you on the wind and grow into new, mutated individuals. The system runs on its own, and you can walk through it, touch it, wound it, plant in it and cut it.
+**A mycorrhizal sound forest that grows around you.** Every forest begins as bare soil under the real sky of the hour you open it: wind, the soil, a few seeds on the flower of life. Over about an hour a forest grows in its own tuning.
+- **Seedlings** germinate one by one.
+- **Fungal spores** blow in on the wind and wrap the young roots.
+- **Trade:** trees and fungi trade carbon for nutrients.
+- **Signals and water:** sugar, water and electrical signals move through the hyphae.
+- **Fruit:** mushrooms appear after rain, and their spores drift past you and grow into new, mutated individuals.
+
+You hear all of it in 3D. The system runs on its own, and you can walk through it, touch it, wound it, plant in it and cut it.
 
 It uses the Web Audio API and an AudioWorklet engine, with no build step and no dependencies. It runs in any current desktop browser.
 
@@ -30,37 +37,59 @@ npm run build      # → dist/understory.html (self-contained) and dist/artifact
 ### Tests
 ```bash
 npm test           # engine stress test: random, dense and extreme voices; checks NaN, ceiling, CPU
-npm run test:sim   # ecology run headless for 15 simulated minutes per seed
+npm run test:sim   # succession run headless for an hour per seed, printed every 5 minutes
 npm run test:mix   # ecology + engine together offline; loudness per 10 s (add a layer index 0–4 to solo it)
 ```
 
 ---
 
+## Time and succession
+
+- **The sky** follows your real clock and date at 1×, computed for an Alpine valley (46.5° N): sunrise, sunset, temperature, night.
+- **Time** runs from 0.25× to 24×; at 24× a forest day lasts an hour. **Season** swaps today's date for May, July, October or January.
+- **Growth** is compressed so a forest matures in about an hour at 1×. Sound always plays in real time.
+
+| Stage | Typically at 1× | You hear |
+|---|---|---|
+| Bare soil | 0 min | wind and the soil |
+| Germination | ~0.5 min | thin single tones as seedlings appear, an octave up |
+| First partners | ~1–6 min | spores drifting in; the first growing tips ticking; root bonds ringing |
+| Network | ~5–15 min | signals travelling, sugar gliding between trees, trades at the roots |
+| Young forest | ~25 min | fuller trees with more partials; the first mushrooms after rain |
+| Closing canopy | ~40 min | late-stage fungi; decomposers; foxfire shimmer at night |
+| Old growth | ~60 min | hub trees, thick cords, the full soundscape |
+
 ## How it lives
 
-The biology behind each part is in [docs/how-it-lives.md](docs/how-it-lives.md). In short:
+The biology behind each part, with sources, is in [docs/how-it-lives.md](docs/how-it-lives.md). In short:
 
 | Part | What happens | What you hear |
 |---|---|---|
-| **Trees** | They make sugar in daylight, shade each other, grow, drop seedlings of their own kin, and starve without light or fungal links. | A drone or a bark-grain voice in the seed's tuning, brighter by day. The **hub** tree (the one with the most links) is louder. |
+| **Trees** | They germinate from a seed bank, make sugar in daylight, shade each other, and grow with sugar, nutrients and water. They drop seedlings of their own kin. | A drone or bark-grain voice in the seed's tuning that gains partials and loudness as it grows. Thirsty trees click (Khait 2023). |
+| **Fungal succession** | Early-stage genera arrive first on the wind, late-stage genera under a canopy, decomposers on litter. Spores germinate only near roots or litter. | New voices enter the mix over the hour. |
+| **Exploration types** | Contact, short-, medium- and long-distance body plans (Agerer), from dense mats to thick, fast rhizomorph cords. | From fine high ticks to deep, long chirps. |
+| **Market** | Fungi forage nutrient patches and deliver to trees. Trees pay carbon in proportion to delivery, and more when nutrient-starved (Kiers 2011). | Soft tones at the roots when nutrients change hands. |
+| **Water** | At night, deep-rooted trees pass water through the hyphae to dry seedlings (Querejeta 2003). | A liquid gurgle travelling through the dark. |
 | **Hyphae** | Tips take a random walk, turn toward roots, branch, fuse with their own individual into loops (anastomosis) and bond to roots. Different individuals do not fuse. | The tips nearest you tick as they grow. When two individuals meet and wall off, you hear a crackle. |
 | **Sugar** | It flows by pressure, from fed trees to shaded ones. Cords that carry it thicken, and unused cords wither and are recycled. | A warm tone travels along the cords and glides from the source tree's pitch to the receiving tree's pitch. |
-| **Signals** | Nodes fire spike trains ("words") that travel along hyphae at walking pace and can make the next node fire. | Chirp trains move through space past you, and nodes ring in the species' resonator voice. |
+| **Signals** | Nodes fire spike trains ("words") that travel along hyphae at walking pace and can make the next node fire. Activity rises after rain and in warmth (Fukasawa 2023). | Chirp trains move through space past you, and nodes ring in the species' resonator voice. |
 | **Alarms** | A tree browsed by deer, or wounded by you, sends faster and harsher trains. Trees that receive them raise their defence. | The receiving trees grow rougher, brighter and start to tremble, then calm down over time. |
-| **Fruit & spores** | A fed fungus in wet soil fruits and releases spores on the wind. A spore that lands can germinate into a new individual with a mutated genome. | A granular bloom grows from the soil material. Spores pass around you, with doppler as they move. |
-| **Weather** | Day and night, rain showers, and wind that turns and gusts. | Rain falls around you, the wind circles, and the soil hums and crackles beneath you. |
+| **Fruit & spores** | Mushrooms are built from the hosts' recent sugar (Högberg 2001) and form at the colony edge after rain, most in autumn. Spores are flicked off by Buller's drop, lifted by the cap's evaporative updraft (Dressaire 2016) and carried on the wind. They can germinate into new, mutated individuals. | A granular bloom; tiny launch clicks; spores passing around you with doppler. |
+| **Decomposers** | They break litter down into nutrient patches. Some glow in darkness under circadian control (Oliveira 2015). | A faint shimmer over the litter at night. |
+| **Weather** | The real day and night, temperature, rain showers, drying soil, and wind that turns and gusts. | Rain falls around you, the wind circles, and the soil hums and crackles beneath you. |
 
 ### Seeds
 Every seed is a different forest, and each one sets all of the following:
+- a species pool: two early-stage and two late-stage ectomycorrhizal genera plus one decomposer, each with its own exploration type and genome
+- the nutrient patches in the soil
 - a tuning: just intonation, harmonic series, an equal temperament from 5 to 22 tones, the Bohlen–Pierce tritave, a golden-ratio spiral, or something like slendro or pelog
 - a root note
 - two generated nature recordings for the soil (knocked bark, rain on needles, a meltwater creek, wind in reeds, ice and glass, distant voices, stridulation, struck stones, a bowed branch, cave drips)
-- 1–3 fungal species, each with its own growth, signal and fruit genome
 - the trees' partial sets
 - the climate
 - the reverb room
 
-The trees are planted on the centres of the **flower of life**, which also lies on the forest floor. The seed code is in the URL hash (`#LARCH9`), so a link reopens the same forest.
+The seeds lie on the centres of the **flower of life**, which also lies on the forest floor. The seed code is in the URL hash (`#LARCH9`), so a link reopens the same forest.
 
 ### Space
 - **Headphones 3D:** each ear reads every voice from its own delay line, at its distance to that ear divided by the speed of sound. Interaural time difference and doppler fall out of the geometry. Head shadow, darkening for sources behind and below, air absorption and a distance-dependent reverb send give direction and depth.
@@ -80,7 +109,7 @@ The trees are planted on the centres of the **flower of life**, which also lies 
 There are also buttons for **Call rain**, **Send deer** and **Sow a sound**. Sow a sound loads your own recording into the soil, and fruit and bark voices then grow from it. You can also drop an audio file on the forest.
 
 ### Archive
-- **Record** captures the limiter output as 24-bit stereo WAV into the archive, which lives in this browser's IndexedDB.
+- **Record** captures the limiter output as 24-bit stereo WAV into the archive, which lives in this browser's IndexedDB. Each take remembers the seed, the stage, the forest's age and its clock time.
 - The player shows the selected take as a waveform: click it to seek.
 - **Save** downloads a take as WAV. **Save all as zip** bundles every take with `understory-manifest.json`, which records the seed, tuning and spatial mode of each take.
 - **Soil** feeds a take back into the forest as material. **Regrow** plants that take's seed again.
@@ -116,7 +145,7 @@ Inside a claude.ai artifact, files go through the platform's save dialog, and WA
 index.html                 page markup
 css/understory.css         all styles (design tokens at the top, light and dark)
 js/engine.js               AudioWorklet: voice pool, generators, 3D spatialiser, FDN reverb, limiter, recorder
-js/sim.js                  seeds, tunings, procedural materials, the ecology and its sound mapping
+js/sim.js                  sky, seeds, tunings, procedural materials, the ecology and its sound mapping
 js/app.js                  interface, 3D view, input, recording, archive, file export
 tools/build-standalone.mjs single-file build → dist/
 tools/stress-test.mjs      offline engine stress test

@@ -45,9 +45,9 @@
         <button class="btn small" id="zoomIn" title="Zoom in">+</button>
       </div>
       <div class="hint" id="hint">
-        <h2 id="hintTitle">A forest is waiting</h2>
-        <p id="hintText">Every seed is a new forest: its own tuning, sounds, fungi, weather and room. You stand in the middle and hear everything around you.</p>
-        <p>Headphones give the full 3D image.</p>
+        <h2 id="hintTitle">Bare soil</h2>
+        <p id="hintText">Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind. Over the next hour a forest will grow around you, in its own tuning, under the real sky of this hour.</p>
+        <p>Stay a while. Headphones give the full 3D image.</p>
         <button class="btn grow" id="hintGrow">Grow</button>
       </div>
       <div class="drop" id="drop" hidden>Drop to sow into the soil</div>
@@ -56,8 +56,13 @@
     <aside class="side">
       <section class="panel">
         <h2>Ecosystem</h2>
-        <p class="sub">How the forest lives. It runs on its own; these set its temperament.</p>
+        <p class="sub">The sky runs on your real clock. The forest grows on its own; these set its temperament.</p>
         <div class="sliders" id="ecoS"></div>
+        <p class="note" id="timeNote">Real time: one forest day lasts a day.</p>
+        <div class="seasonrow"><label for="season">Season</label>
+          <select id="season" title="The sky follows your real clock and date. Choose a season to hear another time of year: day length, temperature, leaf fall and fruiting change.">
+            <option value="now">Now (today's date)</option><option value="spring">Spring · May</option><option value="summer">Summer · July</option><option value="autumn">Autumn · October</option><option value="winter">Winter · January</option>
+          </select></div>
         <div class="row">
           <button class="btn small" id="rainBtn" title="Call a rain shower">Call rain</button>
           <button class="btn small" id="deerBtn" title="Send deer to browse a tree: it raises an alarm">Send deer</button>
@@ -97,11 +102,12 @@
       </section>
       <section class="panel notes">
         <h2>How it lives</h2>
-        <p><b>Trees</b> hum in the seed's tuning, louder by day. They make sugar in the light; the hub tree is the one with the most fungal links.</p>
-        <p><b>Hyphae</b> grow from their tips, branch, fuse with themselves into loops and bond to roots. You hear the growing tips ticking near you.</p>
-        <p><b>Sugar</b> flows from fed trees to shaded ones by pressure. Cords that carry it thicken; unused ones wither. A warm tone travels along the cords when it moves.</p>
-        <p><b>Signals</b> are spike trains that travel along hyphae at walking pace. Nodes ring when they fire and pass the signal on. A wounded tree sends a faster, harsher alarm; trees that hear it harden their sound.</p>
-        <p><b>Fruit</b> appears after rain when a fungus has stored enough. Its spores ride the wind around you and may land and grow into a new, mutated individual.</p>
+        <p><b>Succession.</b> Every forest starts as bare soil. Seedlings germinate on the flower of life; early-stage fungi (Laccaria, Inocybe, Hebeloma…) arrive first on the wind, late-stage fungi (Russula, Suillus, Amanita…) once there is a canopy, decomposers once there is litter.</p>
+        <p><b>Exploration types.</b> Each fungus has a body plan: contact and short-distance types make dense fine mats, long-distance types send out straight, thick cords that carry water and signals faster.</p>
+        <p><b>The market.</b> Fungi forage nutrients from patches in the soil and trade them to their trees. Trees pay carbon in proportion to what each partner delivers, and send more below ground when they are short of nutrients.</p>
+        <p><b>Flow.</b> Sugar moves between trees by pressure through shared cords; cords that carry it thicken, unused ones wither. At night, deep-rooted trees lift water and pass it through the hyphae to seedlings.</p>
+        <p><b>Signals.</b> Spike trains travel along hyphae; activity rises after rain and in warmth. Wounded or browsed trees send alarms. Thirsty trees click.</p>
+        <p><b>Fruit.</b> Mushrooms are built from the trees' recent sugar. They appear at the colony edge after rain, flick their spores off with tiny clicks, and some decomposers glow at night.</p>
       </section>
     </aside>
   </main>

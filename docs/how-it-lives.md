@@ -1,63 +1,130 @@
 # How it lives
 
-Understory is built from what is known about fungal networks and forests. Where the science is disputed, the system leaves the behaviour to emerge instead of hard-coding it.
+Understory is built from what is known about mycorrhizal fungi and forests. Where the science is disputed, the system lets the behaviour emerge instead of hard-coding it. Every figure that is scaled for listening is marked as scaled.
+
+## Two clocks
+- **The sky runs on the real clock.** A forest opens at your real local time, on today's date, under a sun computed for an Alpine valley (46.5° N).
+  - This covers sunrise and sunset, day length through the year, daily and seasonal temperature, rain, wind, and the night.
+  - At 1× a forest day lasts a day. The Time control runs the clock from 0.25× to 24×.
+  - The Season control swaps today's date for May, July, October or January.
+- **Life is compressed.** Real forests take decades and real hyphae grow millimetres a day. Here a forest grows from bare soil to old growth in about an hour at 1×.
+- **Reserves bridge the gap.** Trees store sugar, so a forest started at night still grows. It grows more slowly until the sun comes up.
+- **Sound always plays in real time.**
+
+## Succession
+Every forest starts as **bare soil** and grows through seven stages. Each new stage is announced in the log.
+
+| Stage | Typically at 1× | What has happened |
+|---|---|---|
+| Bare soil | 0 min | Seeds lie on the centres of the flower of life. Only wind and the soil are audible. |
+| Germination | ~0.5 min | Seedlings break the surface one by one. They live on their seed reserves and sing an octave higher, with a single partial. |
+| First partners | ~1–6 min | Fungal spores blown in on the wind germinate near young roots and form the first mycorrhizal mantles. |
+| Network | ~5–15 min | Several trees share fungal partners. Sugar, nutrients, water and signals start to move. |
+| Young forest | ~25 min | Trees put on height and gain partials. Fungi have stored enough of their hosts' sugar to fruit. |
+| Closing canopy | ~40 min | Shade spreads and litter builds up. Late-stage fungi arrive, then decomposers. |
+| Old growth | ~60 min | Hub trees, thick cords, seedlings raised in the shade. |
+
+**Early-stage and late-stage fungi.** Studies of ectomycorrhizal succession found pioneer genera arriving first on young hosts and other genera joining as stands age. On the Lyman Glacier forefront, for example, *Cortinarius*, *Inocybe* and *Laccaria* came first, and *Lactarius* and *Suillus* appeared only on older ground.
+- Each seed draws two early-stage genera, two late-stage genera and one decomposer.
+- Spores of early-stage fungi arrive from the start. Late-stage spores come once there is a canopy, and decomposers once there is litter.
+- Trees reward partners that suit their age: early-stage fungi earn most from young trees, late-stage fungi from old ones. So the fungal community turns over as the forest matures.
+
+**Spores need roots.** The germination of ectomycorrhizal spores is stimulated by host roots. In Understory a drifting spore only germinates within reach of a root, or on litter for decomposers.
+
+## Exploration types
+Agerer classified ectomycorrhizal mycelium by how far it reaches out from the root tip. Each species here has one of these body plans:
+
+| Type | Body plan in the system | Sound |
+|---|---|---|
+| **Contact** | Slow, densely branching, short-lived, cheap. | Fine high ticks. |
+| **Short-distance** | Like contact, a little further reaching. | Ticks. |
+| **Medium-distance** | Moderate speed, fusing networks, moderate cords. | Mid-register signals. |
+| **Long-distance** | Fast, straight and rarely branching, with long-lived thick cords. Carries more organic nitrogen and water. Faster signals. Expensive. | Low, longer chirps; deep tick filter. |
 
 ## Hyphal growth
-Mycelium grows at its tips. A tip moves forward, wanders a little, turns toward chemical cues such as root exudates, and branches behind its apex.
-- **In the system:** every tip takes a persistent random walk. It is steered toward root zones its individual has not reached yet, toward decaying litter, and away from the plot edge. It branches with a species-specific rate and angle.
-- **Death:** tips die of age or when they leave the plot. A starving individual slows down and stops branching.
+- Each tip takes a persistent random walk. Ectomycorrhizal tips are steered toward unreached roots and toward nutrient patches. Decomposer tips are steered toward litter.
+- Tips branch behind the apex and die of age or at the plot edge.
+- **Anastomosis:** tips of the same individual fuse into loops.
+- **Incompatibility:** tips of different individuals wall themselves off. You hear a short crackle.
 
-## Anastomosis and incompatibility
-Hyphae of the same individual fuse when they meet. That closes loops and makes the network resilient. Hyphae of genetically different individuals reject each other and form barrier zones.
-- **Fusion:** a tip that touches its own network splits the hypha it hits at that point and joins it. The node rings softly.
-- **Rejection:** a tip that touches a stranger stops, with a short crackle.
+## The market
+Kiers et al. (2011) showed that plants and mycorrhizal fungi reward each other in proportion to what the partner supplies: more carbon to fungi that deliver more phosphorus, and vice versa.
+- **Foraging:** fungi take nutrients from mineral and organic patches in the soil, plus a thin background trickle along all their hyphae. Long-distance types are better at organic nitrogen.
+- **Delivery:** each fungus hands nutrients to the trees it is bonded to. Some genomes are greedy and hold part of it back.
+- **Payment:** every tree passes a share of its fresh photosynthate below ground, split among its partners by what each has delivered recently.
+  - Nutrient-starved trees send more, up to about 58 %. Saturated trees send less, down to about 18 %. Real forests send roughly 10–30 % of their production to their fungi.
+  - The share also leans toward partners suited to the tree's age.
+- **Sound:** a delivery sounds as a soft, high tone at the root.
 
-## Mycorrhizal bonds
-Fungi colonise roots and trade nutrients for the tree's sugar.
-- A tip that reaches a root zone bonds the fungus to that tree.
-- The tree's drone takes on a partial from the bond, so the tree slowly changes its timbre as it gains partners.
+## Fruiting
+- **Fruit comes from the trees' sugar.** Fruit bodies are built from the host's recent photosynthate: cutting the bark ring (girdling) stopped ectomycorrhizal fruiting within days (Högberg et al. 2001). In Understory a fungus saves part of its carbon income for fruiting and fruits only when that store is full.
+- **Triggers:**
+  - wet soil
+  - cool weather
+  - the hours after rain
+  - the season, with autumn strongest
+- **Fairy rings:** fruit bodies form at the advancing margin of the colony, which is how fairy rings arise.
+- **Spore launch:** each spore is flicked off the gill by Buller's drop, a tiny surface-tension catapult. You hear it as a short, very high click.
+- **Lift:** evaporation under the cap cools the air and drives a small convective flow that carries spores upward even in still air (Dressaire et al. 2016). Spores then drift on the wind with turbulence and settle slowly.
+- **Offspring:** a spore that lands near a root, or on litter for decomposers, can germinate into a new individual. Its genome is mutated: growth, branching, timbre, register, resonator, fruit voice, trade behaviour and colour.
 
-## Transport and adaptation
-Studies of cord-forming fungi (Bebber, Fricker, Boddy and others) show that networks reinforce the links that carry resources and let the others regress. The result is a balance between efficient transport and resilient loops. The Physarum transport model (Tero et al.) captures the same idea in equations.
-- **Flow:** tree sugar sets the pressure at tree nodes, and junction pressures relax to the conductance-weighted mean of their neighbours. Flow on each hypha is its conductance divided by its length, times the pressure difference.
-- **Adaptation:** conductance grows with flow (a saturating function) and decays without it. Hyphae that thin out below a threshold are pruned, and their matter returns to the soil as litter.
-- **Tax:** the fungus keeps a share of whatever moves through it, which feeds its growth and fruiting.
+## Decomposers and foxfire
+- **Litter** comes from leaf and needle fall (more in autumn), dead fruit bodies, pruned hyphae and dead trees.
+- **Decomposers** (*Mycena*, *Panellus*, *Armillaria*, *Marasmius*, *Gymnopus*) grow toward litter, break it down and release nutrient patches that the mycorrhizal fungi then forage. That closes the nutrient cycle.
+- **Glow:** some decomposers glow. In *Neonothopanus gardneri* the glow is controlled by a circadian clock, and the light attracts insects that may carry spores (Oliveira et al. 2015). Here luminous species glow only in darkness, and a faint shimmer hangs over them at night.
+
+## Water by night
+Querejeta et al. (2003) tracked dye released by the taproots of oak seedlings at night into their ectomycorrhizal and arbuscular mycorrhizal hyphae. The water came from hydraulic lift, and the transfer happened only at night and only through intact hyphal connections. Rhizomorph-forming *Cortinarius* kept distant hyphae supplied longest.
+- **In the system:** at night, deep-rooted mature trees send water through the hyphal network toward dry seedlings, along the actual path of the hyphae.
+- **Sound:** a soft liquid gurgle moves through space. A blue bead shows it in the view.
+
+## Stress sounds
+Khait et al. (2023) recorded airborne ultrasonic clicks (20–100 kHz) from tomato and tobacco plants: about one an hour when well watered, up to about 35 an hour when drought-stressed or cut. Air bubbles in the xylem are the leading explanation.
+- Here every tree clicks at those rates, scaled by tree size.
+- Drought stress comes from soil moisture, sunlight and heat.
+- The clicks are transposed down about tenfold into hearing range.
+- A dashed amber ring marks a thirsty tree.
+
+## Electrical signalling
+- **Spike trains.** Adamatzky recorded trains of electrical spikes in fungal mycelia, grouped them into "words", and estimated a lexicon of up to about 50 words, with most species using 15–20. Whether this is language is open.
+- **After rain.** Fukasawa et al. (2023) measured the ectomycorrhizal *Laccaria bicolor* in the field. Electrical potentials rose and fluctuated after rainfall, sometimes above 100 mV. Signals appeared to pass between nearby fruit bodies in a particular direction, and the activity correlated with precipitation and temperature.
+- **In the system:**
+  - Each node integrates its input and fires a train when it crosses a threshold, then rests.
+  - Spontaneous firing rises sharply after rain and with warmth.
+  - Nodes fire when a tip discovers a nutrient patch and when a fruit body matures.
+- **Speed is scaled.** Real propagation is far slower; here signals travel at walking pace so you hear them pass.
+
+## Alarms
+- Damaged plants are reported to signal through shared fungal networks, and neighbours prepare their defences.
+- A browsed tree, from deer every 10–20 minutes, or a tree you wound sends faster, longer trains that travel further.
+- Trees that hear them shift toward inharmonic partials, brighten and tremble, then relax over about a minute.
 
 ## Carbon between trees
-Simard's 1997 field experiment found carbon moving between birch and Douglas fir through shared fungal connections.
-- Later claims are disputed. A 2023 review (Karst, Jones and Hoeksema) found little peer-reviewed evidence that mature "mother trees" preferentially feed their offspring, and only thin evidence that networks are widespread or that transfer measurably helps seedlings.
-- **So in Understory:** sugar moves only because pressure differs. Shaded seedlings are sinks and sunlit trees are sources, so seedlings can be fed without any intention built in.
-- The **hub** tree is simply the large tree with the most links at the moment, and the hub can change.
-- A dying tree raises its pressure and empties its sugar into the network for its neighbours.
+- **What was measured.** Simard et al. (1997) measured carbon moving between birch and Douglas fir through shared fungi. Klein et al. (2016) estimated that about 4 % of fine-root carbon was exchanged between neighbouring trees in a Swiss forest.
+- **What is disputed.** A 2023 review (Karst, Jones & Hoeksema) found little peer-reviewed evidence that "mother trees" preferentially feed their kin, and found the evidence that transfer helps seedlings to be thin.
+- **So in Understory:** sugar moves only by pressure differences.
+  - Shaded seedlings are sinks and sunlit trees are sources.
+  - Hub trees are simply the most connected at the moment.
+  - Nothing preferential is coded.
 
-## Electrical spiking
-Adamatzky recorded trains of electrical spikes in the mycelium of several fungal species. He grouped them into "words" and estimated a vocabulary of up to about 50 words, with most species using around 15–20. Whether this is a language is open: the spikes may also serve growth or signalling of presence.
-- **In the system:** each node integrates its input and fires a spike train when it crosses a threshold, then rests for a refractory period.
-- Each species has its own average word length, timbre (FM ratio and index, glide, blip length), resonator voice and travel speed.
-- Signals move along the actual path of each hypha. They are slowed down to walking pace so you hear them travel.
-- Spontaneous activity is higher at dawn and dusk.
-
-## Alarms and defence
-Damaged plants are reported to signal stress through shared fungal networks, and neighbours prepare their defences.
-- A browsed or wounded tree sends faster and longer trains that travel further.
-- Trees that receive them raise their defence: their partials stretch away from harmonic, they get brighter, and they tremble. They relax over about half a minute.
-- Deer arrive on their own every few minutes.
-
-## Fruiting, spores, mutation
-Fungi fruit when they have stored enough and the conditions are wet. Their spores travel on the wind and found new individuals.
-- **Fruiting:** an individual that has stored enough energy, in soil that is wet enough, fruits at one of its junctions away from tree trunks.
-- **The mushroom's life:** it grows for about 12 s, matures, releases 3–7 spores, then decays into litter.
-- **Spores** follow the wind with turbulence and settle slowly.
-- **Germination:** a spore that lands on open, wet ground can germinate into a new individual. Its genome is mutated, with the amount set by the **Mutation** control: growth, branching, signal timbre, register, resonator, fruit voice and colour.
-- **Selection:** over time, the lineages that feed well spread and those that starve die out.
-
-## Trees
-- Trees photosynthesise along the day cycle and shade the smaller trees nearby. They respire, grow when well fed, and drop seedlings of the same kin, a nearby note in the scale.
-- Trees that stay starved for too long die back into litter.
+## Transport and adaptation
+- **Flow:** tree sugar sets the pressure at tree nodes. Junction pressures relax to the conductance-weighted mean of their neighbours, and flow on each hypha is its conductance divided by its length, times the pressure difference. This is the Physarum transport model (Tero et al. 2010).
+- **Thickening:** conductance grows with flow and decays without it. Cords that lead to a discovered nutrient patch also thicken, and cords of a trading fungus are maintained. This follows observations of cord-forming fungi (Bebber, Fricker, Boddy).
+- **Pruning:** hyphae that thin out below a threshold are pruned and become litter.
 
 ## Sources
+- R. Agerer (2001), *Exploration types of ectomycorrhizae*, Mycorrhiza 11.
 - A. Adamatzky (2022), *Language of fungi derived from their electrical spiking activity*, Royal Society Open Science.
-- J. Karst, M. D. Jones, J. D. Hoeksema (2023), *Positive citation bias and overinterpreted results lead to misinformation on common mycorrhizal networks in forests*, Nature Ecology & Evolution.
-- S. W. Simard et al. (1997), *Net transfer of carbon between ectomycorrhizal tree species in the field*, Nature.
 - D. P. Bebber, J. Hynes, P. R. Darrah, L. Boddy, M. D. Fricker (2007), *Biological solutions to transport network design*, Proc. R. Soc. B.
+- E. Dressaire, L. Yamada, B. Song, M. Roper (2016), *Mushrooms use convectively created airflows to disperse their spores*, PNAS.
+- Y. Fukasawa, D. Akai, M. Ushio, T. Takehi (2023), *Electrical potentials in the ectomycorrhizal fungus Laccaria bicolor after a rainfall event*, Fungal Ecology.
+- P. Högberg et al. (2001), *Large-scale forest girdling shows that current photosynthesis drives soil respiration*, Nature.
+- A. Jumpponen, J. M. Trappe, E. Cázares (2002), *Occurrence of ectomycorrhizal fungi on the forefront of retreating Lyman Glacier*, Mycorrhiza.
+- J. Karst, M. D. Jones, J. D. Hoeksema (2023), *Positive citation bias and overinterpreted results lead to misinformation on common mycorrhizal networks in forests*, Nature Ecology & Evolution.
+- I. Khait et al. (2023), *Sounds emitted by plants under stress are airborne and informative*, Cell.
+- E. T. Kiers et al. (2011), *Reciprocal rewards stabilize cooperation in the mycorrhizal symbiosis*, Science.
+- T. Klein, R. T. W. Siegwolf, C. Körner (2016), *Belowground carbon trade among tall trees in a temperate forest*, Science.
+- A. G. Oliveira et al. (2015), *Circadian control sheds light on fungal bioluminescence*, Current Biology.
+- J. I. Querejeta, L. M. Egerton-Warburton, M. F. Allen (2003), *Direct nocturnal water transfer from oaks to their mycorrhizal symbionts during severe soil drying*, Oecologia.
+- S. W. Simard et al. (1997), *Net transfer of carbon between ectomycorrhizal tree species in the field*, Nature.
 - A. Tero et al. (2010), *Rules for biologically inspired adaptive network design*, Science.
