@@ -61,7 +61,7 @@ const audio = {
 // ---------------------------------------------------------------- state
 const P = { time: 1, growth: 1, chatter: 1, bloom: 1, mutation: 1, moisture: 0.5, wind: 0.4, change: 0.5, depth: 1, spin: 0, wet: 0.45, room: 0.5, master: 0.8, layers: [1, 1, 1, 1, 0.8, 0.9], char: CHAR_DEFAULT() };
 const P_DEFAULT = JSON.parse(JSON.stringify(P));
-const state = { height: 'ground', ride: false, rideObj: null, rideWait: 0, forestId: null, forestName: '', kept: false, season: 'now', running: false, everStarted: false, seed: null, mode: 0, follow: true, drift: false, tool: 'listen', matB: false, matBName: '', pregrow: false, walk: null, driftT: 0, recording: false };
+const state = { plantSp: 'auto', sowGenus: 'auto', shapeKind: 'wet', brush: 2.6, walkMode: null, gait: 'slow', gaitT: 0, walkH: 0, walkV: 0, stepPh: 0, foot: 1, height: 'ground', ride: false, rideObj: null, rideWait: 0, forestId: null, forestName: '', kept: false, season: 'now', running: false, everStarted: false, seed: null, mode: 0, follow: true, drift: false, tool: 'listen', matB: false, matBName: '', pregrow: false, walk: null, driftT: 0, recording: false };
 let world = null;
 const listener = { x: 0, y: 0, z: 1.6, yaw: 0 };
 const HEIGHTS = { ground: 1.6, under: -0.7, canopy: 11 };
@@ -100,13 +100,14 @@ async function loadSeed(code) {
   $('log').innerHTML = ''; lastLog = {};
   headerFor(seed);
   if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
+  buildToolOpts();
   showHint('Bare soil', 'Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind. Over the next hour a forest will grow around you, in its own tuning, under the real sky of this hour.', 'Grow');
   logLine(`Seed ${code}. Bare soil, ${MONTHS[world.month]}, ${fmtClock(world.clockH)}. ${seed.nTrees} seeds lie on the flower of life. Nothing has grown yet.`, 'stage');
   renderForests();
 }
 async function continueForest(rec) {
   if (rec.id !== state.forestId) await saveForest();
-  const seed = makeSeed(rec.code);
+  const seed = Object.assign(makeSeed(rec.code), (rec.data && rec.data.seed) || {});
   await swapOut();
   state.seed = seed; state.forestId = rec.id; state.forestName = rec.name || seed.name; state.kept = true;
   // the forest's temperament and the listener's nudges come back with it
@@ -119,7 +120,7 @@ async function continueForest(rec) {
   Object.assign(listener, rec.listener || { x: 0, y: 0, yaw: 0 }); listener.z = HEIGHTS.ground; state.height = 'ground'; world.listener = listener;
   state.walk = null; state.rideObj = null;
   $('log').innerHTML = ''; lastLog = {};
-  headerFor(seed); refreshSliders(); timeNote(); updateOptionButtons();
+  headerFor(seed); refreshSliders(); timeNote(); updateOptionButtons(); buildToolOpts();
   if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
   const away = rec.visited ? Math.round((Date.now() - rec.visited) / 60000) : 0;
   showHint(`Welcome back to ${state.forestName}`, `${STAGES[world.stage][0]}, forest age ${fmtAge(world.t)}. It waited for you${away > 1 ? ` for ${away < 120 ? away + ' minutes' : Math.round(away / 60) + ' hours'}` : ''}; the sky has moved on to the real hour.`, 'Continue');
@@ -172,10 +173,14 @@ function updateHud() {
   <span>wind <b>${(w.windStr * 3).toFixed(1)} m/s</b> from ${wn}${w.stormT > 0 ? ' · <b>storm</b>' : ''}${w.dryT > 0 ? ' · <b>dry spell</b>' : ''}${w.snow > 0.03 ? ` · snow cover <b>${Math.round(w.snow * 100)}%</b>` : ''}</span>
   <span class="hudstage">${st[0]}</span>
   <span>forest age <b>${fmtAge(w.t)}</b></span>
-  <span><b>${w.trees.length}</b> trees · <b>${w.genets.size}</b> fungi · <b>${w.edges.size}</b> hyphae · <b>${w.tips.length}</b> tips</span>
+  <span><b>${w.trees.length}</b>/${MAX_TREES} trees · <b>${w.genets.size}</b>/${MAX_FUNGI} fungi · <b>${w.edges.size}</b> hyphae · <b>${w.tips.length}</b> tips</span>
   <span><b>${w.signals.length}</b> signals · <b>${w.carbon.length + w.water.length}</b> in transit · <b>${w.fruits.length}</b> fruit · <b>${w.spores.length}</b> spores</span>
   <span>${state.height === 'under' ? 'listening <b>under the soil</b> · ' : state.height === 'canopy' ? 'listening <b>in the canopy</b> · ' : ''}voices <b>${audio.started ? audio.meter.nv : 0}</b>/56</span>`;
   updateHappenings();
+  const here = w.placeInfo(listener.x, listener.y);
+  let u = `<b>Underfoot</b>: ${here.text} · ${here.suits}${state.walkMode ? ` · <b>${state.gait === 'run' ? 'running' : state.gait === 'walk' ? 'walking' : 'ambling'}</b>` : ''}`;
+  if (scene.hover && (state.tool === 'plant' || state.tool === 'sow' || state.tool === 'shape')) { const hv = w.placeInfo(scene.hover[0], scene.hover[1]); u += `<br><b>Here</b>: ${hv.text} · ${hv.suits}`; }
+  $('underfoot').innerHTML = u;
 }
 function drawMeter() {
   const c = $('meter'), g = c.getContext('2d'); const W = c.width, H = c.height; g.clearRect(0, 0, W, H);
@@ -223,8 +228,17 @@ function resize() {
   cv.width = Math.round(scene.w * scene.dpr); cv.height = Math.round(scene.h * scene.dpr);
 }
 function hsl(h, s, l, a = 1) { return `hsla(${h.toFixed(0)},${s}%,${l}%,${a})`; }
-function gcol(g, a = 1, boost = 0) { const h = g ? g.sp.hue : 150; return PAL.dark ? hsl(h, 70, 64 + boost * 12, a) : hsl(h, 70, 32 + boost * 6, a); }
-function kinCol(t, a = 1) { const h = state.seed.kinHue + t.kin * 32; return PAL.dark ? hsl(h, 42, 62, a) : hsl(h, 50, 34, a); }
+function gcol(g, a = 1, boost = 0) { const [h, s, l] = seasonTint(g ? g.sp.hue : 150, 70, PAL.dark ? 64 + boost * 12 : 32 + boost * 6); return hsl(h, Math.min(95, s), Math.min(92, l), a); }
+function kinCol(t, a = 1) { const c = treeHSL(t); return PAL.dark ? hsl(c[0], c[1], c[2] + 10, a) : hsl(c[0], Math.min(80, c[1] + 8), Math.max(20, c[2] - 10), a); }
+// tree colour from species, season and the state of its leaves
+function treeHSL(t) {
+  const T = TREE_SPECIES[t.sp] || TREE_SPECIES.birch, c = T.col, mix = (a, b, k) => [a[0] + ((b[0] - a[0] + 540) % 360 - 180) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  if (T.leaf === 'ever') { const se = world.season(); return se === 'winter' ? c[3] : se === 'spring' ? mix(c[0], c[1], 0.4) : se === 'autumn' ? c[2] : c[1]; }
+  if (t.leaf < 0.12) return c[3];
+  if (t.sen > 0.03) return mix(c[1], c[2], Math.min(1, t.sen * 1.3));
+  return mix(c[0], c[1], clamp01((world.doy - 125) / 45));
+}
+function seasonTint(h, s, l) { const se = world ? world.season() : 'summer'; if (se === 'spring') return [h, s + 6, l + 4]; if (se === 'autumn') return [h + ((35 - h + 540) % 360 - 180) * 0.15, s + 4, l]; if (se === 'winter') return [h - 8, s * 0.55, l + 8]; return [h, s, l]; }
 
 function groundCircle(g, x, y, r, z = 0, n = 64) {
   let first = true; g.beginPath();
@@ -258,6 +272,7 @@ function draw(now) {
   // listening from under the soil: the earth closes around you
   const under = clamp01((1.6 - listener.z) / 2.3);
   if (under > 0.02) { g.fillStyle = PAL.dark ? `rgba(48,34,20,${under * 0.45})` : `rgba(120,90,55,${under * 0.25})`; g.fillRect(0, 0, scene.w, scene.h); }
+  drawGround(g, w, now);
   // litter
   for (const l of w.litter) { groundCircle(g, l.x, l.y, 0.6 + l.a * 0.7, 0, 24); g.fillStyle = PAL.dark ? `rgba(120,90,50,${0.08 + l.a * 0.06})` : `rgba(110,80,40,${0.08 + l.a * 0.06})`; g.fill(); }
   // nutrient patches in the soil
@@ -358,16 +373,19 @@ function drawTree(g, t, w) {
   for (let i = 1; i <= Math.min(3, 1 + Math.floor(t.size * 2.5)); i++) { groundCircle(g, t.x, t.y, Math.max(0.08, t.size * 0.32 * i), 0, 28); g.strokeStyle = kinCol(t, 0.5 - i * 0.1); g.lineWidth = 1; g.stroke(); }
   if (t.hub) { groundCircle(g, t.x, t.y, 1.35, 0, 40); g.strokeStyle = PAL.spore; g.setLineDash([3, 3]); g.stroke(); g.setLineDash([]); }
   // trunk
-  g.strokeStyle = kinCol(t, 0.75); g.lineWidth = Math.max(1, 0.12 * t.size * pg[2]); g.beginPath(); g.moveTo(pg[0], pg[1]); g.lineTo(pt[0], pt[1]); g.stroke();
+  g.strokeStyle = t.sp === 'birch' ? (PAL.dark ? 'rgba(230,228,220,0.85)' : 'rgba(150,150,145,0.9)') : (PAL.dark ? 'rgba(150,120,95,0.8)' : 'rgba(95,70,50,0.85)'); g.lineWidth = Math.max(1, 0.12 * t.size * pg[2]); g.beginPath(); g.moveTo(pg[0], pg[1]); g.lineTo(pt[0], pt[1]); g.stroke();
   // canopy
   groundCircle(g, tx, ty, rc, h, 36);
   const sug = clamp01(t.sugar / 2);
-  g.fillStyle = kinCol(t, 0.12 + sug * 0.22 + t.flash * 0.25); g.fill();
-  g.strokeStyle = t.defense > 0.2 ? PAL.alarm : kinCol(t, 0.9); g.lineWidth = 1 + t.flash * 1.5 + t.defense; g.stroke();
+  const bare = (TREE_SPECIES[t.sp] || {}).leaf !== 'ever' && t.leaf < 0.12;
+  g.fillStyle = kinCol(t, bare ? ((TREE_SPECIES[t.sp] || {}).leaf === 'marc' ? 0.14 : 0.03) : 0.12 + sug * 0.22 + t.flash * 0.25); g.fill();
+  if (bare) g.setLineDash([2, 3]);
+  g.strokeStyle = t.defense > 0.2 ? PAL.alarm : kinCol(t, 0.9); g.lineWidth = 1 + t.flash * 1.5 + t.defense; g.stroke(); g.setLineDash([]);
   if (t.stress > 0.1) { groundCircle(g, tx, ty, rc + 0.3 + Math.sin(performance.now() / 90) * 0.1, h, 36); g.strokeStyle = PAL.alarm; g.globalAlpha = t.stress; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1; }
   if (t.flash > 0.1 && PAL.dark) { g.globalCompositeOperation = 'lighter'; glowDot(g, pt[0], pt[1], Math.max(2, 0.2 * pt[2]), kinCol(t, t.flash * 0.6), true); g.globalCompositeOperation = 'source-over'; }
   if (t.drought > 0.4) { groundCircle(g, tx, ty, rc + 0.2, h, 36); g.strokeStyle = PAL.spore; g.setLineDash([2, 4]); g.globalAlpha = t.drought; g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
-  g.fillStyle = PAL.dim; g.globalAlpha = 0.9; g.fillText((t.hub ? 'HUB · ' : '') + 'T' + t.id + (t.dying > 0 ? ' †' : ''), pt[0], pt[1] - Math.max(6, rc * pt[2] * 0.35) - 4); g.globalAlpha = 1;
+  if (w.trees.length > 12 && !t.hub && Math.hypot(t.x - listener.x, t.y - listener.y) > 7 && !(scene.hover && Math.hypot(t.x - scene.hover[0], t.y - scene.hover[1]) < 3)) return;
+  g.fillStyle = PAL.dim; g.globalAlpha = 0.9; g.fillText((t.hub ? 'HUB · ' : '') + (TREE_SPECIES[t.sp] ? TREE_SPECIES[t.sp].short.toLowerCase() + ' ' : '') + t.id + (t.dying > 0 ? ' †' : ''), pt[0], pt[1] - Math.max(6, rc * pt[2] * 0.35) - 4); g.globalAlpha = 1;
 }
 function drawFruit(g, f, w) {
   const gn = w.genets.get(f.g); const s = 0.25 + f.size * 0.55;
@@ -390,6 +408,53 @@ function drawListener(g) {
   if (pn) { g.beginPath(); g.moveTo(ph[0], ph[1]); g.lineTo(pn[0], pn[1]); g.stroke(); }
   g.fillStyle = PAL.hypha; for (const q of [pl, pr]) if (q) { g.beginPath(); g.arc(q[0], q[1], Math.max(2, r * 0.3), 0, TAU); g.fill(); }
   scene.head = [ph[0], ph[1], r];
+}
+// the ground layer: grass, moss, ferns, heath, sedge and lichen-covered stone, coloured by season
+const COVER_COL = {
+  1: { spring: [95, 55, 52], summer: [100, 45, 42], autumn: [48, 40, 48], winter: [40, 22, 42] },
+  2: { spring: [100, 52, 38], summer: [100, 50, 36], autumn: [95, 45, 36], winter: [110, 32, 34] },
+  3: { spring: [110, 55, 45], summer: [115, 48, 38], autumn: [25, 62, 42], winter: [30, 30, 32] },
+  4: { spring: [120, 35, 38], summer: [130, 30, 36], autumn: [5, 62, 42], winter: [330, 22, 32] },
+  5: { spring: [70, 40, 44], summer: [72, 35, 42], autumn: [50, 35, 42], winter: [45, 25, 40] },
+  6: { spring: [90, 10, 58], summer: [90, 8, 58], autumn: [90, 8, 56], winter: [90, 6, 62] },
+  7: { spring: [30, 35, 32], summer: [30, 35, 30], autumn: [28, 55, 40], winter: [28, 25, 30] },
+};
+function drawGround(g, w, now) {
+  const S = w.soil, N = SOIL_N, se = w.season(), snow = w.snow;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i, [x0, y0] = w.cellXY(i, j); if (Math.hypot(x0, y0) > PLOT_R + 0.3) continue;
+    const hsh = Math.sin(k * 12.9898) * 43758.5453, jx = (hsh - Math.floor(hsh) - 0.5) * SOIL_CELL * 0.8, jy = (Math.sin(k * 78.233) * 43758.5453 % 1) * SOIL_CELL * 0.4;
+    const x = x0 + jx, y = y0 + jy; const p = cam.proj(x, y, 0); if (!p) continue;
+    const r = Math.max(1.2, 0.32 * p[2]);
+    // painted soil shows through: wet ground darkens blue, rich ground dark brown, acid ground ochre
+    const wv = S.wet[k], rv = S.rich[k], av = S.acid[k];
+    if (wv > 0.35) { g.fillStyle = PAL.dark ? `rgba(70,120,170,${(wv - 0.35) * 0.35})` : `rgba(60,110,170,${(wv - 0.35) * 0.3})`; g.beginPath(); g.arc(p[0], p[1], r * 2.4, 0, TAU); g.fill(); }
+    else if (wv < -0.45) { g.fillStyle = `rgba(200,170,110,${(-wv - 0.45) * 0.25})`; g.beginPath(); g.arc(p[0], p[1], r * 2.4, 0, TAU); g.fill(); }
+    if (rv > 0.62) { g.fillStyle = `rgba(70,45,25,${(rv - 0.62) * 0.6})`; g.beginPath(); g.arc(p[0], p[1], r * 2, 0, TAU); g.fill(); }
+    if (av > 0.68) { g.fillStyle = `rgba(190,150,60,${(av - 0.68) * 0.4})`; g.beginPath(); g.arc(p[0], p[1], r * 1.8, 0, TAU); g.fill(); }
+    const c = S.cover[k], d = S.coverD[k]; if (!c || d < 0.08) continue;
+    const vis = c === 6 ? 1 : Math.max(0, 1 - snow * 1.4); if (vis <= 0.02) continue;
+    const col = COVER_COL[c][se]; const a = Math.min(0.75, 0.25 + d * 0.5) * vis;
+    const cs = PAL.dark ? hsl(col[0], col[1], col[2], a) : hsl(col[0], Math.min(80, col[1] + 10), Math.max(18, col[2] - 12), a);
+    g.strokeStyle = cs; g.fillStyle = cs; g.lineWidth = 1;
+    const up = r * (c === 5 ? 1.6 : 1);
+    if (c === 1 || c === 5) { g.beginPath(); for (let q = -1; q <= 1; q++) { g.moveTo(p[0] + q * r * 0.5, p[1]); g.lineTo(p[0] + q * r * 0.8 + Math.sin(now / 900 + k) * r * 0.25 * w.windStr, p[1] - up); } g.stroke(); }
+    else if (c === 2) { g.beginPath(); g.ellipse(p[0], p[1], r * 1.1, r * 0.5, 0, 0, TAU); g.fill(); }
+    else if (c === 3) { g.beginPath(); g.moveTo(p[0], p[1]); g.quadraticCurveTo(p[0] - r, p[1] - r, p[0] - r * 1.4, p[1] - r * 0.4); g.moveTo(p[0], p[1]); g.quadraticCurveTo(p[0] + r, p[1] - r, p[0] + r * 1.4, p[1] - r * 0.4); g.stroke(); }
+    else if (c === 4) { for (let q = 0; q < 3; q++) { g.beginPath(); g.arc(p[0] + (q - 1) * r * 0.6, p[1] - (q % 2) * r * 0.4, r * 0.28, 0, TAU); g.fill(); } }
+    else if (c === 6) { g.beginPath(); g.ellipse(p[0], p[1], r * 0.9, r * 0.45, 0.3, 0, TAU); g.fill(); }
+    else if (c === 7) { g.beginPath(); g.arc(p[0] - r * 0.3, p[1], r * 0.25, 0, TAU); g.arc(p[0] + r * 0.4, p[1] - r * 0.2, r * 0.2, 0, TAU); g.fill(); }
+    // spring flowers on fertile, light ground
+    if (se === 'spring' && (c === 1 || c === 3) && rv > 0.42 && (k % 3 === 0)) { g.fillStyle = ['rgba(245,245,235,0.8)', 'rgba(240,210,80,0.8)', 'rgba(170,140,230,0.8)'][k % 3 === 0 ? (k >> 2) % 3 : 0]; g.beginPath(); g.arc(p[0] + r * 0.6, p[1] - up * 0.8, Math.max(1, r * 0.22), 0, TAU); g.fill(); }
+  }
+  // dead logs
+  for (const lg of w.logs) {
+    const a = cam.proj(lg.x - Math.sin(lg.a) * lg.len / 2, lg.y - Math.cos(lg.a) * lg.len / 2, 0.15), b = cam.proj(lg.x + Math.sin(lg.a) * lg.len / 2, lg.y + Math.cos(lg.a) * lg.len / 2, 0.15); if (!a || !b) continue;
+    const age = clamp01(lg.t / lg.life); g.strokeStyle = PAL.dark ? `rgba(${120 - age * 40},${90 + age * 20},${60},0.85)` : `rgba(${90 - age * 30},${65 + age * 20},40,0.85)`; g.lineCap = 'round'; g.lineWidth = Math.max(2, 0.35 * (a[2] + b[2]) / 2); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+  }
+  // brush preview
+  if (scene.brush && state.tool === 'shape') { groundCircle(g, scene.brush.x, scene.brush.y, state.brush, 0, 32); g.strokeStyle = PAL.bone; g.globalAlpha = 0.35; g.setLineDash([3, 3]); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
+  else if (scene.hover && state.tool === 'shape') { groundCircle(g, scene.hover[0], scene.hover[1], state.brush, 0, 32); g.strokeStyle = PAL.bone; g.globalAlpha = 0.2; g.stroke(); g.globalAlpha = 1; }
 }
 function drawSnag(g, sn) {
   const h = 0.6 + sn.size * 2.6 * Math.max(0.3, 1 - sn.t / sn.life);
@@ -453,6 +518,7 @@ const TOOLS = [
   ['plant', 'Plant', 'Click the floor to plant a seedling. It needs fungal partners to survive.'],
   ['sow', 'Sow spores', 'Click the floor to sow a new, mutated fungal individual.'],
   ['cut', 'Cut', 'Drag a line across hyphae to cut them. Click a tree to fell it: it pours its sugar into the network as it dies.'],
+  ['shape', 'Shape ground', 'Paint the conditions of a place: wet, dry, rich, acid or stony ground, or lay a dead log. Trees, fungi, moss and grass follow.'],
 ];
 function buildTools() {
   const box = $('tools');
@@ -465,10 +531,38 @@ function setTool(id) {
   state.tool = id; $('stage').dataset.tool = id;
   for (const [t] of TOOLS) $('tool-' + t).setAttribute('aria-pressed', String(t === id));
   const t = TOOLS.find(x => x[0] === id); if (t) logHelp(t[2]);
+  buildToolOpts();
+}
+// options for the tools that build: which species to plant, which fungus to sow, what to paint
+const SHAPES = [['wet', 'Wet', 'A seep: wetter ground for alder, sedge and moss'], ['dry', 'Dry', 'Drained ground for pine and oak'], ['rich', 'Rich', 'Fertile humus: fir and beech thrive; many mycorrhizal fungi decline'], ['acid', 'Acid', 'Acid soil: spruce, heath and acid-loving fungi'], ['stone', 'Stone', 'Scree: lichen, stone pine and larch'], ['log', 'Dead log', 'Lay a fallen log: decomposers feed on it and the soil grows rich']];
+function buildToolOpts() {
+  const box = $('toolopts'); box.innerHTML = ''; const tool = state.tool;
+  box.hidden = !(tool === 'plant' || tool === 'sow' || tool === 'shape'); if (box.hidden || !world) return;
+  const chip = (label, title, on, fn, sw) => { const b = document.createElement('button'); b.className = 'chip'; b.setAttribute('aria-pressed', String(on)); b.title = title; b.innerHTML = (sw ? `<i style="background:${sw}"></i>` : '') + label; b.onclick = () => { fn(); buildToolOpts(); }; box.appendChild(b); };
+  if (tool === 'plant') {
+    chip('Place decides', 'The species that suits this spot best', state.plantSp === 'auto', () => state.plantSp = 'auto');
+    for (const k of TREE_KEYS) { const T = TREE_SPECIES[k], c = T.col[1]; chip(T.short, `${T.name}${world.seed.treeSpecies.includes(k) ? ' · native to this forest' : ''}`, state.plantSp === k, () => state.plantSp = k, `hsl(${c[0]},${c[1]}%,${c[2] + 8}%)`); }
+  } else if (tool === 'sow') {
+    const sel = document.createElement('select'); sel.id = 'sowSel'; sel.setAttribute('aria-label', 'Fungus to sow');
+    const groups = [['Place decides', [['auto', 'The fungus that suits this spot']]], ['Pioneers', FUNGI.filter(f => f[2] === 'early').map(f => [f[0], f[0]])], ['Mature-forest fungi', FUNGI.filter(f => f[2] === 'late').map(f => [f[0], f[0] + (f[8] ? '' : ' (no fruit bodies)')])], ['Host specialists', FUNGI.filter(f => f[2] === 'host').map(f => [f[0], `${f[0]} (with ${f[4].map(h => TREE_SPECIES[h].short.toLowerCase()).join(', ')})`])], ['Decomposers', FUNGI.filter(f => f[1] === 'sapro').map(f => [f[0], f[0] + (f[9] > 0.5 ? ' (may glow)' : '')])]];
+    for (const [g, opts] of groups) { const og = document.createElement('optgroup'); og.label = g; for (const [v, l] of opts) { const o = document.createElement('option'); o.value = v; o.textContent = l; og.appendChild(o); } sel.appendChild(og); }
+    sel.value = state.sowGenus; sel.onchange = () => { state.sowGenus = sel.value; }; box.appendChild(sel);
+    const n = document.createElement('span'); n.className = 'count'; n.textContent = `${world.genets.size}/${MAX_FUNGI} fungi`; box.appendChild(n);
+  } else {
+    for (const [k, l, t] of SHAPES) chip(l, t, state.shapeKind === k, () => state.shapeKind = k);
+    chip(state.brush > 3 ? 'Wide brush' : 'Narrow brush', 'Brush size', false, () => state.brush = state.brush > 3 ? 2.6 : 4.5);
+  }
 }
 let helpTimer = 0;
 function logHelp(t) { const st = $('status'); void st; const box = $('log'); const p = document.createElement('p'); p.textContent = t; p.style.setProperty('--c', 'var(--bone)'); box.appendChild(p); while (box.children.length > 5) box.removeChild(box.firstChild); clearTimeout(helpTimer); }
 
+let lastPaint = 0;
+function paintAt(p) {
+  const now = performance.now(); if (now - lastPaint < 70) return; lastPaint = now;
+  const gp = cam.ground(p[0], p[1]); if (!gp || Math.hypot(gp[0], gp[1]) > PLOT_R + 1) return;
+  world.paint(gp[0], gp[1], state.shapeKind, state.brush); scene.brush = { x: gp[0], y: gp[1], t: 0.6 };
+  if (!state.painted) { state.painted = true; logLine('You are reshaping the ground. Light, moss, grass, trees and fungi will follow its new character.', 'tree'); }
+}
 function initInput() {
   const cv = scene.cv; let drag = null;
   const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -479,11 +573,13 @@ function initInput() {
     const onHead = scene.head && Math.hypot(p[0] - scene.head[0], p[1] - scene.head[1]) < scene.head[2] + 12;
     drag = { x0: p[0], y0: p[1], x: p[0], y: p[1], moved: 0, tilt, head: onHead && state.tool === 'listen' && !tilt, yaw0: listener.yaw };
     if (state.tool === 'cut' && !tilt) scene.cutLine = [p, p];
+    if (state.tool === 'shape' && !tilt && state.shapeKind !== 'log') paintAt(p);
   });
   cv.addEventListener('pointermove', (e) => {
     if (!drag) return; const p = pos(e); const dx = p[0] - drag.x, dy = p[1] - drag.y; drag.x = p[0]; drag.y = p[1]; drag.moved += Math.abs(dx) + Math.abs(dy);
     if (drag.tilt) { cam.pitch = Math.max(0.3, Math.min(1.5, cam.pitch + dy * 0.006)); if (!state.follow) cam.yaw += dx * 0.006; return; }
     if (state.tool === 'cut') { scene.cutLine = [[drag.x0, drag.y0], p]; return; }
+    if (state.tool === 'shape') { if (state.shapeKind !== 'log') paintAt(p); return; }
     if (state.tool === 'listen') {
       if (drag.head) { const gp = cam.ground(p[0], p[1]); if (gp && Math.hypot(gp[0], gp[1]) < PLOT_R + 3) { listener.x = gp[0]; listener.y = gp[1]; state.walk = null; } }
       else listener.yaw -= dx * 0.007;
@@ -503,10 +599,13 @@ function initInput() {
     if (state.tool === 'listen' && !d.head) { if (Math.hypot(gp[0], gp[1]) < PLOT_R + 2) state.walk = { x: gp[0], y: gp[1] }; }
     else if (state.tool === 'touch') world.touch(gp[0], gp[1]);
     else if (state.tool === 'wound') { const t = world.treeAt(gp[0], gp[1], 1.8); if (t) world.stressTree(t, 'user'); }
-    else if (state.tool === 'plant') { if (!world.plantAt(gp[0], gp[1])) logHelp('A seedling needs open ground inside the circle, away from other trunks (at most 12 trees).'); }
-    else if (state.tool === 'sow') { if (!world.inoculate(gp[0], gp[1])) logHelp('Sow inside the circle. The soil holds at most 8 fungal individuals.'); }
+    else if (state.tool === 'plant') { const r = world.plantAt(gp[0], gp[1], state.plantSp); if (r !== true) logHelp(r === 'full' ? `The forest holds at most ${MAX_TREES} trees.` : r === 'crowded' ? 'Too close to another trunk.' : 'Plant inside the circle.'); }
+    else if (state.tool === 'sow') { const r = world.inoculate(gp[0], gp[1], state.sowGenus); if (r !== true) logHelp(r === 'full' ? `The soil holds at most ${MAX_FUNGI} fungal individuals.` : 'Sow inside the circle.'); buildToolOpts(); }
+    else if (state.tool === 'shape' && state.shapeKind === 'log') { if (!world.addLog(gp[0], gp[1])) logHelp('A log needs open ground, a little away from other logs (at most 16).'); }
   };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', () => { drag = null; scene.cutLine = null; });
+  cv.addEventListener('pointermove', (e) => { const p = pos(e); scene.hover = cam.ground(p[0], p[1]); });
+  cv.addEventListener('pointerleave', () => { scene.hover = null; });
   cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = Math.max(10, Math.min(80, cam.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
   // keyboard
   const keys = new Set();
@@ -517,7 +616,8 @@ function initInput() {
     if (k === 'n') { newSeed(); return; }
     if (k === 'r' && !e.metaKey && !e.ctrlKey) { toggleRec(); return; }
     if (k === 'h') { toggleMode(); return; }
-    if (k >= '1' && k <= '6') { setTool(TOOLS[+k - 1][0]); return; }
+    if (k >= '1' && k <= '7') { setTool(TOOLS[+k - 1][0]); return; }
+    if (k === 'g') { setWalk(state.walkMode ? null : 'rhythm'); return; }
     if ('wasdqe'.includes(k) && k.length === 1) { keys.add(k); e.preventDefault(); }
   });
   window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -877,6 +977,50 @@ function rideStep(dt) {
   listener.x += dx * Math.min(1, dt * 2.2); listener.y += dy * Math.min(1, dt * 2.2);
   if (d > 0.05) { let a = Math.atan2(dx, dy) - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * Math.min(1, dt * 1.2); }
 }
+// walking: slow amble, walk and run, or a rhythm that moves between them
+const GAITS = { slow: { v: 0.6, label: 'Amble' }, walk: { v: 1.35, label: 'Walk' }, run: { v: 3.3, label: 'Run' } };
+const RHYTHM = [['slow', 25, 45], ['walk', 30, 60], ['run', 6, 14], ['walk', 20, 40]];
+function setWalk(mode) {
+  state.walkMode = mode; state.rhythmI = 0; state.gait = mode === 'rhythm' ? 'slow' : mode || 'slow'; state.gaitT = mode === 'rhythm' ? 30 : 1e9; state.walkH = listener.yaw;
+  if (mode) { state.drift = false; state.ride = false; state.walk = null; }
+  for (const b of document.querySelectorAll('#gaits button')) b.setAttribute('aria-pressed', String(b.dataset.g === (mode || 'stop')));
+  updateOptionButtons();
+  if (mode) logLine(mode === 'rhythm' ? 'You set off walking: ambling, walking, now and then running, then walking again.' : `You ${mode === 'run' ? 'run' : mode === 'walk' ? 'walk' : 'amble'} through the forest.`, 'touch');
+}
+function walkStep(dt) {
+  if (state.walkMode === 'rhythm') { state.gaitT -= dt; if (state.gaitT <= 0) { state.rhythmI = (state.rhythmI + 1) % RHYTHM.length; const [g, a, b] = RHYTHM[state.rhythmI]; state.gait = g; state.gaitT = a + Math.random() * (b - a); } }
+  const target = GAITS[state.gait].v; state.walkV += (target - state.walkV) * Math.min(1, dt * 0.7);
+  // a meandering path that keeps inside the circle and steps around trunks
+  let dh = (Math.random() * 2 - 1) * 0.5 * Math.sqrt(dt);
+  const r = Math.hypot(listener.x, listener.y); if (r > PLOT_R - 4) { let a = Math.atan2(-listener.x, -listener.y) - state.walkH; a = Math.atan2(Math.sin(a), Math.cos(a)); dh += a * dt * 0.8; }
+  for (const t of world.trees) { const d = Math.hypot(t.x - listener.x, t.y - listener.y); if (d < 1.6) { let a = Math.atan2(listener.x - t.x, listener.y - t.y) - state.walkH; a = Math.atan2(Math.sin(a), Math.cos(a)); dh += a * dt * 1.5 * (1.6 - d); } }
+  state.walkH += dh;
+  listener.x += Math.sin(state.walkH) * state.walkV * dt; listener.y += Math.cos(state.walkH) * state.walkV * dt;
+  let a = state.walkH - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * Math.min(1, dt * 1.4);
+  // footsteps: cadence rises with speed
+  state.stepPh += (0.9 + state.walkV * 0.6) * dt;
+  if (state.stepPh >= 1) { state.stepPh -= 1; state.foot = -state.foot; if (state.height === 'ground') footstep(); }
+}
+const steps = new Set();
+function footstep() {
+  for (const id of steps) if (!audio.alive(id)) steps.delete(id);
+  if (!audio.ready || steps.size >= 3) return;
+  const pl = world.place(listener.x, listener.y), run = state.walkV > 2.2, gm = run ? 1.3 : state.walkV < 0.9 ? 0.75 : 1;
+  const side = state.foot * 0.12, x = listener.x + Math.cos(listener.yaw) * side, y = listener.y - Math.sin(listener.yaw) * side, z = 0.05;
+  const leafy = world.season() === 'autumn' || world.trees.some(t => TREE_SPECIES[t.sp].leaf !== 'ever' && t.sen > 0.3 && Math.hypot(t.x - x, t.y - y) < 5);
+  const surf = world.snow > 0.25 ? 'snow' : pl.cover === 6 ? 'stone' : pl.cover === 5 || pl.moist > 0.95 ? 'wet' : pl.cover === 2 ? 'moss' : pl.cover === 1 ? 'grass' : leafy ? 'leaves' : 'soil';
+  const base = { x, y, z, layer: 4, send: 0.25, prio: 1, att: 0.008 };
+  const P2 = {
+    snow: [5, { bf: 1700, bq: 0.9, lp: 0.55, crk: 180, gust: 0, srate: 0, gain: 0.16 * gm, rel: 0.1, dur: run ? 0.1 : 0.15 }],
+    leaves: [3, { rate: 240, f: 3300, q: 1.4, jit: 0.6, burst: 0.9, gain: 0.26 * gm, rel: 0.06, dur: run ? 0.1 : 0.17 }],
+    grass: [5, { bf: 3300, bq: 1.2, lp: 0.7, gust: 0, srate: 0, gain: 0.1 * gm, att: 0.03, rel: 0.12, dur: 0.16 }],
+    moss: [5, { bf: 260, bq: 0.8, lp: 0.12, gust: 0, srate: 0, gain: 0.13 * gm, att: 0.03, rel: 0.15, dur: 0.15 }],
+    stone: [0, { f: 1100 + Math.random() * 600, r: [1, 2.57, 4.1, 6.9], d: [0.03, 0.02, 0.015, 0.01], a: [1, 0.6, 0.4, 0.3], hard: 1, gain: 0.18 * gm }],
+    wet: [5, { bf: 600, bq: 2, lp: 0.3, gust: 0, srate: 0, drops: 60, df: 900, gain: 0.14 * gm, rel: 0.15, dur: 0.2 }],
+    soil: [5, { bf: 450, bq: 1, lp: 0.2, gust: 0, srate: 0, gain: 0.12 * gm, rel: 0.1, dur: 0.12 }],
+  }[surf];
+  const id = audio.spawn(P2[0], Object.assign({}, base, P2[1])); if (id) steps.add(id);
+}
 function toggleMode() { state.mode = state.mode ? 0 : 1; $('modeBtn').textContent = state.mode ? 'Speakers stereo' : 'Headphones 3D'; sendGlobals(); }
 function newSeed() { loadSeed(randomCode()); }
 
@@ -893,7 +1037,8 @@ function frame(ts) {
       let mx = 0, my = 0; if (k.has('w')) { mx += fx; my += fy; } if (k.has('s')) { mx -= fx; my -= fy; } if (k.has('d')) { mx += fy; my -= fx; } if (k.has('a')) { mx -= fy; my += fx; }
       if (k.has('q')) listener.yaw -= 1.2 * dt; if (k.has('e')) listener.yaw += 1.2 * dt;
       if (mx || my) { listener.x += mx * 3 * dt; listener.y += my * 3 * dt; state.walk = null; }
-      if (state.drift && !state.ride) driftStep(dt);
+      if (state.walkMode) walkStep(dt);
+      else if (state.drift && !state.ride) driftStep(dt);
       if (state.ride) rideStep(dt);
       if (state.walk) {
         const dx = state.walk.x - listener.x, dy = state.walk.y - listener.y, d = Math.hypot(dx, dy);
@@ -909,6 +1054,7 @@ function frame(ts) {
     // camera follows the head
     cam.tx += (listener.x - cam.tx) * 0.08; cam.ty += (listener.y - cam.ty) * 0.08;
     if (state.follow) { let a = listener.yaw - cam.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); cam.yaw += a * 0.12; }
+    if (scene.brush && (scene.brush.t -= dt) <= 0) scene.brush = null;
     draw(ts);
   }
   hudT += dt; if (hudT > 0.25) { hudT = 0; updateHud(); }
@@ -943,12 +1089,13 @@ async function boot() {
   $('newSeed').onclick = newSeed; $('rec').onclick = toggleRec; $('modeBtn').onclick = toggleMode;
   $('seedCode').onclick = async () => { const c = state.seed.code; try { await navigator.clipboard.writeText(c); setStatus(`Seed code ${c} copied.`); } catch (e) { setStatus(`Seed code: ${c}`); } };
   buildHappenings();
-  $('rideBtn').onclick = () => { state.ride = !state.ride; state.rideObj = null; state.rideWait = 0; if (state.ride) { state.drift = false; state.walk = null; } updateOptionButtons(); };
+  $('rideBtn').onclick = () => { state.ride = !state.ride; state.rideObj = null; state.rideWait = 0; if (state.ride) { state.drift = false; state.walk = null; if (state.walkMode) setWalk(null); } updateOptionButtons(); };
   $('underBtn').onclick = () => setHeight('under'); $('canopyBtn').onclick = () => setHeight('canopy');
+  const gb = $('gaits'); for (const [g, l, t] of [['stop', 'Stand', 'Stop walking'], ['slow', 'Amble', 'Walk slowly'], ['walk', 'Walk', 'Walk at an easy pace'], ['run', 'Run', 'Run through the forest'], ['rhythm', 'Rhythm', 'Amble, walk, run now and then, walk again']]) { const b = document.createElement('button'); b.className = 'chip'; b.dataset.g = g; b.textContent = l; b.title = t; b.setAttribute('aria-pressed', String(g === 'stop')); b.onclick = async () => { if (!state.running && g !== 'stop') await setRunning(true); setWalk(g === 'stop' ? null : g); }; gb.appendChild(b); }
   $('resetShape').onclick = () => { for (const l in P.char) for (const k in P.char[l]) P.char[l][k] = 0; P.change = 0.5; refreshSliders(); logLine('Every layer is back to the forest’s own character.', 'drift'); };
   $('keepBtn').onclick = async () => { state.kept = true; await saveForest(true); setStatus(`${state.forestName} is kept in Forests.`); };
   $('sowBtn').onclick = () => $('sowFile').click(); $('sowFile').onchange = (e) => { const f = e.target.files[0]; if (f) sowFile(f); e.target.value = ''; };
-  $('driftBtn').onclick = () => { state.drift = !state.drift; state.walk = null; state.driftT = 0; if (state.drift) state.ride = false; updateOptionButtons(); };
+  $('driftBtn').onclick = () => { state.drift = !state.drift; state.walk = null; state.driftT = 0; if (state.drift) { state.ride = false; if (state.walkMode) setWalk(null); } updateOptionButtons(); };
   $('centreBtn').onclick = () => { state.walk = { x: 0, y: 0 }; state.drift = false; state.ride = false; if (state.height !== 'ground') setHeight(state.height); updateOptionButtons(); };
   $('calmBtn').onclick = () => { audio.post({ t: 'calm' }); logLine('Calm: reverb tails cleared, fading back in.', 'weather'); };
   $('followBtn').onclick = () => { state.follow = !state.follow; $('followBtn').setAttribute('aria-pressed', String(state.follow)); if (!state.follow) cam.yaw = 0; };

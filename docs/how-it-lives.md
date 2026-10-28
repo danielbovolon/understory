@@ -112,6 +112,69 @@ Khait et al. (2023) recorded airborne ultrasonic clicks (20–100 kHz) from toma
 - **Thickening:** conductance grows with flow and decays without it. Cords that lead to a discovered nutrient patch also thicken, and cords of a trading fungus are maintained. This follows observations of cord-forming fungi (Bebber, Fricker, Boddy).
 - **Pruning:** hyphae that thin out below a threshold are pruned and become litter.
 
+## Places
+Every spot in the forest has its own conditions, held in a soil map of about 1.6 m cells.
+- **Site wetness.** Each seed lays a wet seep and a dry ridge across the ground. Daily soil moisture is the weather plus the local wetness.
+- **Fertility, acidity, stone.** These vary in patches; the ridge is stony and poor.
+- **Light.** It falls through the canopy: larger trees in leaf shade the cells beneath them.
+- **Reshaping.** The Shape ground tool rewrites these conditions. Painted ground keeps its new character and drifts back only very slowly.
+- **Trees change the ground:**
+  - Conifer needles acidify the soil beneath them.
+  - Alder fixes nitrogen through its root symbiosis with *Frankia* and enriches the soil.
+  - Beech and oak leaf litter enriches it slightly.
+  - Rotting logs build rich soil and feed decomposers.
+
+## Tree species
+Eight species of the Alpine valley and montane forests are modelled. Each has a niche: preferred wetness, acidity and fertility, plus tolerance of shade and stony ground.
+
+| Species | Niche | Notes |
+|---|---|---|
+| European larch | light-demanding pioneer, stony ground | turns gold and drops its needles; *Suillus* partner |
+| Swiss stone pine | poor, acid, stony, high | evergreen; seeds cached by nutcrackers; *Suillus*, *Rhizopogon* |
+| Norway spruce | moist, acid, shade-tolerant | evergreen; acidifies the soil strongly |
+| Silver fir | moist, fertile, very shade-tolerant | evergreen |
+| European beech | fertile, shade-tolerant | keeps dry brown leaves through winter (marcescence) |
+| Silver birch | pioneer of open ground, tolerant | bright gold in autumn, bare in winter; *Leccinum* partner |
+| Black alder | wet ground, streams and bogs | fixes nitrogen; drops green leaves; *Alnicola* partner |
+| Sessile oak | drier, moderately fertile | marcescent; acorns cached by jays |
+
+- **Fit to the place** controls germination and establishment, growth, and which species the place chooses when you plant with "Place decides".
+- **Leaves:** deciduous trees leaf out from late April to mid May, colour in October and stand bare from November. Bare trees barely photosynthesise and have quieter, breathier voices.
+
+## Fungal ecology
+- **Host specificity.** Most ectomycorrhizal fungi partner many trees, but some are specialists: *Suillus* with larch and pines, *Rhizopogon* with pines, *Leccinum* with birch, *Alnicola* with alder (Molina et al. 1992). Specialists only bond with, and only germinate near, their hosts.
+- **Soil preferences.** Each genus has a preferred acidity and wetness.
+  - Many ectomycorrhizal fungi, notably *Cortinarius*, *Russula* and *Tricholoma*, decline on nitrogen-rich soil (Lilleskov et al. 2002); here they grow and trade less on rich ground.
+  - *Cenococcum geophilum* is drought-tolerant and forms no fruit bodies.
+- **Fruiting calendars.** Every genus fruits in its own months:
+  - *Hygrophorus marzuolus* in March and April, at the snowmelt
+  - most genera from summer to autumn
+  - *Flammulina velutipes* (velvet shank) in winter, even in frost
+- **Spore rain follows the calendar,** so the species arriving on the wind change through the year.
+
+## Ground cover
+The herb and moss layer is computed for every cell from light, wetness, acidity, stone and fertility:
+
+| Cover | Where | Effects |
+|---|---|---|
+| grass | open, light ground | rustles in the wind; dense grass smothers tree seedlings |
+| moss | moist shade | keeps the ground moist; good spore seedbed; softens footsteps and the soil's crackle |
+| ferns | moist, fertile half-shade | shade out seedlings; rust-coloured in autumn |
+| blueberry heath | acid ground with some light | ericoid mycorrhizal shrubs; hinder tree seedlings; red in autumn |
+| sedge | boggy ground | wet footsteps |
+| lichen on stone | stony ground | stone footsteps |
+| leaf litter | shaded, drier ground | crisp footsteps in autumn |
+
+Spring flowers appear on fertile, light ground. Snow covers everything but stone.
+
+## Walking
+The listener can walk on its own at three speeds: about 0.6 m/s ambling, 1.35 m/s walking and 3.3 m/s running. In Rhythm mode it ambles, walks, runs now and then, and walks again. The path meanders, stays inside the circle and steps around trunks. The step rate rises with speed. Each footstep is synthesised for the ground under it: snow crunch, leaf crackle, grass swish, soft moss, a click on stone, a wet squelch or plain soil.
+
+## Scale
+A forest can hold 32 trees and 64 fungal individuals, with networks of up to about two thousand hyphae.
+- **Voices:** only the 14 most audible trees (by size, leaf and distance from you) have a voice at once. As you move, voices cross-fade.
+- **Foreground:** the foreground cap keeps the forest's own events sparse however large the network grows.
+
 ## Happenings
 - **Windstorm.** Wind loads trees until branches break and weakened trees are thrown.
   - A thrown tree's root plate tears up mineral soil, and the gap in the canopy lets light reach the floor.
@@ -184,6 +247,8 @@ This part is aesthetic, not biology. It keeps long listening from settling into 
 - T. Klein, R. T. W. Siegwolf, C. Körner (2016), *Belowground carbon trade among tall trees in a temperate forest*, Science.
 - H. Mattes (1982), *Die Lebensgemeinschaft von Tannenhäher und Arve* (nutcracker and Swiss stone pine), Eidg. Anstalt für das forstliche Versuchswesen, Bericht 241.
 - A. W. Claridge, T. W. May (1994), *Mycophagy among Australian mammals*, Australian Journal of Ecology 19.
+- E. A. Lilleskov, T. J. Fahey, T. R. Horton, G. M. Lovett (2002), *Belowground ectomycorrhizal fungal community change over a nitrogen deposition gradient in Alaska*, Ecology 83.
+- R. Molina, H. Massicotte, J. M. Trappe (1992), *Specificity phenomena in mycorrhizal symbioses*, in Mycorrhizal Functioning, Chapman & Hall.
 - A. G. Oliveira et al. (2015), *Circadian control sheds light on fungal bioluminescence*, Current Biology.
 - J. I. Querejeta, L. M. Egerton-Warburton, M. F. Allen (2003), *Direct nocturnal water transfer from oaks to their mycorrhizal symbionts during severe soil drying*, Oecologia.
 - S. W. Simard et al. (1997), *Net transfer of carbon between ectomycorrhizal tree species in the field*, Nature.

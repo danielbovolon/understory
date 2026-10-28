@@ -78,7 +78,56 @@ function sunTimes(doy, dst) {
 }
 
 // ------------------------------------------------------------ seeds
-const TREE_NAMES = ['Larch', 'Stone pine', 'Beech', 'Birch', 'Alder', 'Spruce', 'Silver fir', 'Sessile oak', 'Hazel', 'Rowan', 'Yew', 'Chestnut', 'Juniper', 'Aspen', 'Hornbeam', 'Linden', 'Mountain ash', 'Dwarf pine'];
+// Tree species of an Alpine valley forest. Niches (0..1): site wetness,
+// soil acidity, fertility, shade tolerance, tolerance of stony ground.
+// Colours [hue, sat, light] for spring, summer, autumn and winter.
+// leaf: 'ever' evergreen, 'decid' deciduous, 'marc' keeps dry leaves through winter (marcescence).
+// soil: how its litter changes the ground beneath it (needles acidify, alder fixes nitrogen).
+const TREE_SPECIES = {
+  larch: { name: 'European larch', short: 'Larch', leaf: 'decid', conifer: true, wet: 0.45, acid: 0.4, rich: 0.35, shade: 0.15, stone: 0.6, partials: 'fifths', regDeg: 0, col: [[95, 60, 58], [110, 42, 42], [44, 85, 55], [30, 22, 46]], soil: { acid: 1 } },
+  stonepine: { name: 'Swiss stone pine', short: 'Stone pine', leaf: 'ever', conifer: true, wet: 0.4, acid: 0.7, rich: 0.25, shade: 0.35, stone: 0.8, partials: 'hollow', regDeg: -2, col: [[150, 32, 38], [155, 32, 34], [158, 28, 33], [165, 22, 34]], soil: { acid: 1.4 } },
+  spruce: { name: 'Norway spruce', short: 'Spruce', leaf: 'ever', conifer: true, wet: 0.65, acid: 0.75, rich: 0.4, shade: 0.75, stone: 0.4, partials: 'odd', regDeg: -3, col: [[145, 38, 34], [150, 38, 30], [152, 34, 29], [160, 26, 30]], soil: { acid: 1.6 } },
+  fir: { name: 'Silver fir', short: 'Silver fir', leaf: 'ever', conifer: true, wet: 0.65, acid: 0.45, rich: 0.6, shade: 0.9, stone: 0.3, partials: 'harmonic', regDeg: -1, col: [[165, 34, 36], [168, 34, 33], [170, 30, 32], [175, 24, 33]], soil: { acid: 0.6 } },
+  beech: { name: 'European beech', short: 'Beech', leaf: 'marc', conifer: false, wet: 0.55, acid: 0.35, rich: 0.65, shade: 0.9, stone: 0.3, partials: 'stretched', regDeg: 0, col: [[88, 62, 60], [105, 45, 40], [22, 72, 46], [28, 45, 40]], soil: { rich: 0.6 } },
+  birch: { name: 'Silver birch', short: 'Birch', leaf: 'decid', conifer: false, wet: 0.5, acid: 0.6, rich: 0.3, shade: 0.1, stone: 0.6, partials: 'bell', regDeg: 3, col: [[80, 62, 62], [92, 48, 46], [52, 88, 58], [40, 8, 72]], soil: {} },
+  alder: { name: 'Black alder', short: 'Alder', leaf: 'decid', conifer: false, wet: 0.95, acid: 0.35, rich: 0.5, shade: 0.3, stone: 0.2, partials: 'septimal', regDeg: 1, col: [[100, 48, 48], [118, 42, 34], [85, 28, 36], [25, 15, 34]], soil: { rich: 1.4 } },
+  oak: { name: 'Sessile oak', short: 'Oak', leaf: 'marc', conifer: false, wet: 0.35, acid: 0.45, rich: 0.5, shade: 0.45, stone: 0.4, partials: 'harmonic', regDeg: -2, col: [[72, 58, 56], [98, 42, 38], [34, 62, 42], [30, 38, 36]], soil: { rich: 0.4 } },
+};
+const TREE_KEYS = Object.keys(TREE_SPECIES);
+// Fungal genera with their ecology:
+// [genus, guild, stage, exploration type, hosts ('any' or tree keys), preferred acidity, preferred wetness,
+//  tolerance of nitrogen-rich soil (many ectomycorrhizal fungi decline on rich soil), fruiting months [from, to] (0 = January; wraps) or null, chance to glow]
+const FUNGI = [
+  ['Laccaria', 'ecm', 'early', 'medium', 'any', 0.5, 0.6, 0.7, [6, 10], 0],
+  ['Inocybe', 'ecm', 'early', 'short', 'any', 0.4, 0.5, 0.6, [5, 9], 0],
+  ['Hebeloma', 'ecm', 'early', 'medium', 'any', 0.35, 0.5, 0.8, [8, 11], 0],
+  ['Thelephora', 'ecm', 'early', 'medium', 'any', 0.6, 0.4, 0.6, [6, 10], 0],
+  ['Cortinarius', 'ecm', 'late', 'medium', 'any', 0.6, 0.5, 0.2, [7, 10], 0],
+  ['Russula', 'ecm', 'late', 'contact', 'any', 0.6, 0.5, 0.3, [5, 9], 0],
+  ['Lactarius', 'ecm', 'late', 'contact', 'any', 0.55, 0.6, 0.35, [7, 10], 0],
+  ['Amanita', 'ecm', 'late', 'medium', 'any', 0.5, 0.45, 0.4, [6, 10], 0],
+  ['Boletus', 'ecm', 'late', 'long', 'any', 0.45, 0.45, 0.4, [5, 9], 0],
+  ['Tricholoma', 'ecm', 'late', 'medium', 'any', 0.5, 0.4, 0.3, [8, 11], 0],
+  ['Hygrophorus', 'ecm', 'late', 'medium', 'any', 0.5, 0.6, 0.3, [2, 4], 0],
+  ['Cenococcum', 'ecm', 'late', 'short', 'any', 0.5, 0.2, 0.6, null, 0],
+  ['Suillus', 'ecm', 'host', 'long', ['larch', 'stonepine'], 0.6, 0.5, 0.5, [6, 10], 0],
+  ['Rhizopogon', 'ecm', 'host', 'long', ['stonepine'], 0.6, 0.35, 0.5, [6, 9], 0],
+  ['Leccinum', 'ecm', 'host', 'long', ['birch'], 0.6, 0.6, 0.5, [6, 10], 0],
+  ['Alnicola', 'ecm', 'host', 'short', ['alder'], 0.3, 0.9, 0.7, [7, 10], 0],
+  ['Mycena', 'sapro', 'litter', 'short', 'any', 0.6, 0.7, 0.6, [8, 11], 0.7],
+  ['Panellus', 'sapro', 'litter', 'short', 'any', 0.5, 0.6, 0.6, [9, 0], 0.8],
+  ['Armillaria', 'sapro', 'litter', 'long', 'any', 0.4, 0.6, 0.6, [8, 10], 0.6],
+  ['Marasmius', 'sapro', 'litter', 'medium', 'any', 0.3, 0.3, 0.7, [5, 9], 0],
+  ['Gymnopus', 'sapro', 'litter', 'medium', 'any', 0.5, 0.5, 0.6, [5, 10], 0.1],
+  ['Flammulina', 'sapro', 'litter', 'medium', 'any', 0.4, 0.6, 0.7, [10, 2], 0],
+];
+const FUNGUS = Object.fromEntries(FUNGI.map(f => [f[0], { genus: f[0], guild: f[1], stage: f[2], expl: f[3], hosts: f[4], pAcid: f[5], pWet: f[6], nitro: f[7], months: f[8], lumP: f[9] }]));
+const COVER = ['bare', 'grass', 'moss', 'fern', 'heath', 'sedge', 'stone', 'litter'];
+const SOIL_N = 28, SOIL_CELL = (2 * (PLOT_R + 1)) / SOIL_N;
+const MAX_TREES = 32, MAX_FUNGI = 64, WILD_TREES = 24, WILD_FUNGI = 26;
+function inMonths(m, w) { if (!w) return false; const [a, b] = w; return a <= b ? m >= a && m <= b : m >= a || m <= b; }
+function fruitSeason(sp, m) { if (!sp.months) return 0; if (inMonths(m, sp.months)) return 1; if (inMonths((m + 1) % 12, sp.months) || inMonths((m + 11) % 12, sp.months)) return 0.3; return 0; }
+
 const PLACES = ['Moor', 'Hollow', 'Ridge', 'Scree', 'Bog', 'Gorge', 'Terrace', 'Clearing', 'Ravine', 'Meadow edge', 'Firn line', 'Talus', 'Riverbank', 'Cirque', 'Old orchard', 'Charcoal pit', 'Larch meadow', 'Glacier foreland', 'Burnt slope'];
 const FAMILIES = ['bark', 'rain', 'creek', 'wind', 'glass', 'choir', 'insects', 'stone', 'bowed', 'cave'];
 const FAMILY_NAMES = { bark: 'knocked bark', rain: 'rain on needles', creek: 'meltwater creek', wind: 'wind in reeds', glass: 'ice and glass', choir: 'distant voices', insects: 'stridulation', stone: 'struck stones', bowed: 'bowed branch', cave: 'cave drips' };
@@ -96,13 +145,6 @@ const EXPLORATION = {
   short: { label: 'short-distance', speed: [0.07, 0.13], branch: [0.4, 0.65], wander: [0.7, 1.1], life: [80, 160], cost: 0.7, cord: 0.8, cond: 0.85, orgN: 0.45, water: 0.35, reg: [3, 4] },
   medium: { label: 'medium-distance', speed: [0.1, 0.2], branch: [0.25, 0.45], wander: [0.4, 0.8], life: [120, 240], cost: 1, cord: 1, cond: 1, orgN: 0.65, water: 0.6, reg: [2, 3] },
   long: { label: 'long-distance', speed: [0.18, 0.3], branch: [0.1, 0.22], wander: [0.15, 0.4], life: [200, 380], cost: 1.5, cord: 1.4, cond: 1.5, orgN: 1, water: 1, reg: [1, 2] },
-};
-// Typical genera for each role and stage. Early-stage fungi colonise young
-// trees on open ground; late-stage fungi join under a closed canopy.
-const GENERA = {
-  early: [['Laccaria', 'medium'], ['Inocybe', 'short'], ['Hebeloma', 'medium'], ['Thelephora', 'medium'], ['Cortinarius', 'medium']],
-  late: [['Russula', 'contact'], ['Lactarius', 'contact'], ['Suillus', 'long'], ['Rhizopogon', 'long'], ['Amanita', 'medium'], ['Tricholoma', 'medium'], ['Boletus', 'long']],
-  sapro: [['Mycena', 'short', 0.7], ['Panellus', 'short', 0.8], ['Armillaria', 'long', 0.6], ['Marasmius', 'medium', 0], ['Gymnopus', 'medium', 0.1]],
 };
 
 function makeTuning(r) {
@@ -138,12 +180,13 @@ function ratioOf(tun, deg) {
   return tun.ratios[i] * Math.pow(tun.period, o);
 }
 
-function makeSpecies(r, tun, hue, role) {
-  const [genus, ex, lum] = role.genus;
+function makeSpecies(r, tun, hue, def) {
+  const genus = def.genus, ex = def.expl, role = def;
   const E = EXPLORATION[ex];
   const pingKey = r.pick(Object.keys(PING_SETS));
   return {
-    genus, guild: role.guild, stage: role.stage, expl: ex, lum: lum ? r.chance(lum) : false,
+    genus, guild: def.guild, stage: def.stage, expl: ex, lum: def.lumP ? r.chance(def.lumP) : false,
+    hosts: def.hosts, pAcid: def.pAcid, pWet: def.pWet, nitro: def.nitro, months: def.months,
     hue: hue === undefined ? r.range(0, 360) : hue,
     speed: r.range(...E.speed), branch: r.range(...E.branch), bangle: r.range(0.45, 1.1), wander: r.range(...E.wander), trop: r.range(0.4, 1.4),
     life: r.range(...E.life), cost: E.cost, cord: E.cord, cond: E.cond, orgN: E.orgN, water: E.water,
@@ -172,6 +215,7 @@ function mutateSpecies(g, r, amt) {
   m.fSize = jig(g.fSize, 0.25, 0.02, 0.6); if (r.chance(0.2 * amt)) m.fOct = clamp(g.fOct + r.pick([-1, 1]), -2, 3);
   m.fDens = jig(g.fDens, 0.25, 3, 60); m.fRev = clamp(g.fRev + r.gauss() * 0.1 * amt, 0, 0.9);
   if (r.chance(0.1 * amt)) m.spore = g.spore === 'grain' ? 'tick' : 'grain';
+  if (g.pAcid !== undefined) { m.pAcid = clamp(g.pAcid + r.gauss() * 0.05 * amt, 0, 1); m.pWet = clamp(g.pWet + r.gauss() * 0.05 * amt, 0, 1); }
   m.fruitCost = jig(g.fruitCost, 0.15, 0.5, 3); m.trade = jig(g.trade, 0.2, 0.2, 2); m.greed = clamp(g.greed + r.gauss() * 0.1 * amt, 0, 0.8);
   return m;
 }
@@ -187,19 +231,29 @@ function makeSeed(code) {
   const grainTrees = r.range(0.1, 0.55);
   const nTrees = r.int(5, 9);
   const hue0 = r.range(0, 360);
+  // the trees of this place: a main species and its companions
+  const main = r.pick(TREE_KEYS);
+  const treeSpecies = [main, ...r.shuffle(TREE_KEYS.filter(k => k !== main)).slice(0, r.int(2, 3))];
   // the species pool: who may arrive on the wind, and when
-  const early = r.shuffle(GENERA.early.slice()).slice(0, 2), late = r.shuffle(GENERA.late.slice()).slice(0, 2), sap = [r.pick(GENERA.sapro)];
-  const roles = [...early.map(g => ({ genus: g, guild: 'ecm', stage: 'early' })), ...late.map(g => ({ genus: g, guild: 'ecm', stage: 'late' })), ...sap.map(g => ({ genus: g, guild: 'sapro', stage: 'litter' }))];
-  const species = roles.map((role, i) => makeSpecies(r, tun, (hue0 + i * r.range(55, 110)) % 360, role));
+  const gen = FUNGI.map(f => FUNGUS[f[0]]);
+  const defs = [
+    ...r.shuffle(gen.filter(f => f.stage === 'early')).slice(0, 2),
+    ...r.shuffle(gen.filter(f => f.stage === 'late')).slice(0, 3),
+    ...r.shuffle(gen.filter(f => f.stage === 'host' && f.hosts.some(h => treeSpecies.includes(h)))).slice(0, 2),
+    ...r.shuffle(gen.filter(f => f.guild === 'sapro')).slice(0, 2),
+  ];
+  const species = defs.map((d, i) => makeSpecies(r, tun, (hue0 + i * 47 * r.range(0.8, 1.2)) % 360, d));
+  // the ground: a wet seep, a stony ridge, a base acidity and fertility
+  const soil = { seed: hashStr(code + 's'), seep: [r.range(0, 6.28), r.range(-8, 8), r.range(0.4, 1)], ridge: [r.range(0, 6.28), r.range(-10, 10), r.range(0.3, 0.9)], baseAcid: r.range(0.3, 0.6), baseRich: r.range(0.3, 0.55) };
   const patches = []; const np = r.int(8, 14);
   for (let i = 0; i < np; i++) { const a = r.range(0, Math.PI * 2), d = Math.sqrt(r()) * (PLOT_R - 2); patches.push({ x: Math.sin(a) * d, y: Math.cos(a) * d, a: r.range(0.6, 2), org: r.chance(0.5) }); }
-  const name = `${r.pick(TREE_NAMES)} ${r.pick(PLACES)}`;
+  const name = `${TREE_SPECIES[main].short} ${r.pick(PLACES)}`;
   const matParams = { fams, mix: r.range(0.25, 0.75), seed: hashStr(code + 'm'), bright: r.range(0.2, 1) };
   // the resident songbirds of this forest: each has its own phrase shape
   const birds = []; for (let i = 0; i < 3; i++) birds.push({ f0: r.range(2000, 4600), ratio: Math.pow(2, r.range(-0.6, 0.5)), n: [r.int(3, 6), r.int(7, 14)], isi: r.range(0.05, 0.15), bd: r.range(0.025, 0.07), mi: r.range(0, 1.2), mr: r.pick([1, 2, 3, 0.5]), phrases: r.int(1, 3) });
   const owl = { f0: r.range(360, 520), n: r.int(2, 4), isi: r.range(0.45, 0.8) };
-  const cacher = CONIFERS.test(name) ? 'nutcrackers' : 'jays';
-  return { birds, owl, cacher, code, name, tun, root, climate, rev, partialKeys, grainTrees, nTrees, species, patches, matParams, kinHue: r.range(15, 60), rngSeed: hashStr(code + 'w') };
+  const cacher = treeSpecies.includes('stonepine') || TREE_SPECIES[main].conifer ? 'nutcrackers' : 'jays';
+  return { treeSpecies, soil, birds, owl, cacher, code, name, tun, root, climate, rev, partialKeys, grainTrees, nTrees, species, patches, matParams, kinHue: r.range(15, 60), rngSeed: hashStr(code + 'w') };
 }
 
 // ------------------------------------------------------------ materials (procedural field recordings)
@@ -285,9 +339,143 @@ class World {
     this.thunderT = 30;
     this.flowT = 0; this.voiceT = 0; this.tickT = 0; this.carbonT = 20; this.waterT = 30; this.grazeT = this.r.range(600, 1200); this.decomp = 0; this.sporeRainT = this.r.range(20, 45);
     this.stage = 0; this.stats = { born: 0, fused: 0, bonds: 0, fruits: 0, germ: 0, clicks: 0, trades: 0 };
+    this.logs = []; this.coverT = 0; this.lightT = 0;
+    if (!this.seed.soil) this.seed.soil = { seed: hashStr(this.seed.code + 's'), seep: [1, 0, 0.7], ridge: [2.5, 4, 0.6], baseAcid: 0.45, baseRich: 0.42 };
+    if (!this.seed.treeSpecies) this.seed.treeSpecies = ['larch', 'spruce', 'birch'];
+    this.makeSoil(); this.updateCover(0);
     this.seedbank = this.makeSeedbank();
     this.updateSky(0);
   }
+  // ---------------------------------------------------------- the ground: soil, light and cover
+  makeSoil() {
+    const S0 = this.seed.soil, r = makeRng(S0.seed), N = SOIL_N;
+    const lat = (k) => { const g = []; for (let i = 0; i < k * k; i++) g.push(r() * 2 - 1); return g; };
+    const L1 = lat(6), L2 = lat(6), L3 = lat(6), L4 = lat(11);
+    const sm = (t) => t * t * (3 - 2 * t);
+    const sample = (g, k, u, v) => { const x = u * (k - 1), y = v * (k - 1); const i = Math.min(k - 2, Math.floor(x)), j = Math.min(k - 2, Math.floor(y)); const fx = sm(x - i), fy = sm(y - j); return lerp(lerp(g[j * k + i], g[j * k + i + 1], fx), lerp(g[(j + 1) * k + i], g[(j + 1) * k + i + 1], fx), fy); };
+    const wet = new Float32Array(N * N), rich = new Float32Array(N * N), acid = new Float32Array(N * N), stone = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const k = j * N + i, u = i / (N - 1), v = j / (N - 1); const [x, y] = this.cellXY(i, j);
+      const sd = Math.sin(S0.seep[0]) * x + Math.cos(S0.seep[0]) * y - S0.seep[1], seep = Math.exp(-sd * sd / 18) * S0.seep[2];
+      const rd = Math.sin(S0.ridge[0]) * x + Math.cos(S0.ridge[0]) * y - S0.ridge[1], ridge = Math.exp(-rd * rd / 14) * S0.ridge[2];
+      wet[k] = clamp(sample(L1, 6, u, v) * 0.35 + seep * 0.9 - ridge * 0.5, -1, 1);
+      stone[k] = clamp(ridge * 0.9 + Math.max(0, sample(L4, 11, u, v)) * 0.3 - 0.1, 0, 1);
+      rich[k] = clamp(S0.baseRich + sample(L2, 6, u, v) * 0.25 + seep * 0.15 - ridge * 0.25, 0, 1);
+      acid[k] = clamp(S0.baseAcid + sample(L3, 6, u, v) * 0.25 + ridge * 0.1, 0, 1);
+    }
+    this.soil = { wet, rich, acid, stone, light: new Float32Array(N * N).fill(1), cover: new Uint8Array(N * N), coverD: new Float32Array(N * N), base: { wet: wet.slice(), rich: rich.slice(), acid: acid.slice(), stone: stone.slice() } };
+  }
+  cellXY(i, j) { return [-(PLOT_R + 1) + (i + 0.5) * SOIL_CELL, -(PLOT_R + 1) + (j + 0.5) * SOIL_CELL]; }
+  cellOf(x, y) { const i = clamp(Math.floor((x + PLOT_R + 1) / SOIL_CELL), 0, SOIL_N - 1), j = clamp(Math.floor((y + PLOT_R + 1) / SOIL_CELL), 0, SOIL_N - 1); return j * SOIL_N + i; }
+  place(x, y) {
+    const S = this.soil, k = this.cellOf(x, y);
+    const cover = S.cover[k];
+    return { k, site: clamp(0.5 + S.wet[k] * 0.5, 0, 1), moist: clamp(this.moist + S.wet[k] * 0.35 + (cover === 2 ? 0.05 : 0), 0, 1.2), rich: S.rich[k], acid: S.acid[k], stone: S.stone[k], light: S.light[k], cover, coverD: S.coverD[k] };
+  }
+  treeFit(key, x, y) {
+    const T = TREE_SPECIES[key] || TREE_SPECIES.birch, p = this.place(x, y);
+    const g = (v, m, w) => Math.exp(-((v - m) * (v - m)) / w);
+    return clamp(g(p.site, T.wet, 0.09) * g(p.acid, T.acid, 0.18) * (0.55 + 0.45 * g(p.rich, T.rich, 0.15)) * (p.stone > T.stone ? g(p.stone, T.stone, 0.06) : 1) * (p.light + (1 - p.light) * T.shade), 0, 1);
+  }
+  fungusFit(sp, x, y) {
+    const p = this.place(x, y), g = (v, m, w) => Math.exp(-((v - m) * (v - m)) / w);
+    const nitro = sp.nitro === undefined ? 1 : sp.nitro;
+    return clamp(g(p.acid, sp.pAcid === undefined ? 0.5 : sp.pAcid, 0.2) * g(p.site, sp.pWet === undefined ? 0.5 : sp.pWet, 0.2) * (p.rich > nitro ? g(p.rich, nitro, 0.06) : 1) * (1 - 0.5 * p.stone) * (p.cover === 2 ? 1.1 : 1), 0, 1);
+  }
+  bestTree(x, y, keys) {
+    keys = keys || this.seed.treeSpecies || TREE_KEYS;
+    let best = keys[0], bw = -1;
+    for (const k of keys) { const w = Math.pow(this.treeFit(k, x, y), 2) * this.r.range(0.7, 1.3); if (w > bw) { bw = w; best = k; } }
+    return best;
+  }
+  hostOk(sp, t) { return !sp.hosts || sp.hosts === 'any' || !t || sp.hosts.includes(t.sp); }
+  updateLight() {
+    const S = this.soil, N = SOIL_N; S.light.fill(1);
+    for (const t of this.trees) {
+      const rc = 0.9 + t.size * 1.6, dens = (0.2 + 0.65 * (t.leaf === undefined ? 1 : t.leaf)) * clamp(t.size / 1.2, 0, 1);
+      const i0 = Math.floor((t.x - rc + PLOT_R + 1) / SOIL_CELL), i1 = Math.floor((t.x + rc + PLOT_R + 1) / SOIL_CELL), j0 = Math.floor((t.y - rc + PLOT_R + 1) / SOIL_CELL), j1 = Math.floor((t.y + rc + PLOT_R + 1) / SOIL_CELL);
+      for (let j = Math.max(0, j0); j <= Math.min(N - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(N - 1, i1); i++) {
+        const [x, y] = this.cellXY(i, j), d = Math.hypot(x - t.x, y - t.y); if (d > rc) continue;
+        S.light[j * N + i] *= 1 - dens * (1 - d / rc) * 0.9;
+      }
+    }
+  }
+  // the herb and moss layer follows light, wetness, acidity and stone
+  updateCover(dt) {
+    const S = this.soil, N = SOIL_N, age = clamp(this.t / 600, 0.15, 1);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const k = j * N + i, [x, y] = this.cellXY(i, j); if (Math.hypot(x, y) > PLOT_R + 1) continue;
+      const light = S.light[k], site = clamp(0.5 + S.wet[k] * 0.5, 0, 1), acid = S.acid[k], rich = S.rich[k], stone = S.stone[k];
+      let c, d;
+      if (stone > 0.55) { c = 6; d = stone; }
+      else if (site > 0.85) { c = 5; d = site; }
+      else if (light < 0.45 && site > 0.45) { c = rich > 0.5 && light > 0.15 ? 3 : 2; d = 1 - light * 0.8; }
+      else if (acid > 0.62 && light > 0.3) { c = 4; d = acid; }
+      else if (light > 0.5) { c = 1; d = light * (1 - acid * 0.5); }
+      else { c = 7; d = 0.6; }
+      S.cover[k] = c; S.coverD[k] = clamp(d, 0, 1) * age;
+      // soil slowly returns to its own character
+      S.wet[k] += (S.base.wet[k] - S.wet[k]) * 0.002 * dt; S.rich[k] += (S.base.rich[k] - S.rich[k]) * 0.002 * dt; S.acid[k] += (S.base.acid[k] - S.acid[k]) * 0.002 * dt;
+    }
+    // trees change the ground beneath them: needles acidify, alder fixes nitrogen, broadleaf litter enriches
+    for (const t of this.trees) {
+      const T = TREE_SPECIES[t.sp]; if (!T || t.size < 0.5) continue; const k = this.cellOf(t.x, t.y);
+      if (T.soil.acid) { S.base.acid[k] = clamp(S.base.acid[k] + T.soil.acid * 0.0006 * t.size * dt, 0, 1); }
+      if (T.soil.rich) { S.base.rich[k] = clamp(S.base.rich[k] + T.soil.rich * 0.0006 * t.size * dt, 0, 1); }
+    }
+    for (const lg of this.logs) { lg.t += dt; const k = this.cellOf(lg.x, lg.y); S.base.rich[k] = clamp(S.base.rich[k] + 0.0004 * dt, 0, 1); if (this.r.chance(dt * 0.004)) this.addLitter(lg.x + this.r.range(-1.5, 1.5), lg.y + this.r.range(-1.5, 1.5), 0.2); }
+    this.logs = this.logs.filter(l => l.t < l.life);
+  }
+  // shaping the ground (the Shape tool)
+  paint(x, y, kind, rad = 2.6, amt = 0.08) {
+    const S = this.soil, N = SOIL_N;
+    if (kind === 'log') return this.addLog(x, y);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const [cx, cy] = this.cellXY(i, j), d = Math.hypot(cx - x, cy - y); if (d > rad) continue;
+      const k = j * N + i, w = amt * (1 - d / rad);
+      if (kind === 'wet') S.base.wet[k] = clamp(S.base.wet[k] + w * 1.6, -1, 1);
+      else if (kind === 'dry') S.base.wet[k] = clamp(S.base.wet[k] - w * 1.6, -1, 1);
+      else if (kind === 'rich') { S.base.rich[k] = clamp(S.base.rich[k] + w, 0, 1); S.base.stone[k] = clamp(S.base.stone[k] - w, 0, 1); }
+      else if (kind === 'acid') S.base.acid[k] = clamp(S.base.acid[k] + w, 0, 1);
+      else if (kind === 'stone') { S.base.stone[k] = clamp(S.base.stone[k] + w * 1.4, 0, 1); S.base.rich[k] = clamp(S.base.rich[k] - w * 0.5, 0, 1); }
+      for (const key of ['wet', 'rich', 'acid', 'stone']) S[key][k] = S.base[key][k];
+    }
+    if (kind === 'rich' && this.r.chance(0.15)) this.addPatch(x, y, 0.4, true);
+    if (kind === 'stone' && this.r.chance(0.1)) this.addPatch(x, y, 0.3, false);
+    return true;
+  }
+  addLog(x, y) {
+    if (this.logs.length >= 16 || Math.hypot(x, y) > PLOT_R - 1) return false;
+    if (this.logs.some(l => Math.hypot(l.x - x, l.y - y) < 2.5)) return false;
+    const a = this.r.range(0, Math.PI);
+    this.logs.push({ x, y, a, len: this.r.range(2.5, 4.5), t: 0, life: this.r.range(2400, 4800) });
+    for (let k = -1; k <= 1; k++) this.addLitter(x + Math.sin(a) * k * 1.2, y + Math.cos(a) * k * 1.2, 1.2);
+    this.log('You laid a dead log on the ground. Decomposers will find it, and as it rots the soil around it grows rich.', 'tree');
+    return true;
+  }
+  coverName(p, winter) {
+    const s = this.snow > 0.3 ? 'snow over ' : '';
+    const n = ['bare soil', winter ? 'dry grass' : 'grass', 'moss', winter ? 'dead bracken' : 'ferns', 'blueberry heath', 'sedge', 'lichen on stone', 'leaf litter'][p.cover];
+    return s + n;
+  }
+  placeInfo(x, y) {
+    const p = this.place(x, y), winter = this.season() === 'winter';
+    const wet = p.site > 0.85 ? 'boggy' : p.site > 0.62 ? 'wet' : p.site > 0.4 ? 'moist' : p.site > 0.22 ? 'dry' : 'parched';
+    const soil = `${wet}${p.rich > 0.6 ? ', rich' : p.rich < 0.3 ? ', poor' : ''}${p.acid > 0.62 ? ', acid' : p.acid < 0.3 ? ', neutral' : ''}${p.stone > 0.45 ? ', stony' : ''} soil`;
+    const light = p.light > 0.7 ? 'open sky' : p.light > 0.4 ? 'half shade' : 'deep shade';
+    const fits = TREE_KEYS.map(k => [k, this.treeFit(k, x, y)]).sort((a, b) => b[1] - a[1]).filter(f => f[1] > 0.25).slice(0, 2).map(f => TREE_SPECIES[f[0]].short.toLowerCase());
+    return { text: `${this.coverName(p, winter)} on ${soil} · ${light}`, suits: fits.length ? `suits ${fits.join(' and ')}` : 'hard ground for any tree', p };
+  }
+  // deciduous phenology: budburst late April to mid May, colour in October, bare from November
+  phen(key) {
+    const T = TREE_SPECIES[key]; if (!T) return { leaf: 1, sen: 0 };
+    if (T.leaf === 'ever') return { leaf: this.temp < -3 ? 0.55 : 1, sen: 0 };
+    const late = key === 'larch' ? 12 : key === 'beech' || key === 'oak' ? 6 : 0, d = this.doy;
+    const up = clamp((d - 108) / 25, 0, 1), down = clamp((d - (282 + late)) / 28, 0, 1);
+    const sen = d > 250 + late && d < 330 + late ? clamp((d - (250 + late)) / 38, 0, 1) : 0;
+    return { leaf: up * (1 - down), sen };
+  }
+
   // ---------------------------------------------------------- seed bank
   makeSeedbank() {
     const s = this.seed, r = this.r;
@@ -295,7 +483,8 @@ class World {
     const bank = []; let t = r.range(14, 35);
     for (let i = 0; i < s.nTrees; i++) {
       const [x, y] = centers[i];
-      bank.push({ x: x + r.range(-0.4, 0.4), y: y + r.range(-0.4, 0.4), t, kin: r.int(0, 2), deg: i === 0 ? 0 : r.int(0, s.tun.ratios.length * 2 - 1), done: false });
+      const bx = x + r.range(-0.4, 0.4), by = y + r.range(-0.4, 0.4);
+      bank.push({ x: bx, y: by, t, kin: r.int(0, 2), deg: i === 0 ? 0 : r.int(0, s.tun.ratios.length * 2 - 1), sp: this.bestTree(bx, by), done: false });
       t += r.range(30, 80);
     }
     return bank;
@@ -304,12 +493,15 @@ class World {
   addTree(x, y, o) {
     const s = this.seed, r = this.r;
     const node = this.addNode(x, y, 'tree', 0); node.deg = (o.deg || 0) + s.tun.ratios.length;
-    const pk = r.pick(s.partialKeys);
+    const key = TREE_SPECIES[o.sp] ? o.sp : this.bestTree(x, y); const T = TREE_SPECIES[key];
+    const pk = r.chance(0.75) ? T.partials : r.pick(s.partialKeys);
     const t = {
+      sp: key, leaf: 1, sen: 0, fit: this.treeFit(key, x, y),
       id: this.tid++, x, y, node: node.id, size: o.size, sugar: o.sugar === undefined ? 0.8 : o.sugar, nut: 0.25, water: 0.7, hyd: 0, kin: o.kin, deg: o.deg, age: 0,
       partials: PARTIAL_SETS[pk].slice(), amps: [1, r.range(0.2, 0.6), r.range(0.05, 0.35), r.range(0, 0.2)], type: r.chance(s.grainTrees) ? 'grain' : 'drone',
-      breath: r.range(0.02, 0.25), det: r.range(1, 9), links: new Map(), stress: 0, defense: 0, drought: 0, flash: 0, hunger: 0, dying: 0, hub: false, alive: true, light: 0, paid: 0,
+      breath: r.range(0.02, 0.25) + (T.conifer ? 0.06 : 0), det: r.range(1, 9), links: new Map(), stress: 0, defense: 0, drought: 0, flash: 0, hunger: 0, dying: 0, hub: false, alive: true, light: 0, paid: 0,
     };
+    t.deg = (o.deg || 0) + T.regDeg; node.deg = t.deg + s.tun.ratios.length;
     node.tree = t.id; this.trees.push(t); return t;
   }
   addGenet(sp, parent, x, y) {
@@ -320,7 +512,7 @@ class World {
   }
   addNode(x, y, type, genet) { const n = { id: this.nid++, x, y, type, genet, edges: new Set(), u: 0, refr: 0, deg: 0, tree: 0, fl: 0 }; this.nodes.set(n.id, n); return n; }
   addTip(g, fromNode, x, y, heading, off = 0) {
-    if (this.tips.length >= 46) return null;
+    if (this.tips.length >= 150) return null;
     const n = this.nodes.get(fromNode); if (!n) return null;
     const sx = x + Math.sin(heading) * off, sy = y + Math.cos(heading) * off;
     const tip = { id: this.tipid++, g: g.id, x: sx, y: sy, h: heading, from: fromNode, pts: [[n.x, n.y], [sx, sy]], len: off, sinceB: 0, age: 0, life: g.sp.life * this.r.range(0.6, 1.4), deg: n.deg };
@@ -386,8 +578,8 @@ class World {
   }
   treeAt(x, y, rad) { let best = null, bd = rad; for (const t of this.trees) { const d = Math.hypot(t.x - x, t.y - y); if (d < bd) { bd = d; best = t; } } return best; }
   treeById(id) { return this.trees.find(t => t.id === id); }
-  addLitter(x, y, a) { const l = this.litter.find(l => Math.hypot(l.x - x, l.y - y) < 1.5); if (l) l.a = Math.min(3, l.a + a); else if (this.litter.length < 50) this.litter.push({ x, y, a: Math.min(3, a) }); }
-  addPatch(x, y, a, org) { const p = this.patches.find(p => Math.hypot(p.x - x, p.y - y) < 1.5); if (p) p.a = Math.min(3, p.a + a); else if (this.patches.length < 40) this.patches.push({ x, y, a, a0: a, org, found: false }); }
+  addLitter(x, y, a) { const l = this.litter.find(l => Math.hypot(l.x - x, l.y - y) < 1.5); if (l) l.a = Math.min(3, l.a + a); else if (this.litter.length < 120) this.litter.push({ x, y, a: Math.min(3, a) }); }
+  addPatch(x, y, a, org) { const p = this.patches.find(p => Math.hypot(p.x - x, p.y - y) < 1.5); if (p) p.a = Math.min(3, p.a + a); else if (this.patches.length < 80) this.patches.push({ x, y, a, a0: a, org, found: false }); }
   freq(deg, oct) { return this.seed.root * this.rootMul * ratioOf(this.seed.tun, deg) * Math.pow(2, oct || 0); }
   scaleRatios(n, center) { const out = []; for (let i = 0; i < n; i++) out.push(ratioOf(this.seed.tun, (center || 0) + i) / ratioOf(this.seed.tun, center || 0)); return out; }
   meanSize() { return this.trees.length ? this.trees.reduce((a, t) => a + t.size, 0) / this.trees.length : 0; }
@@ -432,6 +624,8 @@ class World {
   step(dt) {
     this.t += dt;
     this.updateSky(dt);
+    this.lightT -= dt; if (this.lightT <= 0) { this.lightT = 3; this.updateLight(); }
+    this.coverT -= dt; if (this.coverT <= 0) { this.coverT = 4; this.updateCover(4); }
     this.germinate();
     this.sporeRain(dt);
     this.growTips(dt);
@@ -499,12 +693,16 @@ class World {
   germinate() {
     for (const b of this.seedbank) {
       if (b.done || this.t < b.t) continue; b.done = true;
-      if (this.treeAt(b.x, b.y, 2)) continue;
-      const t = this.addTree(b.x, b.y, { size: 0.1, kin: b.kin, deg: b.deg, sugar: 0.9 });
+      if (this.treeAt(b.x, b.y, 2) || this.trees.length >= MAX_TREES) continue;
+      // establishment: dense grass, heath and bracken smother seedlings; winter delays germination
+      const p = this.place(b.x, b.y), key = b.sp || this.bestTree(b.x, b.y);
+      const est = (p.cover === 1 ? 1 - 0.5 * p.coverD : p.cover === 4 ? 0.6 : p.cover === 3 ? 0.7 : 1) * (0.35 + 0.65 * this.treeFit(key, b.x, b.y)) * (this.season() === 'winter' ? 0.65 : 1);
+      if (!this.r.chance(est)) { if ((b.tries = (b.tries || 0) + 1) < 5) { b.done = false; b.t = this.t + this.r.range(90, 240); } continue; }
+      const t = this.addTree(b.x, b.y, { size: 0.1, kin: b.kin, deg: b.deg, sugar: 0.9, sp: key });
       this.ping(b.x, b.y, 0.1, { deg: b.deg + this.seed.tun.ratios.length * 2 }, this.seed.species[0], 0.35, 10);
       this.flashes.push({ x: b.x, y: b.y, t: 1.5, c: 'seed' });
       const left = this.seedbank.filter(s => !s.done).length;
-      this.log(`A seedling breaks the surface (tree ${t.id})${left ? `, ${left} seed${left > 1 ? 's' : ''} still waiting` : ''}. Its roots release exudates that wake fungal spores.`, 'tree');
+      this.log(`A ${TREE_SPECIES[t.sp].name.toLowerCase()} seedling breaks the surface (tree ${t.id})${left ? `, ${left} seed${left > 1 ? 's' : ''} still waiting` : ''}. Its roots release exudates that wake fungal spores.`, 'tree');
     }
   }
   // airborne inoculum: spores drift in from upwind; which species depends on the stage of the forest
@@ -512,12 +710,15 @@ class World {
     this.sporeRainT -= dt; if (this.sporeRainT > 0) return;
     const ms = this.meanSize(), litter = this.litter.reduce((a, l) => a + l.a, 0);
     const nEarly = [...this.genets.values()].filter(g => g.sp.stage === 'early').length;
-    const pool = this.seed.species.filter(sp => (sp.stage === 'early' && nEarly < 5 && ms < 1) || (sp.stage === 'late' && (ms > 0.75 || this.t > 1500)) || (sp.stage === 'litter' && litter > 0.8));
-    this.sporeRainT = this.r.range(18, 40) * (this.genets.size > 5 ? 2.5 : 1);
+    const pool = this.seed.species.filter(sp => (sp.stage === 'early' && nEarly < 5 && ms < 1) || ((sp.stage === 'late' || sp.stage === 'host') && (ms > 0.75 || this.t > 1500 || sp.stage === 'host' && ms > 0.4)) || (sp.stage === 'litter' && litter > 0.8));
+    this.sporeRainT = this.r.range(18, 40) * (this.genets.size > 5 ? 2.5 : 1) * (this.genets.size > WILD_FUNGI ? 4 : 1);
     if (!pool.length || !this.trees.length) return;
-    const sp = this.r.pick(pool);
+    // spore rain follows the fruiting calendar: species in season release far more spores
+    const wts = pool.map(sp => 0.3 + fruitSeason(sp, this.month) + (sp.months ? 0 : 0.3)); let pick = this.r() * wts.reduce((a, b) => a + b, 0), sp = pool[0];
+    for (let i = 0; i < pool.length; i++) { pick -= wts[i]; if (pick <= 0) { sp = pool[i]; break; } }
+    const hosts = this.trees.filter(t => this.hostOk(sp, t)); if (sp.guild === 'ecm' && !hosts.length) return;
     const a = this.windDir + Math.PI + this.r.gauss() * 0.5; const d = PLOT_R + 2;
-    const tgt = sp.guild === 'sapro' && this.litter.length ? this.r.pick(this.litter) : this.r.pick(this.trees);
+    const tgt = sp.guild === 'sapro' && this.litter.length ? this.r.pick(this.litter) : this.r.pick(hosts.length ? hosts : this.trees);
     const sx = Math.sin(a) * d, sy = Math.cos(a) * d;
     const dirx = (tgt.x - sx), diry = (tgt.y - sy), dl = Math.hypot(dirx, diry) || 1, v = 1.2 + this.windStr * 2;
     const s = { x: sx, y: sy, z: this.r.range(3, 7), vx: dirx / dl * v, vy: diry / dl * v, vz: -0.15, age: 0, life: dl / v + 6, g: 0, sp, voice: null, immigrant: true };
@@ -526,18 +727,18 @@ class World {
 
   growTips(dt) {
     const P = this.p, r = this.r;
-    const mf = clamp(0.25 + this.moist * 1.1, 0.2, 1.4) * this.growthT();
     const born = [];
     for (let ti = this.tips.length - 1; ti >= 0; ti--) {
       const tip = this.tips[ti]; const g = this.genets.get(tip.g); if (!g) { this.tips.splice(ti, 1); continue; }
       const sp = g.sp; tip.age += dt;
       const starving = g.energy <= 0.02;
-      const v = sp.speed * mf * P.growth * (starving ? 0.15 : 1);
+      const lp = this.place(tip.x, tip.y), lfit = this.fungusFit(sp, tip.x, tip.y);
+      const v = sp.speed * clamp(0.25 + lp.moist * 1.1, 0.2, 1.4) * this.growthT() * P.growth * (starving ? 0.15 : 1) * (0.45 + 0.55 * lfit);
       let dh = r.gauss() * sp.wander * Math.sqrt(dt);
       const steer = (ax, ay, k) => { const want = Math.atan2(ax, ay); let d = want - tip.h; d = Math.atan2(Math.sin(d), Math.cos(d)); dh += d * k * dt; };
       if (sp.guild === 'ecm') {
         let tgt = null, td = 13;
-        for (const t of this.trees) { if ((t.links.get(g.id) || 0) >= 2) continue; const d = Math.hypot(t.x - tip.x, t.y - tip.y); if (d < td && t.node !== tip.from) { td = d; tgt = t; } }
+        for (const t of this.trees) { if ((t.links.get(g.id) || 0) >= 2 || !this.hostOk(sp, t)) continue; const d = Math.hypot(t.x - tip.x, t.y - tip.y); if (d < td && t.node !== tip.from) { td = d; tgt = t; } }
         if (tgt) steer(tgt.x - tip.x, tgt.y - tip.y, sp.trop * (1.4 - td / 13));
         const pt = this.patches.find(p => p.a > 0.05 && Math.hypot(p.x - tip.x, p.y - tip.y) < 4.5);
         if (pt) steer(pt.x - tip.x, pt.y - tip.y, 0.5 * (pt.org ? sp.orgN : 1));
@@ -563,7 +764,7 @@ class World {
       // 1. root contact → mycorrhizal bond (ectomycorrhizal fungi only)
       if (sp.guild === 'ecm') {
         const tree = this.treeAt(tip.x, tip.y, 0.9 + tip.len * 0 + (this.treeAt(tip.x, tip.y, 2) ? this.treeAt(tip.x, tip.y, 2).size * 0.5 : 0));
-        if (tree && tree.node !== tip.from && tip.len > 0.8 && (tree.links.get(g.id) || 0) < 2) {
+        if (tree && tree.node !== tip.from && tip.len > 0.8 && (tree.links.get(g.id) || 0) < 2 && this.hostOk(sp, tree)) {
           tip.pts.push([tree.x, tree.y]); this.finish(tip, tree.node); this.tips.splice(ti, 1);
           tree.links.set(g.id, (tree.links.get(g.id) || 0) + 1); this.stats.bonds++;
           this.bondSound(tree, g);
@@ -607,7 +808,7 @@ class World {
         const end = this.addNode(tip.x, tip.y, 'j', g.id); end.deg = tip.deg; this.finish(tip, end.id); this.tips.splice(ti, 1); continue;
       }
       // 4. apical branching
-      const pb = sp.branch * step * P.growth * (1 - this.tips.length / 46) * (starving ? 0 : 1) * (this.edges.size > 600 ? 0 : 1);
+      const pb = sp.branch * step * P.growth * (1 - this.tips.length / 150) * (starving ? 0 : 1) * (this.edges.size > 1500 ? 0 : 1);
       if (tip.sinceB > 0.9 && r.chance(pb)) {
         const n = this.addNode(tip.x, tip.y, 'j', g.id); n.deg = clamp(tip.deg + r.pick([-2, -1, 1, 1, 2]), 0, this.seed.tun.ratios.length * 3);
         this.finish(tip, n.id); this.tips.splice(ti, 1);
@@ -649,8 +850,8 @@ class World {
       const q = Math.abs(e.Q) * 14; let f = Math.pow(q, 1.6) / (1 + Math.pow(q, 1.6));
       // cords connected to a found resource thicken too (Fricker, Bebber, Boddy)
       // hyphae of a fungus that trades with a tree keep carrying nutrients, so they are maintained
-      if (g && g.bonded && edges.size < 650 && ((a.type === 'tree' || a.edges.size >= 3) && (b.type === 'tree' || b.edges.size >= 3))) f = Math.max(f, 0.03);
-      if (edges.size > 800) f *= 0.5;
+      if (g && g.bonded && edges.size < 1600 && ((a.type === 'tree' || a.edges.size >= 3) && (b.type === 'tree' || b.edges.size >= 3))) f = Math.max(f, 0.03);
+      if (edges.size > 2000) f *= 0.5;
       if (active.length) { const m = e.pts[(e.pts.length / 2) | 0]; for (const p of active) if (Math.hypot(p.x - m[0], p.y - m[1]) < 3) { f = Math.max(f, 0.35); break; } }
       e.D += (f * 0.12 * (g ? g.sp.cord : 1) - 0.004 * e.D) * dt; e.D = clamp(e.D, 0.01, 3.2); e.age += dt;
       e.act = Math.max(e.act, Math.min(1, Math.abs(e.Q) * 6));
@@ -680,7 +881,7 @@ class World {
         const d = (t.deliv.get(gid) || 0) * Math.exp(-dt / 120) + give; t.deliv.set(gid, d);
         // host age matters: early-stage fungi do best on young trees, late-stage fungi on old ones
         const age = g.sp.stage === 'early' ? clamp(1.5 - t.size, 0.15, 1) : clamp(0.3 + t.size * 0.7, 0.3, 1.3);
-        const w = (0.002 * c + d) * age * wAdv; wsum += w; parts.push([g, w, give]);
+        const w = (0.002 * c + d) * age * wAdv * (0.4 + 0.6 * (g.fit === undefined ? 1 : g.fit)); wsum += w; parts.push([g, w, give]);
       }
       if (!parts.length) continue;
       t.sugar -= budget; t.paid = budget;
@@ -700,21 +901,23 @@ class World {
     const r = this.r, s = this.seed;
     for (const t of this.trees) {
       t.age += dt;
+      const ph = this.phen(t.sp); t.leaf = ph.leaf; t.sen = ph.sen;
+      const lp = this.place(t.x, t.y);
       let shade = 0; for (const o of this.trees) if (o !== t) { const d = Math.hypot(o.x - t.x, o.y - t.y); if (d < 6 && o.size > t.size) shade += (o.size - t.size) * (1 - d / 6); }
       const share = t.size / (t.size + shade * 1.6);
       t.light = this.light * share;
       // water: deep roots reach deeper water; hydraulic redistribution helps at night
       const depth = clamp(t.size / 1.4, 0, 1);
-      t.water = clamp(this.moist * (0.75 + 0.25 * depth) + depth * 0.25 + t.hyd, 0, 1.2);
+      t.water = clamp(lp.moist * (0.75 + 0.25 * depth) + depth * 0.25 + t.hyd, 0, 1.2);
       t.hyd *= Math.exp(-dt / 600);
       t.drought = clamp((0.5 - t.water) * 2.5 * (0.5 + this.light) * (this.temp > 20 ? 1.3 : 1), 0, 1);
       // sugar: the sky runs in real time; reserves smooth the day/night swing
-      const photo = 0.006 * share * (0.55 * this.dayAvg + 0.45 * this.light) * (1 - 0.7 * t.drought) * Math.min(1.6, t.size * 2 + 0.2);
-      t.sugar += (photo - 0.0012 * t.size) * dt; t.photoAcc = (t.photoAcc || 0) + photo * dt;
+      const photo = 0.006 * share * (0.55 * this.dayAvg + 0.45 * this.light) * (1 - 0.7 * t.drought) * Math.min(1.6, t.size * 2 + 0.2) * (0.12 + 0.88 * t.leaf);
+      t.sugar += (photo - 0.0012 * t.size * (0.45 + 0.55 * Math.max(t.leaf, TREE_SPECIES[t.sp] && TREE_SPECIES[t.sp].leaf === 'ever' ? 1 : 0))) * dt; t.photoAcc = (t.photoAcc || 0) + photo * dt;
       if (t.dying > 0) { t.dying -= dt; t.sugar = Math.max(t.sugar, 2.6); if (t.dying <= 0) { this.killTree(t); continue; } }
       // growth needs carbon, nutrients (largely via fungal partners) and water
       const nutF = t.nut / (t.nut + 0.25), myco = clamp(t.links.size / 2, 0, 1);
-      const vig = clamp(t.sugar, 0, 2) * (0.25 + 0.75 * nutF) * (0.35 + 0.65 * myco) * (1 - 0.6 * t.drought) * this.growthT();
+      const vig = clamp(t.sugar, 0, 2) * (0.25 + 0.75 * nutF) * (0.35 + 0.65 * myco) * (1 - 0.6 * t.drought) * this.growthT() * (0.3 + 0.7 * t.fit);
       if (t.size < 1.6 && t.sugar > 0.2) { const g = 0.0008 * vig * (1 - t.size / 1.7) * this.p.growth; t.size += g * dt; t.sugar -= g * dt * 1.5; t.nut = Math.max(0, t.nut - g * dt * 0.8); }
       t.nut = Math.max(0, t.nut - 0.00025 * t.size * dt); // turnover: leaves and fine roots are shed
       t.sugar = clamp(t.sugar, -0.5, 3);
@@ -725,16 +928,17 @@ class World {
       const rate = (1 + 34 * t.drought) / 3600 * clamp(t.size * 1.5, 0.3, 1.5);
       if (r.chance(rate * dt)) this.clickSound(t);
       // a mature, well-fed tree drops a seedling of its own kin nearby
-      if (t.size > 1.15 && t.sugar > 1.4 && this.trees.length < 12 && r.chance(dt * 0.0006)) {
+      if (t.size > 1.15 && t.sugar > 1.4 && this.trees.length < WILD_TREES && r.chance(dt * 0.0006)) {
         const a = r.range(0, Math.PI * 2), d = r.range(2.8, 5.5); const x = t.x + Math.sin(a) * d, y = t.y + Math.cos(a) * d;
         if (Math.hypot(x, y) < PLOT_R - 1.5 && !this.treeAt(x, y, 2.2)) {
-          const c = this.addTree(x, y, { size: 0.1, kin: t.kin, deg: clamp(t.deg + r.pick([-2, -1, 1, 2, s.tun.ratios.length]), 0, s.tun.ratios.length * 3), sugar: 0.6 });
+          const sp2 = r.chance(0.7) && this.treeFit(t.sp, x, y) > 0.2 ? t.sp : this.bestTree(x, y);
+          const c = this.addTree(x, y, { size: 0.1, kin: t.kin, deg: clamp(t.deg - TREE_SPECIES[t.sp].regDeg + r.pick([-2, -1, 1, 2, s.tun.ratios.length]), 0, s.tun.ratios.length * 3), sugar: 0.6, sp: sp2 });
           t.sugar -= 0.3; this.log(`Tree ${t.id} dropped a seedling (tree ${c.id}). In the shade it depends on the fungal partners around it.`, 'tree');
         }
       }
       // needle and leaf fall feeds the litter layer, most in autumn
-      const autumn = (this.month >= 8 && this.month <= 10) ? 3 : 1;
-      if (t.size > 0.6 && r.chance(dt * 0.0015 * autumn * t.size)) { const a = r.range(0, Math.PI * 2), d = r.range(0.5, 2.5) * t.size; this.addLitter(t.x + Math.sin(a) * d, t.y + Math.cos(a) * d, 0.08 * t.size); }
+      const fall = TREE_SPECIES[t.sp].leaf === 'ever' ? 0.8 : (t.sen > 0.3 && t.leaf > 0.05 ? 5 : 0.3);
+      if (t.size > 0.6 && r.chance(dt * 0.0015 * fall * t.size)) { const a = r.range(0, Math.PI * 2), d = r.range(0.5, 2.5) * t.size; this.addLitter(t.x + Math.sin(a) * d, t.y + Math.cos(a) * d, 0.08 * t.size); }
     }
     let hub = null, hd = 2; for (const t of this.trees) { const n = this.nodes.get(t.node); const d = n ? n.edges.size : 0; if (d > hd && t.size > 0.7) { hd = d; hub = t; } }
     for (const t of this.trees) { const was = t.hub; t.hub = t === hub; if (t.hub && !was) this.log(`Tree ${t.id} is now the hub of the network (${hd} fungal links). Hubs emerge from connectivity, not intent.`, 'tree'); }
@@ -773,7 +977,7 @@ class World {
       if (eid === fromEdge) continue; const e = this.edges.get(eid); if (!e) continue;
       const eg = this.genets.get(e.g) || g;
       const pp = alarm ? 0.95 : eg.sp.prop * Math.min(1, 0.35 + e.D);
-      if (!this.r.chance(pp) || this.signals.length > 40) continue;
+      if (!this.r.chance(pp) || this.signals.length > 60) continue;
       const n = Math.max(1, Math.round(eg.sp.word * this.r.range(0.6, 1.5) * (alarm ? 1.5 : 1)));
       const sig = { e: e.id, dir: e.a === node.id ? 1 : -1, s: 0, len: e.len, speed: eg.sp.sigSpeed * (alarm ? 1.6 : 1) * Math.pow(2, this.ch('signals', 'pace') * 0.9), n, alarm, g: eg.id, hops: hops + 1, voice: null, x: node.x, y: node.y };
       this.signals.push(sig);
@@ -890,10 +1094,11 @@ class World {
   // ---------------------------------------------------------- fruiting & spores
   fruitStep(dt) {
     const r = this.r;
-    const autumn = (this.month >= 7 && this.month <= 10) ? 1.6 : (this.month >= 4 && this.month <= 6) ? 0.8 : 0.4;
     const cool = this.temp < 16 ? 1.3 : 0.8;
     for (const g of this.genets.values()) {
-      if (this.fruits.length >= 5) break;
+      if (this.fruits.length >= 10) break;
+      // each genus fruits in its own months: snowbank Hygrophorus in March, velvet shank in frost, most in late summer and autumn
+      const autumn = fruitSeason(g.sp, this.month) * 1.6; if (autumn <= 0) continue;
       if ((g.fstore || 0) < g.sp.fruitCost * 0.9 || this.moist < 0.45 || this.t - g.born < 240) continue;
       if (!r.chance(dt * 0.004 * this.p.bloom * (this.moist - 0.35) * autumn * cool * (1 + 2 * this.afterRain))) continue;
       // fruit bodies appear at the colony margin, which is how fairy rings form
@@ -959,10 +1164,10 @@ class World {
       const landed = s.z <= 0 || s.age > s.life;
       if (!landed) continue;
       this.spores.splice(i, 1); if (s.voice) this.audio.rel(s.voice, 0.6);
-      if (Math.hypot(s.x, s.y) > PLOT_R - 1 || this.genets.size >= (s.sp.guild === 'sapro' ? 12 : 10) || this.nearPoint(s.x, s.y, 1.2)) continue;
+      if (Math.hypot(s.x, s.y) > PLOT_R - 1 || this.genets.size >= (s.sp.guild === 'sapro' ? WILD_FUNGI + 6 : WILD_FUNGI) || this.nearPoint(s.x, s.y, 1.2)) continue;
       // ectomycorrhizal spores germinate near host roots; saprotrophs need litter
-      const host = s.sp.guild === 'ecm' ? this.treeAt(s.x, s.y, 4.5) : this.litter.find(l => Math.hypot(l.x - s.x, l.y - s.y) < 3 && l.a > 0.1);
-      if (!host || !r.chance(0.35 + this.moist * 0.3)) continue;
+      const host = s.sp.guild === 'ecm' ? this.trees.find(t => Math.hypot(t.x - s.x, t.y - s.y) < 4.5 && this.hostOk(s.sp, t)) : this.litter.find(l => Math.hypot(l.x - s.x, l.y - s.y) < 3 && l.a > 0.1);
+      if (!host || !r.chance((0.35 + this.place(s.x, s.y).moist * 0.3) * (0.3 + 0.7 * this.fungusFit(s.sp, s.x, s.y)))) continue;
       const parent = this.genets.get(s.g);
       const sp = parent ? mutateSpecies(s.sp, r, this.p.mutation) : s.sp;
       const child = this.addGenet(sp, parent, s.x, s.y);
@@ -1001,7 +1206,8 @@ class World {
     for (const l of this.litter) l.a -= 0.00008 * pr; this.litter = this.litter.filter(l => l.a > 0.02);
     for (const p of this.patches) p.a = Math.min(p.a0 * 1.2, p.a + 0.00015 * pr * this.moist);
     for (const t of this.trees) for (const gid of [...t.links.keys()]) if (!this.genets.has(gid)) t.links.delete(gid);
-    for (const g of this.genets.values()) g.bonded = this.trees.some(t => t.links.has(g.id));
+    for (const g of this.genets.values()) { g.bonded = this.trees.some(t => t.links.has(g.id)); g.fit = this.fungusFit(g.sp, g.ox, g.oy); }
+    for (const t of this.trees) t.fit = this.treeFit(t.sp, t.x, t.y);
   }
   events(dt) {
     this.grazeT -= dt;
@@ -1026,14 +1232,18 @@ class World {
   updateVoices(dt) {
     const A = this.audio; if (!A.ready) return;
     const L = this.listener;
+    // only the most audible trees get a voice, so a large forest never floods the mix
+    const audible = new Set(this.trees.map(t => [t, Math.pow(clamp(t.size / 1.2, 0, 1.3), 1.5) * (0.5 + 0.5 * t.leaf) / (1 + Math.hypot(t.x - L.x, t.y - L.y) / 7)]).sort((a, b) => b[1] - a[1]).slice(0, 14).map(a => a[0].id));
+    for (const [tid, vid] of this.v.trees) if (!audible.has(tid)) { A.rel(vid, 8); this.v.trees.delete(tid); }
     for (const t of this.trees) {
+      if (!audible.has(t.id)) continue;
       let id = this.v.trees.get(t.id);
-      const day = 0.55 + 0.45 * this.light;
+      const day = (0.55 + 0.45 * this.light) * (0.45 + 0.55 * t.leaf);
       const vigor = clamp(0.4 + 0.35 * t.sugar, 0.15, 1.2);
       const grown = Math.pow(clamp(t.size / 1.2, 0, 1.35), 1.5);
       const gain = 1.8 * (0.03 + 0.15 * grown) * day * vigor * (t.hub ? 1.35 : 1) * (t.dying > 0 ? t.dying / 8 : 1);
       // a young tree has only its fundamental; upper partials come with size
-      const amps = t.amps.map((a, k) => k === 0 ? a : a * clamp((t.size - 0.15 - k * 0.22) / 0.35, 0, 1));
+      const amps = t.amps.map((a, k) => k === 0 ? a : a * clamp((t.size - 0.15 - k * 0.22) / 0.35, 0, 1) * (0.3 + 0.7 * t.leaf));
       const oct = t.size < 0.4 ? 1 : 0;
       const tDeg = t.deg + this.dshift('trees');
       const tone = this.ch('trees', 'tone') * 0.3 + (this.tide - 0.5) * 0.25;
@@ -1051,7 +1261,7 @@ class World {
       if (t.type !== 'grain' && (!t.vf || Math.abs(fT / t.vf - 1) > 0.0005)) { A.set(id, { f: fT, glide: t.voct !== oct ? 20 : 6 }); t.vf = fT; t.voct = oct; }
       A.move(id, t.x, t.y, 1 + t.size * 2);
       if (t.type === 'grain') A.set(id, { gain, pj: 0.04 + t.defense * 0.25, lp: clamp(0.3 + this.light * 0.3 + t.defense * 0.3 + t.flash * 0.2 + tone, 0.05, 1), dens: 4 + t.size * 10 + t.flash * 12 + t.stress * 20 });
-      else A.set(id, { gain, a: amps, bright: clamp(0.15 + this.light * 0.35 + t.defense * 0.35 + t.size * 0.1 + tone, 0, 1), inh: clamp(t.defense * 0.7, 0, 1), trate: 0.08 + t.stress * 6 + t.drought * 1.5, tdep: 0.12 + t.stress * 0.45 + t.drought * 0.2, flash: t.flash > 0.3 ? t.flash * 0.5 : 0, breath: t.breath + t.stress * 0.25 });
+      else A.set(id, { gain, a: amps, bright: clamp(0.15 + this.light * 0.35 + t.defense * 0.35 + t.size * 0.1 + tone, 0, 1), inh: clamp(t.defense * 0.7, 0, 1), trate: 0.08 + t.stress * 6 + t.drought * 1.5, tdep: 0.12 + t.stress * 0.45 + t.drought * 0.2, flash: t.flash > 0.3 ? t.flash * 0.5 : 0, breath: t.breath + t.stress * 0.25 + (1 - t.leaf) * 0.22 * (0.5 + this.windStr) });
     }
     for (const [tid, id] of this.v.trees) if (!this.treeById(tid)) { A.rel(id, 4); this.v.trees.delete(tid); }
     // growing tips near you tick
@@ -1236,8 +1446,8 @@ class World {
     return g;
   }
   germinateDeposit(d) {
-    if (this.genets.size >= 10 || this.nearPoint(d.x, d.y, 1)) return;
-    const host = this.treeAt(d.x, d.y, 4.5); if (!host) return;
+    if (this.genets.size >= WILD_FUNGI || this.nearPoint(d.x, d.y, 1)) return;
+    const host = this.trees.find(t => Math.hypot(t.x - d.x, t.y - d.y) < 4.5 && this.hostOk(d.sp, t)); if (!host) return;
     const parent = this.genets.get(d.parent);
     const child = this.addGenet(mutateSpecies(d.sp, this.r, this.p.mutation * 0.8), parent, d.x, d.y); child.energy = 0.6;
     const n = this.addNode(d.x, d.y, 'j', child.id); n.deg = d.sp.degOff + this.r.int(0, 4);
@@ -1338,7 +1548,7 @@ class World {
     const r2 = (v) => Math.round(v * 100) / 100;
     const strip = (o, drop) => { const c = {}; for (const k in o) if (!drop.includes(k)) c[k] = o[k]; return c; };
     return {
-      v: 3, code: this.seed.code, t: this.t, moist: this.moist, snow: this.snow, rootMul: this.rootMul, rootTarget: this.rootTarget, tide: this.tide, keyT: this.keyT, somaT: this.somaT,
+      v: 4, seed: this.seed, soil: { wet: Array.from(this.soil.base.wet, v => Math.round(v * 1000) / 1000), rich: Array.from(this.soil.base.rich, v => Math.round(v * 1000) / 1000), acid: Array.from(this.soil.base.acid, v => Math.round(v * 1000) / 1000), stone: Array.from(this.soil.base.stone, v => Math.round(v * 1000) / 1000) }, logs: this.logs, code: this.seed.code, t: this.t, moist: this.moist, snow: this.snow, rootMul: this.rootMul, rootTarget: this.rootTarget, tide: this.tide, keyT: this.keyT, somaT: this.somaT,
       windDir: this.windDir, windStr: this.windStr, rainT: this.rainT, rainCool: this.rainCool, afterRain: this.afterRain, dryT: this.dryT, stormT: this.stormT, stage: this.stage, stats: this.stats,
       ids: [this.nid, this.eid, this.tid, this.gid, this.tipid], timers: { graze: this.grazeT, sporeRain: this.sporeRainT, auto: this.auto },
       nodes: [...this.nodes.values()].map(n => [n.id, r2(n.x), r2(n.y), n.type, n.genet, n.deg, n.tree]),
@@ -1370,7 +1580,10 @@ class World {
     this.fruits = (d.fruits || []).filter(f => this.nodes.has(f.node));
     this.signals = []; this.carbon = []; this.water = []; this.spores = []; this.critters = []; this.calls = [];
     this.ev = { rain: Math.max(0, this.rainT), deer: 0, storm: Math.max(0, this.stormT), dry: Math.max(0, this.dryT), cache: 0, squirrel: 0 };
-    this.hashDirty = true; this.dropVoices(); this.updateSky(0);
+    if (d.soil && d.soil.wet && d.soil.wet.length === SOIL_N * SOIL_N) for (const k of ['wet', 'rich', 'acid', 'stone']) { this.soil.base[k] = Float32Array.from(d.soil[k]); this.soil[k] = Float32Array.from(d.soil[k]); }
+    this.logs = d.logs || [];
+    for (const t of this.trees) { if (!TREE_SPECIES[t.sp]) { t.sp = this.bestTree(t.x, t.y); } if (t.leaf === undefined) { t.leaf = 1; t.sen = 0; } t.fit = this.treeFit(t.sp, t.x, t.y); }
+    this.hashDirty = true; this.dropVoices(); this.updateSky(0); this.updateLight(); this.updateCover(0);
   }
 
   // ---------------------------------------------------------- interaction
@@ -1389,21 +1602,35 @@ class World {
     if (p.type === 'edge') { const n = this.nodes.get(p.obj.a); if (n) { n.refr = 0; this.fire(n, false, 0, 0); } return true; }
     return false;
   }
-  plantAt(x, y) {
-    if (Math.hypot(x, y) > PLOT_R - 1 || this.treeAt(x, y, 2) || this.trees.length >= 12) return false;
+  plantAt(x, y, key) {
+    if (Math.hypot(x, y) > PLOT_R - 1) return 'edge';
+    if (this.treeAt(x, y, 1.8)) return 'crowded';
+    if (this.trees.length >= MAX_TREES) return 'full';
     const near = this.treeAt(x, y, 12);
-    const t = this.addTree(x, y, { size: 0.1, kin: near ? near.kin : this.r.int(0, 2), deg: near ? clamp(near.deg + this.r.pick([-1, 1, 2]), 0, 20) : this.r.int(0, this.seed.tun.ratios.length * 2), sugar: 0.9 });
-    this.log(`You planted a seedling (tree ${t.id}). It will need fungal partners to grow well.`, 'tree'); return true;
+    const sp = TREE_SPECIES[key] ? key : this.bestTree(x, y, TREE_KEYS);
+    const t = this.addTree(x, y, { size: 0.1, kin: near ? near.kin : this.r.int(0, 2), deg: near ? clamp(near.deg - (TREE_SPECIES[near.sp] ? TREE_SPECIES[near.sp].regDeg : 0) + this.r.pick([-1, 1, 2]), 0, 20) : this.r.int(0, this.seed.tun.ratios.length * 2), sugar: 0.9, sp });
+    const fit = this.treeFit(sp, x, y);
+    this.log(`You planted a ${TREE_SPECIES[sp].name.toLowerCase()} (tree ${t.id}). ${fit > 0.6 ? 'This place suits it well.' : fit > 0.3 ? 'It can manage here.' : 'This place does not suit it; it will struggle.'}`, 'tree'); return true;
   }
-  inoculate(x, y) {
-    if (Math.hypot(x, y) > PLOT_R - 0.5 || this.genets.size >= 8) return false;
-    const base = this.genets.size ? this.r.pick([...this.genets.values()]).sp : this.r.pick(this.seed.species.filter(s => s.guild === 'ecm'));
-    const sp = mutateSpecies(base, this.r, 1.5 * this.p.mutation + 0.5);
-    const g = this.addGenet(sp, null, x, y); g.energy = 0.8;
+  inoculate(x, y, genus) {
+    if (Math.hypot(x, y) > PLOT_R - 0.5) return 'edge';
+    if (this.genets.size >= MAX_FUNGI) return 'full';
+    let def = FUNGUS[genus];
+    if (!def) {
+      // the place decides: the genus that suits this soil, with a host nearby
+      const cands = FUNGI.map(f => FUNGUS[f[0]]).filter(f => f.guild === 'sapro' ? this.litter.some(l => Math.hypot(l.x - x, l.y - y) < 4) : this.trees.some(t => Math.hypot(t.x - x, t.y - y) < 8 && this.hostOk(f, t)));
+      const pool = cands.length ? cands : FUNGI.map(f => FUNGUS[f[0]]).filter(f => f.guild === 'ecm' && f.hosts === 'any');
+      let bw = -1; for (const f of pool) { const w = this.fungusFit(f, x, y) * this.r.range(0.6, 1.4) * (0.6 + fruitSeason(f, this.month) * 0.4); if (w > bw) { bw = w; def = f; } }
+    }
+    const known = this.seed.species.find(sp => sp.genus === def.genus);
+    const base = known || makeSpecies(this.r, this.seed.tun, this.r.range(0, 360), def);
+    const sp = mutateSpecies(base, this.r, 0.8 * this.p.mutation + 0.3);
+    const g = this.addGenet(sp, null, x, y); g.energy = 0.8; g.fit = this.fungusFit(sp, x, y);
     const n = this.addNode(x, y, 'j', g.id); n.deg = g.sp.degOff + this.r.int(0, 4);
     for (let j = 0; j < 3; j++) this.addTip(g, n.id, x, y, this.r.range(0, Math.PI * 2), 0.1);
     this.ping(x, y, 0, n, g.sp, 0.9, 10);
-    this.log(`You sowed spores. ${g.name}, a new ${EXPLORATION[sp.expl].label} individual, starts to grow.`, 'spore'); return true;
+    const host = sp.hosts && sp.hosts !== 'any' ? ` It partners only ${sp.hosts.map(h => TREE_SPECIES[h].short.toLowerCase()).join(' and ')}.` : '';
+    this.log(`You sowed ${sp.genus} (${sp.guild === 'sapro' ? 'a decomposer' : EXPLORATION[sp.expl].label + ' type'}): ${g.name}.${host} ${g.fit > 0.6 ? 'The soil here suits it.' : g.fit < 0.3 ? 'The soil here does not suit it.' : ''}`, 'spore'); return true;
   }
   cut(x1, y1, x2, y2) {
     let n = 0;
@@ -1422,4 +1649,4 @@ function segX(ax, ay, bx, by, cx, cy, dx, dy) {
   return u >= 0 && u <= 1 && v >= 0 && v <= 1;
 }
 
-if (typeof module !== 'undefined') module.exports = { World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX };
+if (typeof module !== 'undefined') module.exports = { World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };

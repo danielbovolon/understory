@@ -38,11 +38,42 @@ npm run build      # → dist/understory.html (self-contained) and dist/artifact
 ```bash
 npm test           # engine stress test: random, dense and extreme voices; checks NaN, ceiling, CPU
 npm run test:sim   # succession run headless for an hour per seed, printed every 5 minutes
+npm run test:scale    # 32 trees and 64 fungi on shaped ground: speed, place-dependence, host specificity
 npm run test:events   # every happening in every season, the crowding cap, and a save/restore round trip
 npm run test:mix   # ecology + engine together offline; loudness per 10 s (add a layer index 0–4 to solo it)
 ```
 
 ---
+
+## Building a forest
+
+You can let a forest grow on its own, or build a complex one:
+- **Scale:** up to **32 trees** and **64 fungal individuals**, with networks of a couple of thousand hyphae.
+- **Shape ground** (key 7) paints the conditions of a place: **Wet**, **Dry**, **Rich**, **Acid**, **Stone**, or a **Dead log**.
+- **Plant** picks one of eight tree species, or lets the place decide.
+- **Sow spores** picks any of 22 fungal genera, or lets the place decide.
+- **Underfoot:** the line under the tools describes the ground where you stand, and where your pointer is. For example: "moss on wet, acid soil · deep shade · suits spruce and silver fir".
+
+**Every place is different:**
+- **Ground:** each seed has its own terrain (a wet seep, a stony ridge, rich and poor patches).
+- **Trees** grow, germinate and survive according to how well the place fits their niche: wetness, acidity, fertility, shade and stone.
+- **Fungi** grow and germinate according to their soil preferences, and many decline on nitrogen-rich ground. Host specialists only partner their hosts:
+  - *Suillus*: larch and pine
+  - *Rhizopogon*: stone pine
+  - *Leccinum*: birch
+  - *Alnicola*: alder
+- **The ground layer follows light and soil:** grass in the open, moss and ferns in moist shade, blueberry heath on acid ground, sedge in bogs, lichen on stone.
+  - Dense grass, heath and bracken smother seedlings.
+  - Moss softens footsteps and the soil's crackle.
+- **The trees change the ground in turn:**
+  - Spruce and pine needles acidify the soil.
+  - Alder fixes nitrogen and enriches it.
+  - Beech and oak litter enrich it slightly.
+  - Dead logs rot into rich soil and feed the decomposers.
+
+**Big forests stay listenable:**
+- Only the 14 trees you can hear best have a voice at any moment; voices cross-fade as you move.
+- The foreground cap thins the forest's own events.
 
 ## Time and succession
 
@@ -79,6 +110,8 @@ The biology behind each part, with sources, is in [docs/how-it-lives.md](docs/ho
 | **Decomposers** | They break litter down into nutrient patches. Some glow in darkness under circadian control (Oliveira 2015). | A faint shimmer over the litter at night. |
 | **Weather** | The real day and night, temperature, rain or snow, drying soil, and wind that turns and gusts. | Rain falls around you, the wind circles, and the soil hums and crackles beneath you. |
 | **Birds & animals** | Songbirds arrive once there is a canopy and sing most at dawn. Owls call at night. Woodpeckers drum on standing dead trunks. In summer there are crickets; in the autumn rut, red deer roar. | A sparse layer of calls placed in the treetops around you. |
+| **Tree species** | Eight Alpine species: larch, Swiss stone pine, Norway spruce, silver fir, beech, birch, black alder, sessile oak. Each has its own niche, timbre, register and colours. Larch and birch turn gold and stand bare in winter; beech and oak keep dry leaves (marcescence); conifers stay dark. | Bare trees lose their upper partials and breathe with the wind through their branches. |
+| **Fungal calendar** | Every genus fruits in its own months: *Hygrophorus* in March at the snowmelt, most genera in late summer and autumn, the velvet shank (*Flammulina*) in winter frost; *Cenococcum* never fruits. Spore rain follows the calendar. | The fruiting voices change with the months. |
 | **Seasons** | Winter brings snow, whose cover absorbs sound, and frost cracks in hard frost. Spring has the strongest dawn chorus and a flush of growth. Summer has crickets, fireflies and distant thunder. Autumn has falling leaves, mushrooms and the red deer rut. | The forest sounds different in every season, even with the same seed. |
 
 ### Seeds
@@ -110,6 +143,7 @@ Six things that happen in real forests. The forest brings each of them on its ow
 - **Headphones 3D:** each ear reads every voice from its own delay line, at its distance to that ear divided by the speed of sound. Interaural time difference and doppler fall out of the geometry. Head shadow, darkening for sources behind and below, air absorption and a distance-dependent reverb send give direction and depth.
 - **Speakers stereo:** equal-power panning, with the same distance and depth cues.
 - **Distance** scales every distance you hear. **Autopan** turns your head continuously, so the whole field revolves around you.
+- **Walk:** Amble, Walk, Run, or Rhythm, which ambles, walks, runs now and then, and walks again (key G). The path meanders, keeps inside the circle and steps around trunks. Footsteps follow the ground: snow, leaves, moss, grass, stone, wet sedge or bare soil.
 - **Where you listen**, six options:
   - **Drift** wanders slowly toward whatever is happening.
   - **Ride along** travels with whatever moves through the forest: sugar, water, a spike train, a spore, a squirrel.
@@ -179,7 +213,8 @@ Inside a claude.ai artifact, files go through the platform's save dialog, and WA
 | N | new seed |
 | R | record / stop |
 | H | headphones / speakers |
-| 1–6 | tools |
+| 1–7 | tools |
+| G | walk in rhythm / stop |
 | W A S D | walk |
 | Q / E | turn |
 | Shift-drag or right-drag | tilt the view |
@@ -197,6 +232,7 @@ tools/stress-test.mjs      offline engine stress test
 tools/sim-test.mjs         headless ecology run
 tools/mix-test.mjs         ecology + engine offline loudness check
 tools/events-test.mjs      happenings, seasons, crowding cap, save/restore
+tools/scale-test.mjs       large shaped forest: speed and ecology
 tools/load.mjs             loads the browser sources into Node for the tests
 docs/how-it-lives.md       the biology and how it maps onto the system
 docs/signal-flow.svg       diagram

@@ -36,7 +36,11 @@
   <main>
     <section class="stage" id="stage" data-tool="listen">
       <canvas id="scene"></canvas>
-      <div class="tools" id="tools" role="toolbar" aria-label="Tools"></div>
+      <div class="toolcol">
+        <div class="tools" id="tools" role="toolbar" aria-label="Tools"></div>
+        <div class="toolopts" id="toolopts" hidden></div>
+        <div class="underfoot" id="underfoot"></div>
+      </div>
       <div class="hud" id="hud"></div>
       <div class="log" id="log" aria-live="polite"></div>
       <div class="viewctl">
@@ -80,6 +84,9 @@
           <button class="btn opt" id="centreBtn" title="Walk back to the centre of the flower of life, on the ground"><b>Back to centre</b><small>to the first circle</small></button>
           <button class="btn opt" id="calmBtn" title="Clear reverb tails and fade gently back in"><b>Calm</b><small>clear the air</small></button>
         </div>
+        <h3>Walk</h3>
+        <p class="sub">Walk through the forest on your own feet. Footsteps change with the ground: snow, leaves, moss, grass, stone.</p>
+        <div class="gaits" id="gaits"></div>
       </section>
       <section class="panel layers">
         <h2>Layers</h2>
@@ -115,6 +122,7 @@
       </section>
       <section class="panel notes">
         <h2>How it lives</h2>
+        <p><b>Places.</b> Every spot has its own wetness, fertility, acidity, stone and light. Trees and fungi grow where the place suits them, moss, grass, ferns and heath follow, and the trees change the soil in turn: needles acidify it, alder enriches it. Shape the ground to build your own forest.</p>
         <p><b>Succession.</b> Every forest starts as bare soil. Seedlings germinate on the flower of life; early-stage fungi (Laccaria, Inocybe, Hebeloma…) arrive first on the wind, late-stage fungi (Russula, Suillus, Amanita…) once there is a canopy, decomposers once there is litter.</p>
         <p><b>Exploration types.</b> Each fungus has a body plan: contact and short-distance types make dense fine mats, long-distance types send out straight, thick cords that carry water and signals faster.</p>
         <p><b>The market.</b> Fungi forage nutrients from patches in the soil and trade them to their trees. Trees pay carbon in proportion to what each partner delivers, and send more below ground when they are short of nutrients.</p>

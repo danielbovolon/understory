@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.0
+- Up to 32 trees and 64 fungal individuals; hyphae, tips, signals, fruit, litter and nutrient patches scaled up; only the 14 most audible trees get a voice at once.
+- A soil map for every place: wetness, fertility, acidity and stone, generated per seed (seep, ridge, patches) and paintable with the new Shape ground tool (Wet, Dry, Rich, Acid, Stone, Dead log).
+- Eight tree species with niches, timbres and seasonal colours; deciduous phenology (budburst, autumn colour, bare winter), marcescent beech and oak; trees change the soil (needles acidify, alder enriches).
+- 22 fungal genera with soil preferences, nitrogen sensitivity, host specificity and fruiting calendars; spore rain follows the calendar; plant and sow by species or let the place decide.
+- Ground cover from light and soil: grass, moss, ferns, blueberry heath, sedge, lichen on stone, spring flowers; it smothers or shelters seedlings and softens sound.
+- Colours of trees, fungi and ground shift with the season.
+- Walk: Amble, Walk, Run, Rhythm, with footsteps that follow the surface.
+- Underfoot description of the place you stand on and the place under the pointer.
+
 ## 3.0.0
 - Six happenings, each brought by the forest in its season or called by you: rain/snow, deer, windstorm (creaking, broken branches, windthrow and gap regeneration), dry spell (drought clicks, night water, water-carrying fungi favoured), nutcrackers/jays (seed caching; forgotten caches sprout), squirrel (mycophagy: eats fungi, plants spores).
 - Six ways to listen: Drift, Ride along (travel with sugar, water, signals, spores or animals), Under the soil (muffled world above), Into the canopy, Back to centre, Calm.
