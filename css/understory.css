@@ -226,3 +226,6 @@ input[type=range]:focus-visible { outline: 2px solid var(--hypha); outline-offse
   .sl { grid-template-columns: 76px minmax(0, 1fr) 38px; }
 }
 @media (prefers-reduced-motion: reduce) { .btn.rec[aria-pressed="true"] { animation: none; } }
+.chip b { font-weight: 600; color: var(--bone); }
+.chip small { color: var(--dim); font-size: 9px; }
+.chip.static { cursor: default; }

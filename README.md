@@ -40,6 +40,7 @@ npm test           # engine stress test: random, dense and extreme voices; check
 npm run test:longrun   # a forest left running for many hours keeps turning over
 npm run test:sim   # succession run headless for an hour per seed, printed every 5 minutes
 npm run test:scale    # 64 trees and 128 fungi on shaped ground: speed, place-dependence, host specificity
+npm run test:evolve   # gathering and planting from the pouch, mast years, newcomers and new forms over 30 days
 npm run test:away     # the forest living through 8 hours, 3 days and 30 days away: speed, change, health
 npm run test:layers   # one grown forest rendered layer by layer: level, peaks and limiter activity
 npm run test:events   # every happening in every season, the crowding cap, and a save/restore round trip
@@ -190,9 +191,15 @@ Every forest you stay with for two minutes, or keep explicitly, is saved in this
 | 1 | Listen | Drag the floor to turn, drag your head to walk, click the floor to walk there |
 | 2 | Touch | Click a tree, node or hypha to fire a spike train |
 | 3 | Wound | Click a tree to wound it: it sends an alarm |
-| 4 | Plant | Click open ground to plant a seedling |
-| 5 | Sow spores | Click to start a new, mutated fungal individual |
-| 6 | Cut | Drag across hyphae to cut them; click a tree to fell it (it pours its sugar into the network as it dies) |
+| 4 | Gather | Click a tree in seed (gold marks on its crown) to gather its seed, or a ripe mushroom to take a spore print |
+| 5 | Plant | Click open ground to plant a seed from your pouch |
+| 6 | Sow spores | Click to sow spores from your pouch: a new, mutated fungal individual with its parent's genotype |
+| 7 | Cut | Drag across hyphae to cut them; click a tree to fell it (it pours its sugar into the network as it dies) |
+| 8 | Shape ground | Paint wet, dry, rich, acid or stony ground, or lay a dead log |
+
+**The pouch.** You plant and sow only what you have gathered. A new forest gives you a few seeds and spores from the valley; after that, seed comes from mature trees in their own season (spruce cones October to March, beech nuts and acorns in September and October, willow and aspen cotton in spring), and spores come from ripe mushrooms (truffles are dug, brackets scraped, Cenococcum's sclerotia taken from the soil). Seed loses viability as real seed does: spruce and pine keep for years, acorns and beech nuts dry out quickly, willow and aspen seed lives only days. In mast years beech, oak, spruce, fir and stone pine fruit heavily together.
+
+**Newcomers and new forms.** The forest grows richer with time. Species that are not part of any forest at the start arrive when a niche opens for them: willow on wet open ground, aspen after storms, Scots pine on dry stone, rowan and yew planted by birds, maple on rich soil; chanterelles and hedgehogs in old forest, truffles carried in by boar, morels on disturbed ground, tinder fungus and red-belted conks on dead wood, *Gomphidius* only where *Suillus* already lives. Over generations, fungal lineages that drift far enough become local forms with their own names, colours, niches and voices, and tree lineages become local varieties adapted to their ground. The caps stay at 64 trees and 128 fungi: when the soil is full, a newcomer takes over from the weakest colony.
 
 **Sow a sound** in the Layers panel loads your own recording into the soil, and fruit and bark voices then grow from it. You can also drop an audio file on the forest.
 
@@ -222,7 +229,7 @@ Inside a claude.ai artifact, files go through the platform's save dialog, and WA
 | N | new seed |
 | R | record / stop |
 | H | headphones / speakers |
-| 1–7 | tools |
+| 1–8 | tools |
 | G | walk in rhythm / stop |
 | W A S D | walk |
 | Q / E | turn |

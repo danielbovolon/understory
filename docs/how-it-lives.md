@@ -212,6 +212,23 @@ A forest can hold 64 trees and 128 fungal individuals, with networks of up to ab
 - **State.** A tree's voice follows its age (seedlings sing an octave up, old giants drop an octave and grow more inharmonic), its ground (wet wood damps, stone hardens), its nutrients (fuller upper partials), its partners (a wider chorus) and its stress. A fungus's ring follows its energy, nutrients and age.
 - **Crickets** keep time with the temperature: about seven chirps a minute more for every degree (Dolbear 1897).
 
+## Gathering, seed and spores
+- **Seed seasons.** Every species ripens its seed in its own months and only from a certain size: spruce cones from October to March, larch in September and October, beech nuts and acorns in September and October, birch from July to November, alder through the winter, pine cones from November to April, rowan berries and yew arils in late summer, willow and aspen cotton in April and May.
+- **Viability.** Orthodox seed (spruce, larch, pine, alder) keeps for years; recalcitrant seed (acorns, beech nuts, maple keys) dies when it dries; willow and aspen seed lives only days. In the pouch, viability falls accordingly; old seed may not come up.
+- **Dormancy.** Planted seed lies in the soil before it germinates, longest for stone pine and yew.
+- **Spore prints.** A ripe mushroom gives a spore print once; truffles are dug, brackets scraped, and *Cenococcum*, which never fruits, gives its sclerotia. Each packet carries the genotype, and so the voice, of the individual it came from.
+- **Mast years.** Beech, oak, spruce, fir and stone pine fruit heavily together every few years and little in between. Seed predators cannot eat a whole mast crop, so more seeds survive (predator satiation). Here a mast year triples the crop, brings more seedlings, and draws jays, nutcrackers, squirrels and boar.
+
+## Newcomers
+Seed and spores arrive from far away all the time, but a species establishes only where it finds a niche. As the forest grows richer, niches open, and species no forest starts with arrive:
+- **Trees.** Goat willow on wet, open ground; aspen after storms open the canopy; Scots pine on dry, stony, poor ground; rowan and yew, planted by thrushes once songbirds live here (yew only in old, deep shade); sycamore maple on rich, moist soil.
+- **Fungi.** Chanterelle and hedgehog mushroom in old forest on clean soil; the brown roll-rim with birch where there is disturbance or nitrogen; *Gomphidius*, which lives on the mycelium of *Suillus* (Olsson et al. 2000) and can only come where *Suillus* is established; truffles, carried in by boar to oak or beech on chalky ground; morels on freshly disturbed ground; tinder fungus and turkey tail on dead broadleaf wood, the red-belted conk on dead conifers, sulphur tuft on logs and stumps.
+- The richer and older the forest, the more often newcomers come. When the soil is full, a newcomer takes the place of the weakest colony of its kind.
+
+## Local forms and varieties
+- **Fungi.** Every offspring and every somatic mutation moves a lineage a little further from its ancestors. When it has drifted far enough, it becomes a local form: a new name (after its colour, its voice, its ground or its place), a new colour, a shifted niche adapted to where it grows, and a new voice. Many fungal "species" are in fact several cryptic species, told apart only by DNA; in real forests the drift takes many generations.
+- **Trees.** Seedlings inherit their parent's genotype. A lineage that has passed through enough generations and drifted far enough becomes a local variety (an ecotype, or provenance in forestry): its niche moves toward the ground it grew on, and its seedlings carry it on.
+
 ## Life while you are away
 When you return to a forest, it catches up on the time you were gone, up to 30 days of forest life, at a coarser step. Growth, ageing and death, seed and spore rain, new partnerships between fungi and trees, fruiting and the drift of voices go on; storms, beetles, boar and seed caching happen in their seasons. Passing sounds (signals, spores in the air, animals) are not simulated. The sky ends at the real hour, and a short story tells you what changed.
 
@@ -268,6 +285,8 @@ This part is aesthetic, not biology. It keeps long listening from settling into 
 - T. Klein, R. T. W. Siegwolf, C. Körner (2016), *Belowground carbon trade among tall trees in a temperate forest*, Science.
 - H. Mattes (1982), *Die Lebensgemeinschaft von Tannenhäher und Arve* (nutcracker and Swiss stone pine), Eidg. Anstalt für das forstliche Versuchswesen, Bericht 241.
 - A. W. Claridge, T. W. May (1994), *Mycophagy among Australian mammals*, Australian Journal of Ecology 19.
+- A. Kelly, V. L. Sork (2002), *Mast seeding in perennial plants: why, how, where?*, Annual Review of Ecology and Systematics 33.
+- P. M. A. Olsson, M. Münzenberger, S. Mahmood, S. Erland (2000), *Molecular and anatomical evidence for a three-way association between Pinus sylvestris and the ectomycorrhizal fungi Suillus bovinus and Gomphidius roseus*, Mycological Research 104.
 - C. Ammer (1996), *Impact of ungulates on structure and dynamics of natural regeneration of mixed mountain forests in the Bavarian Alps*, Forest Ecology and Management 88.
 - A. E. Dolbear (1897), *The cricket as a thermometer*, The American Naturalist 31.
 - W. T. Fitch, D. Reby (2001), *The descended larynx is not uniquely human*, Proc. R. Soc. B 268.

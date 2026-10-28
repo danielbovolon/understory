@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.1.0
+- Gather tool (key 4): seed from mature trees in their real seed season, spore prints from ripe mushrooms, truffles dug, brackets scraped, sclerotia from Cenococcum. Everything goes into a pouch.
+- Planting and sowing draw only from the pouch, with real seed behaviour: viability that falls over time (orthodox, recalcitrant and short-lived seed), dormancy before germination, and the genotype and voice of the parent carried on.
+- Mast years for beech, oak, spruce, fir and stone pine: heavy, synchronised crops that draw jays, nutcrackers, squirrels and boar.
+- Newcomers: six tree species (goat willow, aspen, Scots pine, rowan, sycamore maple, yew) and ten fungal genera (chanterelle, hedgehog, brown roll-rim, Gomphidius, truffle, morel, tinder fungus, red-belted conk, sulphur tuft, turkey tail) arrive when their niche opens. A thrown trunk now lies as a log; dead wood remembers its species.
+- Local forms and varieties: fungal lineages that drift far enough become named local forms with their own colour, niche and voice; tree lineages become local varieties adapted to their ground.
+- The field guide lists newcomers, local forms and varieties, seed seasons, mast years and gathering; the map legend shows seed on trees and berries.
+- The return story names newcomers and new forms.
+- New test: `npm run test:evolve`.
+
 ## 5.0.0
 - Every seed, species and individual has its own sound. Seeds blend two of six sound worlds; species are voiced after real wood and crown acoustics; every tree carries a genotype its seedlings inherit; voices follow age, ground, nutrients, partners and stress.
 - Two new generators in the engine: a plucked strand (Karplus–Strong) and a blown resonator. Wind sounds in the nearest crowns: needles whistle (Aeolian tone), leaves flutter, dry winter leaves rattle.
