@@ -1,4 +1,4 @@
-// A large, shaped forest: 32 trees and 64 fungi on painted ground. Checks speed, crowding and place-dependence.
+// A large, shaped forest: 64 trees and 128 fungi on painted ground. Checks speed, crowding and place-dependence.
 import { loadSim } from './load.mjs';
 const S = loadSim();
 const live = new Set(); let id = 1;
@@ -14,11 +14,11 @@ console.log('best for the bog:', westBest, '· best for the ridge:', eastBest, '
 ok(['alder'].includes(westBest) || S.TREE_SPECIES[westBest].wet > 0.6, 'wet ground favours wet-loving trees');
 ok(S.TREE_SPECIES[eastBest].stone >= 0.6, 'stony ridge favours stone-tolerant trees');
 // plant 32 trees in rings, letting the place decide the species
-let planted = 0; for (let ring = 1; ring <= 4 && planted < 40; ring++) for (let k = 0; k < ring * 8; k++) { const a = k / (ring * 8) * Math.PI * 2, r = ring * 4.6; if (w.plantAt(Math.sin(a) * r, Math.cos(a) * r) === true) planted++; }
+let planted = 0; for (let ring = 1; ring <= 6 && planted < 80; ring++) for (let k = 0; k < ring * 8; k++) { const a = k / (ring * 8) * Math.PI * 2 + ring * 0.3, r = ring * 3.1; if (w.plantAt(Math.sin(a) * r, Math.cos(a) * r) === true) planted++; }
 ok(w.trees.length === S.MAX_TREES, `trees reach the cap of ${S.MAX_TREES} (${w.trees.length})`);
 const sp = {}; for (const t of w.trees) sp[t.sp] = (sp[t.sp] || 0) + 1; console.log('species:', JSON.stringify(sp));
 ok(Object.keys(sp).length >= 3, 'different places grow different species');
-for (let i = 0; i < 80; i++) { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 19; w.inoculate(Math.sin(a) * r, Math.cos(a) * r, i % 3 === 0 ? S.FUNGI[i % S.FUNGI.length][0] : undefined); }
+for (let i = 0; i < 200; i++) { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * 19; w.inoculate(Math.sin(a) * r, Math.cos(a) * r, i % 3 === 0 ? S.FUNGI[i % S.FUNGI.length][0] : undefined); }
 ok(w.genets.size === S.MAX_FUNGI, `fungi reach the cap of ${S.MAX_FUNGI} (${w.genets.size})`);
 const gen = {}; for (const g of w.genets.values()) gen[g.sp.genus] = (gen[g.sp.genus] || 0) + 1; console.log('genera:', Object.keys(gen).length, JSON.stringify(gen).slice(0, 300));
 let maxStep = 0, total = 0, n = 0, maxLoad = 0;

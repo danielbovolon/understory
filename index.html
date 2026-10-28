@@ -34,29 +34,34 @@
   </header>
 
   <main>
-    <section class="stage" id="stage" data-tool="listen">
-      <canvas id="scene"></canvas>
-      <div class="toolcol">
+    <div class="leftcol">
+      <div class="toolbar">
         <div class="tools" id="tools" role="toolbar" aria-label="Tools"></div>
+        <div class="viewctl">
+          <button class="btn small" id="followBtn" aria-pressed="true" title="Turn the view with your head, so left on screen is left in your ears">Follow head</button>
+          <button class="btn small" id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+          <button class="btn small" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+        </div>
         <div class="toolopts" id="toolopts" hidden></div>
-        <div class="underfoot" id="underfoot"></div>
       </div>
-      <div class="hud" id="hud"></div>
-      <div class="log" id="log" aria-live="polite"></div>
-      <div class="viewctl">
-        <button class="btn small" id="followBtn" aria-pressed="true" title="Turn the view with your head, so left on screen is left in your ears">Follow head</button>
-        <button class="btn small" id="zoomOut" title="Zoom out">−</button>
-        <button class="btn small" id="zoomIn" title="Zoom in">+</button>
-      </div>
-      <div class="hint" id="hint">
-        <h2 id="hintTitle">Bare soil</h2>
-        <p id="hintText">Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind, under the real sky of this hour.</p>
-        <p>Stay a while. Headphones give the full 3D image. On a phone it keeps playing when the screen goes dark.</p>
-        <button class="btn grow" id="hintGrow">Grow</button>
-      </div>
-      <div class="drop" id="drop" hidden>Drop to sow into the soil</div>
-    </section>
-    <section class="feed" id="feed" hidden aria-label="What is happening"></section>
+      <section class="stage" id="stage" data-tool="listen">
+        <canvas id="scene" aria-label="The forest floor seen from above, around you"></canvas>
+        <div class="drop" id="drop" hidden>Drop to sow into the soil</div>
+      </section>
+      <section class="feed" id="feed" aria-label="What is happening">
+        <div class="hint" id="hint">
+          <h2 id="hintTitle">Bare soil</h2>
+          <p id="hintText">Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind, under the real sky of this hour.</p>
+          <p class="hintsub">Stay a while. Headphones give the full 3D image. On a phone it keeps playing when the screen goes dark, and the forest lives on while you are away.</p>
+          <button class="btn grow" id="hintGrow">Grow</button>
+        </div>
+        <div class="hud" id="hud"></div>
+        <div class="feedright">
+          <div class="underfoot" id="underfoot"></div>
+          <div class="log" id="log" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
 
     <aside class="side">
       <section class="panel">
@@ -70,7 +75,16 @@
           </select></div>
         <h3>Happenings</h3>
         <p class="sub">Things that happen in a real forest. The forest also brings them on its own, more in their season.</p>
-        <div class="grid6" id="happen"></div>
+        <div class="grid9" id="happen"></div>
+      </section>
+      <section class="panel guide" id="guidePanel">
+        <h2>Field guide</h2>
+        <p class="sub">What lives in this forest now, what it does, and what it sounds like. Open an entry to find it on the map.</p>
+        <div class="gtabs" role="group" aria-label="Field guide view">
+          <button class="chip" id="gtabLiving" aria-pressed="true">Living here</button>
+          <button class="chip" id="gtabLegend" aria-pressed="false">Map legend</button>
+        </div>
+        <div class="glist" id="guideList"></div>
       </section>
       <section class="panel">
         <h2>Space</h2>
@@ -86,7 +100,7 @@
           <button class="btn opt" id="calmBtn" title="Clear reverb tails and fade gently back in"><b>Calm</b><small>clear the air</small></button>
         </div>
         <h3>Walk</h3>
-        <p class="sub">Walk through the forest on your own feet. Footsteps change with the ground: snow, leaves, moss, grass, stone.</p>
+        <p class="sub">Let the forest carry you on foot: ambling, walking, running, or a rhythm of all three.</p>
         <div class="gaits" id="gaits"></div>
       </section>
       <section class="panel layers">
@@ -131,12 +145,15 @@
         <p><b>Signals.</b> Spike trains travel along hyphae; activity rises after rain and in warmth. Wounded or browsed trees send alarms. Thirsty trees click.</p>
         <p><b>Animals.</b> Songbirds need a canopy and sing most at dawn; owls call at night; woodpeckers drum on dead trunks. Nutcrackers and jays bury seeds and forget some; squirrels eat fungi and plant their spores elsewhere.</p>
         <p><b>Seasons.</b> Winter snow absorbs sound and hard frost cracks trunks; spring brings the dawn chorus and a flush of growth; summer nights have crickets, fireflies and distant thunder; autumn has falling leaves, mushrooms and the red deer rut.</p>
+        <p><b>Voices.</b> Every seed blends two sound worlds; every species is voiced after its wood and crown; every tree carries a genotype its seedlings inherit, and its voice follows its age, ground, nutrients and partners. Every fungus is a mutated individual.</p>
+        <p><b>While you are away.</b> The forest lives on. When you come back it catches up on the time you were gone and tells you what changed.</p>
         <p><b>Fruit.</b> Mushrooms are built from the trees' recent sugar. They appear at the colony edge after rain, flick their spores off with tiny clicks, and some decomposers glow at night.</p>
       </section>
     </aside>
   </main>
 </div>
 <script src="js/sim.js"></script>
+<script src="js/guide.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

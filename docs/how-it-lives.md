@@ -168,11 +168,11 @@ The herb and moss layer is computed for every cell from light, wetness, acidity,
 Spring flowers appear on fertile, light ground. Snow covers everything but stone.
 
 ## Walking
-The listener can walk on its own at three speeds: about 0.6 m/s ambling, 1.35 m/s walking and 3.3 m/s running. In Rhythm mode it ambles, walks, runs now and then, and walks again. The path meanders, stays inside the circle and steps around trunks. The step rate rises with speed. Each footstep is synthesised for the ground under it: snow crunch, leaf crackle, grass swish, soft moss, a click on stone, a wet squelch or plain soil.
+The listener can walk on its own at three speeds: about 0.6 m/s ambling, 1.35 m/s walking and 3.3 m/s running. In Rhythm mode it ambles, walks, runs now and then, and walks again. The path meanders, stays inside the circle and steps around trunks. Walking is silent: only the forest is heard.
 
 ## Scale
-A forest can hold 32 trees and 64 fungal individuals, with networks of up to about two thousand hyphae.
-- **Voices:** only the 14 most audible trees (by size, leaf and distance from you) have a voice at once. As you move, voices cross-fade.
+A forest can hold 64 trees and 128 fungal individuals, with networks of up to about three thousand hyphae. On its own the forest fills about 30 trees, 30 mycorrhizal fungi and 12 decomposers; the rest is room for what you plant and sow.
+- **Voices:** only the 12 most audible trees (by size, leaf and distance from you) have a voice at once. As you move, voices cross-fade.
 - **Foreground:** the foreground cap keeps the forest's own events sparse however large the network grows.
 
 ## Happenings
@@ -194,6 +194,27 @@ A forest can hold 32 trees and 64 fungal individuals, with networks of up to abo
   - The spores survive the gut and are deposited elsewhere in the droppings. Many truffle-forming ectomycorrhizal fungi, such as *Rhizopogon*, rely on this.
   - The squirrel eats a fruit body if one is standing, digs near trees, disturbs a few hyphae, and leaves spores that may germinate a minute or two later.
 
+## Wild boar, bark beetles and fog
+- **Wild boar** root for truffles, bulbs and grubs. They mix litter into the mineral soil, which speeds decomposition and gives tree seeds bare ground to establish on, and they spread truffle spores in their dung. Here a boar visits a few trees, turns the litter into nutrient patches, tears some hyphae, improves germination around it and plants truffle spores.
+- **Bark beetles** (*Ips typographus*) breed under the bark of weakened spruce. They carry blue-stain fungi that help them overcome the tree's defences; a healthy tree drowns them in resin. Here they choose the weakest grown conifer, spruce first. A thirsty or old tree usually dies and stands as a snag; a vigorous one survives. Many bark beetles stridulate, and the larvae chew audibly.
+- **Fog** comes with still air. Crowns comb droplets from passing cloud and they drip to the ground (fog drip), and in still, cool air near the ground distant sounds carry further. Here fog dims the light, stills the wind, moistens the soil under the trees and lowers distance loss and air absorption in the engine.
+
+## Ecosystem controls
+- **Warmth** shifts the temperature: growth, spiking, rain or snow, frost and the cricket chirp rate.
+- **Nitrogen** is deposition from polluted air. Trees take up more on their own and send less carbon to their fungi; many ectomycorrhizal fungi, webcaps and knights first, decline on enriched ground (Lilleskov et al. 2002).
+- **Seed rain** and **Spore rain** set how much arrives from outside the plot.
+- **Grazing** sets how many deer there are. They browse grown trees (an alarm runs through the network) and bite off seedlings, silver fir and oak first and spruce last (Ammer 1996).
+
+## Every voice its own
+- **The seed** blends two sound worlds (struck wood, glass and ice, taut strands, breath and reed, bronze and bells, clay and earth). They steer which generators, partials, decays and colours its species and individuals get.
+- **Species** are voiced after real wood acoustics. Spruce and fir are light, stiff and lightly damped (the soundboard woods) and sustain bright partials; dense hardwoods damp more and sound darker; birch, a drum-shell wood, is percussive; stone pine breathes. Each crown sounds in the wind: needles whistle at about 0.2 × wind speed ÷ needle width (an Aeolian tone), broad leaves flutter and rustle, and dry leaves held through winter rattle.
+- **Individuals** carry a genotype: small offsets in inharmonicity, brightness, detuning, vibrato, breath and pick position. Seedlings inherit their parent's, so kin sound alike. Every fungal individual is a mutated copy of its parent species.
+- **State.** A tree's voice follows its age (seedlings sing an octave up, old giants drop an octave and grow more inharmonic), its ground (wet wood damps, stone hardens), its nutrients (fuller upper partials), its partners (a wider chorus) and its stress. A fungus's ring follows its energy, nutrients and age.
+- **Crickets** keep time with the temperature: about seven chirps a minute more for every degree (Dolbear 1897).
+
+## Life while you are away
+When you return to a forest, it catches up on the time you were gone, up to 30 days of forest life, at a coarser step. Growth, ageing and death, seed and spore rain, new partnerships between fungi and trees, fruiting and the drift of voices go on; storms, beetles, boar and seed caching happen in their seasons. Passing sounds (signals, spores in the air, animals) are not simulated. The sky ends at the real hour, and a short story tells you what changed.
+
 ## Birds and animals
 - **Songbirds** need forest structure. Here they appear once the canopy has grown and sing in the treetops.
   - The dawn chorus peaks in the hour or two after sunrise, with a smaller chorus at dusk.
@@ -203,7 +224,7 @@ A forest can hold 32 trees and 64 fungal individuals, with networks of up to abo
 - **Woodpeckers** drum on standing dead wood, most in late winter and spring.
   - Dead trees now stand as snags for a while before they crumble into litter.
   - That standing dead wood is habitat for beetles, birds and decomposers.
-- **Crickets** sing on warm summer nights, even over open ground.
+- **Crickets** sing on warm summer nights, even over open ground. Their chirp rate follows the temperature (Dolbear 1897).
 - **Red deer** roar at dusk and night during the autumn rut (September–October).
 - **Animal sounds are synthesised, not recorded,** and kept sparse. They have their own small share of the foreground.
 
@@ -247,6 +268,14 @@ This part is aesthetic, not biology. It keeps long listening from settling into 
 - T. Klein, R. T. W. Siegwolf, C. Körner (2016), *Belowground carbon trade among tall trees in a temperate forest*, Science.
 - H. Mattes (1982), *Die Lebensgemeinschaft von Tannenhäher und Arve* (nutcracker and Swiss stone pine), Eidg. Anstalt für das forstliche Versuchswesen, Bericht 241.
 - A. W. Claridge, T. W. May (1994), *Mycophagy among Australian mammals*, Australian Journal of Ecology 19.
+- C. Ammer (1996), *Impact of ungulates on structure and dynamics of natural regeneration of mixed mountain forests in the Bavarian Alps*, Forest Ecology and Management 88.
+- A. E. Dolbear (1897), *The cricket as a thermometer*, The American Naturalist 31.
+- W. T. Fitch, D. Reby (2001), *The descended larynx is not uniquely human*, Proc. R. Soc. B 268.
+- E. S. Morton (1975), *Ecological sources of selection on avian sounds*, The American Naturalist 109.
+- F. Martin et al. (2008), *The genome of Laccaria bicolor provides insights into mycorrhizal symbiosis*, Nature 452.
+- S. Bödeker et al. (2014), *Ectomycorrhizal Cortinarius species participate in enzymatic oxidation of humus in northern forest ecosystems*, New Phytologist 203.
+- A. A. Kotlobay et al. (2018), *Genetically encodable bioluminescent system from fungi*, PNAS 115.
+- Y. Y. Song et al. (2015), *Defoliation of interior Douglas-fir elicits carbon transfer and stress signalling to ponderosa pine neighbors through ectomycorrhizal networks*, Scientific Reports 5.
 - E. A. Lilleskov, T. J. Fahey, T. R. Horton, G. M. Lovett (2002), *Belowground ectomycorrhizal fungal community change over a nitrogen deposition gradient in Alaska*, Ecology 83.
 - R. Molina, H. Massicotte, J. M. Trappe (1992), *Specificity phenomena in mycorrhizal symbioses*, in Mycorrhizal Functioning, Chapman & Hall.
 - A. G. Oliveira et al. (2015), *Circadian control sheds light on fungal bioluminescence*, Current Biology.

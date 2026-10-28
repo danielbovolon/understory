@@ -1,6 +1,6 @@
 // UNDERSTORY — AudioWorklet engine
 // A pool of spatial voices. Every voice is a generator (modal, drone, grain,
-// tick, chirp, noise) followed by a 3D spatialiser: each ear reads the voice
+// tick, chirp, noise, pluck, blow) followed by a 3D spatialiser: each ear reads the voice
 // from its own delay line at (distance to that ear / speed of sound), so
 // interaural time difference and doppler fall out of the geometry. Head
 // shadow, rear and below darkening, air absorption and a distance-dependent
@@ -11,7 +11,8 @@ const TAU = Math.PI * 2;
 const SR = sampleRate;
 const C_SOUND = 343;
 const BUF = 8192, BMASK = BUF - 1;
-const MAXV = 56;
+const MAXV = 64;
+const MAKEUP = 3.3; // master make-up gain; kept low so the limiter only catches rare peaks
 const EAR = 0.0875;
 const BLK = 128;
 
@@ -23,6 +24,7 @@ function num(v, d) { return (typeof v === 'number' && isFinite(v)) ? v : d; }
 function arr4(a, d) { const o = new Float32Array(4); for (let i = 0; i < 4; i++) o[i] = (a && isFinite(a[i])) ? a[i] : d[i]; return o; }
 
 const MAT = [new Float32Array(SR), new Float32Array(SR)];
+const PLUCK_TMP = new Float32Array(4096);
 const LAYERS = new Float32Array([1, 1, 1, 1, 1, 1]);
 
 // ---------------------------------------------------------------- generators
@@ -36,11 +38,12 @@ class Voice {
     this.mre = new Float32Array(4); this.mim = new Float32Array(4);
     this.mcr = new Float32Array(4); this.mci = new Float32Array(4); this.ma = new Float32Array(4);
     this.ph = new Float64Array(8);
+    this.ks = new Float32Array(4096); this.ksw = 0;
     this.reset();
   }
   reset() {
     this.on = false; this.id = -1; this.k = 0; this.age = 0; this.env = 0; this.gate = 0;
-    this.buf.fill(0); this.w = 0;
+    this.buf.fill(0); this.w = 0; this.ks.fill(0); this.ksw = 0;
     this.px = 0; this.py = 0; this.pz = 0; this.tx = 0; this.ty = 0; this.tz = 0;
     this.dL = 0; this.dR = 0; this.gL = 0; this.gR = 0; this.cL = 0.5; this.cR = 0.5;
     this.lL = 0; this.lR = 0; this.rv = 0; this.rvL = 0; this.rvR = 0; this.first = true;
@@ -60,6 +63,7 @@ class Voice {
     this.set(p, true);
     if (k === 0) this.strike(num(p.hard, 0.5), 1);
     if (k === 4) { this.spk = 0; this.nextSpk = 0; this.blipT = -1; }
+    if (k === 6 && !p.silent) this.pluck(num(p.strike, 1));
   }
   set(p, init) {
     const q = this.p;
@@ -131,7 +135,39 @@ class Voice {
           q.cr = 0; q.crs1 = 0; q.crs2 = 0;
         } else for (const k of ['bf', 'bq', 'lp', 'srate', 'sdep', 'gust', 'drops', 'df', 'crk']) if (p[k] !== undefined) q[k] = num(p[k], q[k]);
         break;
+      case 6: // PLUCK: a Karplus–Strong string, the sound of a taut strand
+        if (init) {
+          q.f = clamp(num(p.f, 220), 25, 4000); q.ft = q.f; q.T = clamp(num(p.damp, 2), 0.05, 20); q.bright = clamp(num(p.bright, 0.5), 0, 1);
+          q.pick = clamp(num(p.pick, 0.2), 0, 0.5); q.hard = clamp(num(p.hard, 0.5), 0, 1); q.rate = Math.max(0, num(p.rate, 0)); q.glide = num(p.glide, 0.05);
+          q.lp = 0; q.lifeEnd = 0;
+        } else {
+          if (p.f !== undefined) q.ft = clamp(num(p.f, q.ft), 25, 4000);
+          if (p.damp !== undefined) q.T = clamp(num(p.damp, q.T), 0.05, 20);
+          for (const k of ['bright', 'pick', 'hard', 'rate', 'glide']) if (p[k] !== undefined) q[k] = num(p[k], q[k]);
+          if (p.strike) this.pluck(num(p.strike, 1));
+        }
+        break;
+      case 7: // BLOW: breath through a resonant tube, with an optional tone
+        if (init) {
+          q.f = clamp(num(p.f, 220), 25, 6000); q.ft = q.f; q.r2 = num(p.r2, 3); q.q = clamp(num(p.q, 12), 1, 60); q.breath = num(p.breath, 0.6); q.tone = num(p.tone, 0.3);
+          q.bright = num(p.bright, 0.5); q.vib = num(p.vib, 0.004); q.flut = num(p.flut, 0.3); q.glide = num(p.glide, 1); q.flash = 0;
+          q.vph = rnd(); q.fl = 1; q.flt = 1; q.flT = 0; q.brc = q.bright;
+        } else {
+          if (p.f !== undefined) q.ft = clamp(num(p.f, q.ft), 25, 6000);
+          for (const k of ['r2', 'q', 'breath', 'tone', 'bright', 'vib', 'flut', 'glide']) if (p[k] !== undefined) q[k] = num(p[k], q[k]);
+          if (p.flash) q.flash = Math.min(1.5, q.flash + num(p.flash, 0));
+        }
+        break;
     }
+  }
+  pluck(amt) {
+    const q = this.p; if (q.f === undefined) return;
+    const N = Math.min(4000, Math.max(2, Math.round(SR / q.f))), P = Math.max(1, Math.round(q.pick * N));
+    const c = 0.05 + q.hard * 0.9; let s = 0; const tmp = PLUCK_TMP;
+    for (let i = 0; i < N; i++) { s += c * (nrnd() - s); tmp[i] = s; }
+    const a = clamp(amt, 0, 2) * 0.9;
+    for (let i = 0; i < N; i++) { const v = tmp[i] - (i >= P ? tmp[i - P] : 0); const j = (this.ksw - N + i + 8192) & 4095; this.ks[j] += v * a; }
+    q.lifeEnd = this.age / SR + q.T * 1.3 + 0.1;
   }
   strike(hard, amt) {
     const q = this.p;
@@ -237,7 +273,7 @@ class Voice {
         break;
       }
       case 3: {
-        const tk = 1 / clamp(q.q, 0.5, 40);
+        const tk = 1 / clamp(q.q, 0.5, 40), qn = 1.6 * Math.min(1, 6 * tk); // a resonant click rings louder the higher its Q; keep its peak in check
         if (q.tg === undefined) q.tg = Math.tan(Math.PI * Math.min(0.42, q.cf / SR));
         for (let i = 0; i < n; i++) {
           let x = 0;
@@ -249,7 +285,7 @@ class Voice {
           const g = q.tg, a1 = 1 / (1 + g * (g + tk)), a2 = g * a1;
           const v3 = x - this.s2, v1 = a1 * this.s1 + a2 * v3, v2 = this.s2 + g * v1;
           this.s1 = 2 * v1 - this.s1; this.s2 = 2 * v2 - this.s2;
-          o[i] = v1 * 1.6;
+          o[i] = v1 * qn;
         }
         break;
       }
@@ -309,6 +345,48 @@ class Voice {
             const c = 0.8; q.crs1 += c * (x - q.crs1); const hpx = x - q.crs1; y += hpx * 0.7;
           }
           o[i] = y;
+        }
+        break;
+      }
+      case 6: {
+        const gk = 1 - Math.exp(-n / (Math.max(0.005, q.glide) * SR));
+        q.f += (q.ft - q.f) * gk;
+        if (q.rate > 0 && rnd() < q.rate * n / SR) this.pluck(0.35 + rnd() * 0.65);
+        const N = clamp(SR / q.f, 2, 4000), g = Math.pow(10, -3 / (q.T * q.f)), c = 0.12 + 0.88 * q.bright * q.bright;
+        const ks = this.ks; let w = this.ksw, lp = q.lp;
+        for (let i = 0; i < n; i++) {
+          const rp = w - N; const i0 = Math.floor(rp), fr = rp - i0;
+          const y = ks[(i0 + 8192) & 4095] * (1 - fr) + ks[(i0 + 8193) & 4095] * fr;
+          lp += c * (y - lp);
+          ks[w & 4095] = lp * g; w = (w + 1) & 4095;
+          o[i] = y * 0.42;
+        }
+        this.ksw = w; q.lp = lp;
+        if (q.rate <= 0 && this.dur <= 0 && this.age / SR > q.lifeEnd) { this.gate = 0; this.rel = 0.05; }
+        break;
+      }
+      case 7: {
+        const gk = 1 - Math.exp(-n / (Math.max(0.01, q.glide) * SR));
+        q.f += (q.ft - q.f) * gk; q.flash *= Math.exp(-n / (1.2 * SR));
+        q.brc += (q.bright - q.brc) * (1 - Math.exp(-n / (0.5 * SR)));
+        q.flT -= n / SR; if (q.flT <= 0) { q.flt = 1 - q.flut * rnd(); q.flT = 0.08 + rnd() * 0.5; }
+        q.fl += (q.flt - q.fl) * (1 - Math.exp(-n / (0.06 * SR)));
+        const k1 = 1 / q.q, f1 = Math.min(q.f, SR * 0.42), f2 = Math.min(q.f * q.r2, SR * 0.42);
+        const g1 = Math.tan(Math.PI * f1 / SR), g2 = Math.tan(Math.PI * f2 / SR);
+        const a11 = 1 / (1 + g1 * (g1 + k1)), a12 = g1 * a11, a21 = 1 / (1 + g2 * (g2 + k1 * 1.4)), a22 = g2 * a21;
+        const norm = Math.sqrt(q.q) * 0.9, br = clamp(q.brc + q.flash * 0.3, 0, 1);
+        const lpc = 1 - Math.exp(-TAU * (250 + br * br * 9000) / SR);
+        const bre = q.breath * (1 + q.flash * 0.6), ton = q.tone;
+        for (let i = 0; i < n; i++) {
+          q.vph += 4.7 / SR; const vib = 1 + q.vib * Math.sin(TAU * q.vph);
+          const nz = nrnd() * q.fl;
+          let v3 = nz - this.s2, v1 = a11 * this.s1 + a12 * v3, v2 = this.s2 + g1 * v1; this.s1 = 2 * v1 - this.s1; this.s2 = 2 * v2 - this.s2; const r1 = v1 * k1;
+          v3 = nz - this.s4; const u1 = a21 * this.s3 + a22 * v3, u2 = this.s4 + g2 * u1; this.s3 = 2 * u1 - this.s3; this.s4 = 2 * u2 - this.s4; const r2 = u1 * k1 * 1.4;
+          this.ph[0] += q.f * vib / SR; if (this.ph[0] > 1) this.ph[0] -= 1;
+          const tone = Math.sin(TAU * this.ph[0]) * ton * q.fl * (1 + nz * 0.08);
+          const y = (r1 * norm + r2 * norm * 0.45) * bre + tone * 0.5;
+          this.n1 += lpc * (y - this.n1);
+          o[i] = this.n1 * 0.55;
         }
         break;
       }
@@ -383,7 +461,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     this.map = new Map();
     this.rev = new FDN();
     this.lis = { x: 0, y: 0, z: 1.6, yaw: 0, tx: 0, ty: 0, tz: 1.6, tyaw: 0 };
-    this.under = 0; this.underT = 0; this.absorb = 0; this.absorbT = 0;
+    this.under = 0; this.underT = 0; this.absorb = 0; this.absorbT = 0; this.carry = 0; this.carryT = 0;
     this.mode = 0; this.depth = 1; this.wet = 0.35; this.master = 0.8; this.fade = 0; this.fadeT = 1; this.fadeRate = 1 / (1.5 * SR);
     this.revInL = new Float32Array(BLK); this.revInR = new Float32Array(BLK);
     this.revOL = new Float32Array(BLK); this.revOR = new Float32Array(BLK);
@@ -426,6 +504,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
         if (m.master !== undefined) this.master = clamp(num(m.master, 0.8), 0, 1.5);
         if (m.under !== undefined) this.underT = clamp(num(m.under, 0), 0, 1);
         if (m.absorb !== undefined) this.absorbT = clamp(num(m.absorb, 0), 0, 1);
+        if (m.carry !== undefined) this.carryT = clamp(num(m.carry, 0), 0, 1);
         if (m.layers) for (let i = 0; i < 6; i++) LAYERS[i] = clamp(num(m.layers[i], 1), 0, 2);
         if (m.rev) this.rev.configure(num(m.rev.size, 1), num(m.rev.rt, 3), num(m.rev.damp, 0.5), num(m.rev.pre, 0.03));
         break;
@@ -460,8 +539,8 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     const cy = Math.cos(l.yaw), sy = Math.sin(l.yaw);
     const depth = this.depth, bin = this.mode === 0;
     // listener underground: the world above is muffled through soil; snow cover absorbs highs and reverb
-    this.under += (this.underT - this.under) * 0.01; this.absorb += (this.absorbT - this.absorb) * 0.004;
-    const un = this.under, ab = this.absorb;
+    this.under += (this.underT - this.under) * 0.01; this.absorb += (this.absorbT - this.absorb) * 0.004; this.carry += (this.carryT - this.carry) * 0.002;
+    const un = this.under, ab = this.absorb, ca = this.carry;
     for (const v of this.voices) {
       if (!v.on) continue;
       v.render(n);
@@ -483,8 +562,8 @@ class UnderstoryEngine extends AudioWorkletProcessor {
       const dist = Math.min(d, 55);
       let dLt, dRt, gLt, gRt, fL, fR;
       const aboveGround = v.pz > 0.05 ? 1 : 0;
-      const g = Math.pow(1.2 / Math.max(1.2, dist), 0.9) * (1 - 0.5 * un * aboveGround) * (1 + 0.6 * un * (1 - aboveGround));
-      const air = 1 / (1 + dist / 35);
+      const g = Math.pow(1.2 / Math.max(1.2, dist), 0.9 - 0.22 * ca) * (1 - 0.5 * un * aboveGround) * (1 + 0.6 * un * (1 - aboveGround));
+      const air = 1 / (1 + dist / (35 * (1 + 1.2 * ca)));
       const tone = (1 - 0.45 * back) * (1 - 0.3 * below) * air * (1 - 0.45 * ab) * (1 - 0.9 * un * aboveGround);
       if (bin) {
         const dl = Math.sqrt((ex + EAR) * (ex + EAR) + ey * ey + ez * ez), dr = Math.sqrt((ex - EAR) * (ex - EAR) + ey * ey + ez * ez);
@@ -533,7 +612,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
       const yL = L - this.dcxL + 0.9995 * this.dcL; this.dcxL = L; this.dcL = yL;
       const yR = R - this.dcxR + 0.9995 * this.dcR; this.dcxR = R; this.dcR = yR;
       if (this.fade < this.fadeT) this.fade = Math.min(this.fadeT, this.fade + this.fadeRate); else if (this.fade > this.fadeT) this.fade = Math.max(this.fadeT, this.fade - this.fadeRate);
-      const f = this.fade * this.fade * mg * 5.6;
+      const f = this.fade * this.fade * mg * MAKEUP;
       L = yL * f; R = yR * f;
       if (!(L === L) || !(R === R) || Math.abs(L) > 1e6 || Math.abs(R) > 1e6) { bad = true; L = R = 0; }
       // look-ahead limiter

@@ -1,5 +1,19 @@
 # Changelog
 
+## 5.0.0
+- Every seed, species and individual has its own sound. Seeds blend two of six sound worlds; species are voiced after real wood and crown acoustics; every tree carries a genotype its seedlings inherit; voices follow age, ground, nutrients, partners and stress.
+- Two new generators in the engine: a plucked strand (Karplus–Strong) and a blown resonator. Wind sounds in the nearest crowns: needles whistle (Aeolian tone), leaves flutter, dry winter leaves rattle.
+- The forest lives on while you are away: up to 30 days of forest life are caught up in seconds when you return, with a short account of what changed.
+- Mushrooms are drawn after their real genera (caps, rosettes, shelves, truffles, sclerotia), with colony rings and pins before fruiting; conifers are drawn as cones.
+- Field guide: everything living in the forest, with what it does in nature and what it sounds like, and a map legend. Open an entry to find it on the map.
+- Nothing covers the map: tools sit above it; clock, events and ground below it; tree names appear only under the pointer.
+- Up to 64 trees and 128 fungal individuals. Decomposers and mycorrhizal fungi have separate room in the wild.
+- Ecosystem: Warmth, Nitrogen, Seed rain, Spore rain and Grazing. Happenings: wild boar, bark beetles and fog, nine in all.
+- Deer browse seedlings, fir and oak first. Crickets chirp at a rate set by the temperature (Dolbear's law).
+- Lower levels: master gain down about 5 dB and resonant clicks normalised; the limiter no longer works on a mature forest.
+- Footsteps removed.
+- Large forests step about twice as fast (sugar flow, shading and stage checks).
+
 ## 4.1.0
 - On phones, the clock, the happenings log and the underfoot description sit below the map instead of covering it.
 - Background playback on phones: sound runs through a media element with a playback audio session, so it keeps going with the screen off. Play and pause on the lock screen (Media Session), showing the forest's name, stage and month.

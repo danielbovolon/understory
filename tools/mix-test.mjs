@@ -11,7 +11,7 @@ const lay = [1, 1, 1, 1, 0.8, 0.9]; if (layerSolo !== undefined && layerSolo !==
 send({ t: 'mat', slot: 0, data: S.makeMaterial(seed, SR) }); send({ t: 'mat', slot: 1, data: S.makeMaterial(seed, SR) });
 const rv = seed.rev; send({ t: 'g', mode: 0, depth: 1, wet: 0.45, master: 0.8, layers: lay, rev: { size: rv.size, rt: rv.rt, damp: rv.damp, pre: rv.pre } }); send({ t: 'fade', to: 1, time: 0.5 });
 const pre = +(process.argv[5] || 0);
-const w = new S.World(seed, audio, { log: () => { }, now: new Date(2026, 4, 15, 6, 30, 0) });
+const w = new S.World(seed, audio, { log: () => { }, now: new Date(2026, 4, 15, +(process.env.HOUR || 6), 30, 0) });
 if (pre) { audio.ready = false; for (let i = 0; i < pre * 60 * 20; i++) w.step(0.05); audio.ready = true; console.log(`(grown silently for ${pre} min: ${w.trees.length} trees, mean size ${w.meanSize().toFixed(2)}, ${w.genets.size} fungi, ${w.edges.size} hyphae)`); }
 const out = [new Float32Array(128), new Float32Array(128)];
 let pk = 0, sq = 0, n = 0, gr = 1, maxv = 0; const rows = [];

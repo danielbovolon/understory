@@ -15,14 +15,20 @@ for (const [name, month, hour] of seasons) {
   fired.storm = w.windstorm('user') || w.stormT > 0; run(w, a, 3);
   fired.cache = w.cachers('user') || w.ev.cache > 0; run(w, a, 2);
   fired.squirrel = w.squirrels('user') || w.ev.squirrel > 0; run(w, a, 2);
-  fired.dry = w.drySpell('user') || w.dryT > 0;
+  fired.dry = w.drySpell('user') || w.dryT > 0; run(w, a, 2);
+  fired.boar = w.boar('user') || w.ev.boar > 0; run(w, a, 2);
+  fired.beetles = w.beetles('user') || w.ev.beetles > 0; run(w, a, 3);
+  fired.fog = w.fog('user') || w.fogT > 0;
+  const carry = w.carry;
   const load = run(w, a, 8);
   console.log(`\n${name}: temp ${w.temp.toFixed(1)}°, snow ${w.snow.toFixed(2)}, absorb ${w.absorb.toFixed(2)}, trees ${w.trees.length}, snags ${w.snags.length}, seeds waiting ${w.seedbank.filter(b => !b.done).length}, genets ${w.genets.size}, max foreground ${load}/${S.FG_MAX + 1}, average ${run.avg.toFixed(1)}`);
   console.log('  sounds per layer', JSON.stringify(a.spawned), ' fired', JSON.stringify(fired));
   const fauna = logs.filter(l => l.startsWith('fauna')).map(l => l.slice(7, 70));
   console.log('  fauna log:', [...new Set(fauna)].slice(0, 5).join(' | '));
   ok(load <= S.FG_MAX + 1, `${name}: foreground stays within ${S.FG_MAX}`);
-  ok(Object.entries(fired).every(([k, v]) => v || (k === 'cache' && !w.trees.some(t => t.size > 0.7))), `${name}: all six happenings start (seed caching needs a tree old enough to bear seeds)`);
+  ok(Object.entries(fired).every(([k, v]) => v || (k === 'cache' && !w.trees.some(t => t.size > 0.7)) || (k === 'beetles' && !w.trees.some(t => S.TREE_SPECIES[t.sp].conifer && t.size > 0.8))), `${name}: all nine happenings start (seed caching needs a tree old enough to bear seeds, beetles a grown conifer)`);
+  ok(carry >= 0 && carry <= 1, `${name}: fog carry in range (${carry.toFixed(2)})`);
+  ok(Object.keys(w.seen).length > 3, `${name}: the field guide has seen ${Object.keys(w.seen).length} kinds of things (${Object.keys(w.seen).slice(0, 12).join(', ')})`);
   if (name === 'winter') ok(w.snow > 0, 'winter: snow cover forms');
   if (name !== 'winter') ok((a.spawned[5] || 0) > 0, `${name}: birds and animals sound`);
   // save and continue

@@ -23,7 +23,7 @@ function run(label, cfg) {
     if (b % 20 === 0) {
       const spawns = cfg.dense ? 6 : 2;
       for (let s = 0; s < spawns; s++) {
-        const k = (R() * 6) | 0; const ex = cfg.extreme;
+        const k = (R() * 8) | 0; const ex = cfg.extreme;
         const P = {
           gain: ex ? 2 : 0.2 + R() * 0.4, layer: (R() * 6) | 0, att: ex ? 0.001 : 0.01 + R(), rel: ex ? 0.005 : 0.1 + R() * 2,
           dur: k === 1 || k === 5 ? (R() < 0.5 ? 0 : 1 + R() * 4) : 0, send: ex ? 2 : R(), x: (R() - 0.5) * 60, y: (R() - 0.5) * 60, z: (R() - 0.5) * 8,
