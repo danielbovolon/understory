@@ -1,6 +1,6 @@
 {
   "name": "understory",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "A mycorrhizal sound forest for the browser (Web Audio + AudioWorklet): trees, fungi, signals, sugar and spores in binaural 3D.",
   "private": true,
   "type": "module",
@@ -11,9 +11,12 @@
     "test:sim": "node tools/sim-test.mjs --minutes 60",
     "test:scale": "node tools/scale-test.mjs",
     "test:events": "node tools/events-test.mjs",
-    "test:mix": "node tools/mix-test.mjs MOSS77 120"
+    "test:mix": "node tools/mix-test.mjs MOSS77 120",
+    "test:longrun": "node tools/longrun-test.mjs"
   },
   "author": "Daniel Bovolon",
   "license": "MIT",
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }

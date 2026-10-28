@@ -1,8 +1,9 @@
 // UNDERSTORY — the living system
 //
 // Two clocks. The SKY runs on the real local clock (scaled by Time): sun,
-// temperature, season, weather. LIFE is compressed so a forest grows from
-// bare soil to old growth within about an hour at 1×.
+// temperature, season, weather. LIFE is compressed. A forest never stops:
+// pioneers age and fall, gaps open, other species take over, and over long
+// runs a forest can change its whole character.
 //
 // Succession: the forest starts as bare soil with a seed bank. Seedlings
 // germinate one by one on the centres of the flower of life. Spores of
@@ -84,14 +85,14 @@ function sunTimes(doy, dst) {
 // leaf: 'ever' evergreen, 'decid' deciduous, 'marc' keeps dry leaves through winter (marcescence).
 // soil: how its litter changes the ground beneath it (needles acidify, alder fixes nitrogen).
 const TREE_SPECIES = {
-  larch: { name: 'European larch', short: 'Larch', leaf: 'decid', conifer: true, wet: 0.45, acid: 0.4, rich: 0.35, shade: 0.15, stone: 0.6, partials: 'fifths', regDeg: 0, col: [[95, 60, 58], [110, 42, 42], [44, 85, 55], [30, 22, 46]], soil: { acid: 1 } },
-  stonepine: { name: 'Swiss stone pine', short: 'Stone pine', leaf: 'ever', conifer: true, wet: 0.4, acid: 0.7, rich: 0.25, shade: 0.35, stone: 0.8, partials: 'hollow', regDeg: -2, col: [[150, 32, 38], [155, 32, 34], [158, 28, 33], [165, 22, 34]], soil: { acid: 1.4 } },
-  spruce: { name: 'Norway spruce', short: 'Spruce', leaf: 'ever', conifer: true, wet: 0.65, acid: 0.75, rich: 0.4, shade: 0.75, stone: 0.4, partials: 'odd', regDeg: -3, col: [[145, 38, 34], [150, 38, 30], [152, 34, 29], [160, 26, 30]], soil: { acid: 1.6 } },
-  fir: { name: 'Silver fir', short: 'Silver fir', leaf: 'ever', conifer: true, wet: 0.65, acid: 0.45, rich: 0.6, shade: 0.9, stone: 0.3, partials: 'harmonic', regDeg: -1, col: [[165, 34, 36], [168, 34, 33], [170, 30, 32], [175, 24, 33]], soil: { acid: 0.6 } },
-  beech: { name: 'European beech', short: 'Beech', leaf: 'marc', conifer: false, wet: 0.55, acid: 0.35, rich: 0.65, shade: 0.9, stone: 0.3, partials: 'stretched', regDeg: 0, col: [[88, 62, 60], [105, 45, 40], [22, 72, 46], [28, 45, 40]], soil: { rich: 0.6 } },
-  birch: { name: 'Silver birch', short: 'Birch', leaf: 'decid', conifer: false, wet: 0.5, acid: 0.6, rich: 0.3, shade: 0.1, stone: 0.6, partials: 'bell', regDeg: 3, col: [[80, 62, 62], [92, 48, 46], [52, 88, 58], [40, 8, 72]], soil: {} },
-  alder: { name: 'Black alder', short: 'Alder', leaf: 'decid', conifer: false, wet: 0.95, acid: 0.35, rich: 0.5, shade: 0.3, stone: 0.2, partials: 'septimal', regDeg: 1, col: [[100, 48, 48], [118, 42, 34], [85, 28, 36], [25, 15, 34]], soil: { rich: 1.4 } },
-  oak: { name: 'Sessile oak', short: 'Oak', leaf: 'marc', conifer: false, wet: 0.35, acid: 0.45, rich: 0.5, shade: 0.45, stone: 0.4, partials: 'harmonic', regDeg: -2, col: [[72, 58, 56], [98, 42, 38], [34, 62, 42], [30, 38, 36]], soil: { rich: 0.4 } },
+  larch: { life: 51000, name: 'European larch', short: 'Larch', leaf: 'decid', conifer: true, wet: 0.45, acid: 0.4, rich: 0.35, shade: 0.15, stone: 0.6, partials: 'fifths', regDeg: 0, col: [[95, 60, 58], [110, 42, 42], [44, 85, 55], [30, 22, 46]], soil: { acid: 1 } },
+  stonepine: { life: 90000, name: 'Swiss stone pine', short: 'Stone pine', leaf: 'ever', conifer: true, wet: 0.4, acid: 0.7, rich: 0.25, shade: 0.35, stone: 0.8, partials: 'hollow', regDeg: -2, col: [[150, 32, 38], [155, 32, 34], [158, 28, 33], [165, 22, 34]], soil: { acid: 1.4 } },
+  spruce: { life: 54000, name: 'Norway spruce', short: 'Spruce', leaf: 'ever', conifer: true, wet: 0.65, acid: 0.75, rich: 0.4, shade: 0.75, stone: 0.4, partials: 'odd', regDeg: -3, col: [[145, 38, 34], [150, 38, 30], [152, 34, 29], [160, 26, 30]], soil: { acid: 1.6 } },
+  fir: { life: 66000, name: 'Silver fir', short: 'Silver fir', leaf: 'ever', conifer: true, wet: 0.65, acid: 0.45, rich: 0.6, shade: 0.9, stone: 0.3, partials: 'harmonic', regDeg: -1, col: [[165, 34, 36], [168, 34, 33], [170, 30, 32], [175, 24, 33]], soil: { acid: 0.6 } },
+  beech: { life: 69000, name: 'European beech', short: 'Beech', leaf: 'marc', conifer: false, wet: 0.55, acid: 0.35, rich: 0.65, shade: 0.9, stone: 0.3, partials: 'stretched', regDeg: 0, col: [[88, 62, 60], [105, 45, 40], [22, 72, 46], [28, 45, 40]], soil: { rich: 0.6 } },
+  birch: { life: 22500, name: 'Silver birch', short: 'Birch', leaf: 'decid', conifer: false, wet: 0.5, acid: 0.6, rich: 0.3, shade: 0.1, stone: 0.6, partials: 'bell', regDeg: 3, col: [[80, 62, 62], [92, 48, 46], [52, 88, 58], [40, 8, 72]], soil: {} },
+  alder: { life: 28500, name: 'Black alder', short: 'Alder', leaf: 'decid', conifer: false, wet: 0.95, acid: 0.35, rich: 0.5, shade: 0.3, stone: 0.2, partials: 'septimal', regDeg: 1, col: [[100, 48, 48], [118, 42, 34], [85, 28, 36], [25, 15, 34]], soil: { rich: 1.4 } },
+  oak: { life: 84000, name: 'Sessile oak', short: 'Oak', leaf: 'marc', conifer: false, wet: 0.35, acid: 0.45, rich: 0.5, shade: 0.45, stone: 0.4, partials: 'harmonic', regDeg: -2, col: [[72, 58, 56], [98, 42, 38], [34, 62, 42], [30, 38, 36]], soil: { rich: 0.4 } },
 };
 const TREE_KEYS = Object.keys(TREE_SPECIES);
 // Fungal genera with their ecology:
@@ -496,7 +497,7 @@ class World {
     const key = TREE_SPECIES[o.sp] ? o.sp : this.bestTree(x, y); const T = TREE_SPECIES[key];
     const pk = r.chance(0.75) ? T.partials : r.pick(s.partialKeys);
     const t = {
-      sp: key, leaf: 1, sen: 0, fit: this.treeFit(key, x, y),
+      sp: key, leaf: 1, sen: 0, fit: this.treeFit(key, x, y), life: (TREE_SPECIES[key].life || 30000) * this.r.range(0.7, 1.3),
       id: this.tid++, x, y, node: node.id, size: o.size, sugar: o.sugar === undefined ? 0.8 : o.sugar, nut: 0.25, water: 0.7, hyd: 0, kin: o.kin, deg: o.deg, age: 0,
       partials: PARTIAL_SETS[pk].slice(), amps: [1, r.range(0.2, 0.6), r.range(0.05, 0.35), r.range(0, 0.2)], type: r.chance(s.grainTrees) ? 'grain' : 'drone',
       breath: r.range(0.02, 0.25) + (T.conifer ? 0.06 : 0), det: r.range(1, 9), links: new Map(), stress: 0, defense: 0, drought: 0, flash: 0, hunger: 0, dying: 0, hub: false, alive: true, light: 0, paid: 0,
@@ -627,6 +628,7 @@ class World {
     this.lightT -= dt; if (this.lightT <= 0) { this.lightT = 3; this.updateLight(); }
     this.coverT -= dt; if (this.coverT <= 0) { this.coverT = 4; this.updateCover(4); }
     this.germinate();
+    this.seedRain(dt);
     this.sporeRain(dt);
     this.growTips(dt);
     this.flowT += dt; if (this.flowT > 0.25) { this.flow(this.flowT); this.trade(this.flowT); this.flowT = 0; }
@@ -703,6 +705,18 @@ class World {
       this.flashes.push({ x: b.x, y: b.y, t: 1.5, c: 'seed' });
       const left = this.seedbank.filter(s => !s.done).length;
       this.log(`A ${TREE_SPECIES[t.sp].name.toLowerCase()} seedling breaks the surface (tree ${t.id})${left ? `, ${left} seed${left > 1 ? 's' : ''} still waiting` : ''}. Its roots release exudates that wake fungal spores.`, 'tree');
+    }
+  }
+  // seed rain: wind, jays and nutcrackers keep bringing tree seeds from the valley; they take where light reaches the floor
+  seedRain(dt) {
+    const r = this.r, n = this.trees.length + this.seedbank.filter(b => !b.done).length;
+    if (n >= WILD_TREES || this.t < 900 || !r.chance(dt * 0.0014 * (1 - n / WILD_TREES))) return;
+    for (let k = 0; k < 8; k++) {
+      const a = r.range(0, Math.PI * 2), d = Math.sqrt(r.range(0, 1)) * (PLOT_R - 2), x = Math.sin(a) * d, y = Math.cos(a) * d;
+      if (this.treeAt(x, y, 3) || this.trees.some(t => t.size > 0.8 && Math.hypot(t.x - x, t.y - y) < 4.5)) continue;
+      const fits = TREE_KEYS.filter(kk => this.treeFit(kk, x, y) > 0.3), sp = r.chance(0.6) || !fits.length ? this.bestTree(x, y) : r.pick(fits);
+      this.seedbank.push({ x, y, t: this.t + r.range(60, 240), kin: r.int(0, 2), deg: r.int(0, this.seed.tun.ratios.length * 2 - 1), sp, done: false });
+      return;
     }
   }
   // airborne inoculum: spores drift in from upwind; which species depends on the stage of the forest
@@ -901,6 +915,10 @@ class World {
     const r = this.r, s = this.seed;
     for (const t of this.trees) {
       t.age += dt;
+      if (!t.life) t.life = (TREE_SPECIES[t.sp].life || 30000) * r.range(0.7, 1.3);
+      // old age: vigour fades after about 80% of a lifespan, then death becomes ever more likely
+      const old = clamp((t.age / t.life - 0.8) / 0.4, 0, 1);
+      if (old > 0 && t.dying <= 0 && r.chance(dt * old * old / 1800)) { this.log(`Tree ${t.id}, an old ${TREE_SPECIES[t.sp].short.toLowerCase()}, has reached the end of its life. It stands on as a snag; light reaches the ground where it stood.`, 'death'); t.dying = 30; if (this.trees.length < MAX_TREES) { const a = r.range(0, Math.PI * 2); this.seedbank.push({ x: t.x + Math.sin(a) * 2.4, y: t.y + Math.cos(a) * 2.4, t: this.t + r.range(200, 500), kin: t.kin, deg: clamp(t.deg + r.pick([-1, 1, 2]), 0, this.seed.tun.ratios.length * 3), done: false }); } }
       const ph = this.phen(t.sp); t.leaf = ph.leaf; t.sen = ph.sen;
       const lp = this.place(t.x, t.y);
       let shade = 0; for (const o of this.trees) if (o !== t) { const d = Math.hypot(o.x - t.x, o.y - t.y); if (d < 6 && o.size > t.size) shade += (o.size - t.size) * (1 - d / 6); }
@@ -912,8 +930,8 @@ class World {
       t.hyd *= Math.exp(-dt / 600);
       t.drought = clamp((0.5 - t.water) * 2.5 * (0.5 + this.light) * (this.temp > 20 ? 1.3 : 1), 0, 1);
       // sugar: the sky runs in real time; reserves smooth the day/night swing
-      const photo = 0.006 * share * (0.55 * this.dayAvg + 0.45 * this.light) * (1 - 0.7 * t.drought) * Math.min(1.6, t.size * 2 + 0.2) * (0.12 + 0.88 * t.leaf);
-      t.sugar += (photo - 0.0012 * t.size * (0.45 + 0.55 * Math.max(t.leaf, TREE_SPECIES[t.sp] && TREE_SPECIES[t.sp].leaf === 'ever' ? 1 : 0))) * dt; t.photoAcc = (t.photoAcc || 0) + photo * dt;
+      const photo = (1 - 0.45 * old) * 0.006 * share * (0.55 * this.dayAvg + 0.45 * this.light) * (1 - 0.7 * t.drought) * Math.min(1.6, t.size * 2 + 0.2) * (0.12 + 0.88 * t.leaf);
+      t.sugar += (photo - (this.light > 0.05 ? 1 : 0.5) * (1 - 0.5 * TREE_SPECIES[t.sp].shade * (1 - share)) * 0.0012 * t.size * (0.45 + 0.55 * Math.max(t.leaf, TREE_SPECIES[t.sp] && TREE_SPECIES[t.sp].leaf === 'ever' ? 1 : 0))) * dt; t.photoAcc = (t.photoAcc || 0) + photo * dt;
       if (t.dying > 0) { t.dying -= dt; t.sugar = Math.max(t.sugar, 2.6); if (t.dying <= 0) { this.killTree(t); continue; } }
       // growth needs carbon, nutrients (largely via fungal partners) and water
       const nutF = t.nut / (t.nut + 0.25), myco = clamp(t.links.size / 2, 0, 1);
@@ -921,8 +939,8 @@ class World {
       if (t.size < 1.6 && t.sugar > 0.2) { const g = 0.0008 * vig * (1 - t.size / 1.7) * this.p.growth; t.size += g * dt; t.sugar -= g * dt * 1.5; t.nut = Math.max(0, t.nut - g * dt * 0.8); }
       t.nut = Math.max(0, t.nut - 0.00025 * t.size * dt); // turnover: leaves and fine roots are shed
       t.sugar = clamp(t.sugar, -0.5, 3);
-      if (t.sugar < -0.3) t.hunger += dt; else t.hunger = Math.max(0, t.hunger - dt * 2);
-      if (t.hunger > 900 && t.dying <= 0) { this.log(`Tree ${t.id} starved: too little light and too few partners. It dies back into the soil.`, 'death'); t.dying = 8; }
+      if (t.sugar < -0.3) t.hunger += dt * (this.light > 0.05 ? 1 : 0); else t.hunger = Math.max(0, t.hunger - dt * 2);
+      if (t.hunger > 900 && t.dying <= 0 && r.chance(dt / 900)) { this.log(`Tree ${t.id} starved: too little light and too few partners. It dies back into the soil.`, 'death'); t.dying = 8; }
       t.stress *= Math.exp(-dt / 12); t.defense *= Math.exp(-dt / 40); t.flash *= Math.exp(-dt * 1.5);
       // xylem clicks: ~1/h unstressed, up to ~35/h under drought (Khait et al. 2023)
       const rate = (1 + 34 * t.drought) / 3600 * clamp(t.size * 1.5, 0.3, 1.5);

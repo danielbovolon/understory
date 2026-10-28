@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.1.0
+- On phones, the clock, the happenings log and the underfoot description sit below the map instead of covering it.
+- Background playback on phones: sound runs through a media element with a playback audio session, so it keeps going with the screen off. Play and pause on the lock screen (Media Session), showing the forest's name, stage and month.
+- The forest keeps living while the screen is dark, driven by the audio clock.
+- Tree lifespans by species: old trees lose vigour and die as snags, gaps open, and forests keep shifting over long runs.
+- Continuous seed rain from the valley into open, lit ground; seedlings come up in the gaps old trees leave.
+- Trees carry reserves through the night, and shade-tolerant species respire less under a canopy, so a crowded forest thins gradually instead of collapsing overnight.
+- New `npm run test:longrun`: a forest run for many hours keeps turning over without collapsing.
+- The opening text no longer predicts how the forest will grow.
+
 ## 4.0.0
 - Up to 32 trees and 64 fungal individuals; hyphae, tips, signals, fruit, litter and nutrient patches scaled up; only the 14 most audible trees get a voice at once.
 - A soil map for every place: wetness, fertility, acidity and stone, generated per seed (seep, ridge, patches) and paintable with the new Shape ground tool (Wet, Dry, Rich, Acid, Stone, Dead log).

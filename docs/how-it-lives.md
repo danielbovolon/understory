@@ -7,7 +7,7 @@ Understory is built from what is known about mycorrhizal fungi and forests. Wher
   - This covers sunrise and sunset, day length through the year, daily and seasonal temperature, rain, wind, and the night.
   - At 1× a forest day lasts a day. The Time control runs the clock from 0.25× to 24×.
   - The Season control swaps today's date for May, July, October or January.
-- **Life is compressed.** Real forests take decades and real hyphae grow millimetres a day. Here a forest grows from bare soil to old growth in about an hour at 1×.
+- **Life is compressed.** Real forests take decades and real hyphae grow millimetres a day. Here growth is compressed, and every tree species has a lifespan: pioneers such as birch and alder live shortest, stone pine and oak longest. Old trees lose vigour, die as snags and open gaps for the next generation, so a forest left running keeps shifting, sometimes into a different forest altogether. Seeds keep arriving on the wind and with jays and nutcrackers, and they take where light reaches the floor. Trees carry reserves through the night (dark respiration is lower), and shade-tolerant species such as fir and beech get by on little light, while pioneers starve under a closed canopy.
 - **Reserves bridge the gap.** Trees store sugar, so a forest started at night still grows. It grows more slowly until the sun comes up.
 - **Sound always plays in real time.**
 

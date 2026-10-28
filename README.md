@@ -1,6 +1,6 @@
 # Understory
 
-**A mycorrhizal sound forest that grows around you.** Every forest begins as bare soil under the real sky of the hour you open it: wind, the soil, a few seeds on the flower of life. Over about an hour a forest grows in its own tuning.
+**A mycorrhizal sound forest that grows around you.** Every forest begins as bare soil under the real sky of the hour you open it: wind, the soil, a few seeds on the flower of life. What grows there, and in what tuning, is up to the forest. It never stops changing: trees age and fall, gaps open, and over long runs a forest can turn into something else entirely.
 - **Seedlings** germinate one by one.
 - **Fungal spores** blow in on the wind and wrap the young roots.
 - **Trade:** trees and fungi trade carbon for nutrients.
@@ -37,6 +37,7 @@ npm run build      # → dist/understory.html (self-contained) and dist/artifact
 ### Tests
 ```bash
 npm test           # engine stress test: random, dense and extreme voices; checks NaN, ceiling, CPU
+npm run test:longrun   # a forest left running for many hours keeps turning over
 npm run test:sim   # succession run headless for an hour per seed, printed every 5 minutes
 npm run test:scale    # 32 trees and 64 fungi on shaped ground: speed, place-dependence, host specificity
 npm run test:events   # every happening in every season, the crowding cap, and a save/restore round trip
@@ -79,7 +80,7 @@ You can let a forest grow on its own, or build a complex one:
 
 - **The sky** follows your real clock and date at 1×, computed for an Alpine valley (46.5° N): sunrise, sunset, temperature, night.
 - **Time** runs from 0.25× to 24×; at 24× a forest day lasts an hour. **Season** swaps today's date for May, July, October or January.
-- **Growth** is compressed so a forest matures in about an hour at 1×. Sound always plays in real time.
+- **Growth** is compressed, and nothing ends: every tree species has its own lifespan (birch and alder short, stone pine and oak long), so old trees die as snags, light reaches the floor and the next generation takes over. Sound always plays in real time.
 
 | Stage | Typically at 1× | You hear |
 |---|---|---|
@@ -98,7 +99,7 @@ The biology behind each part, with sources, is in [docs/how-it-lives.md](docs/ho
 | Part | What happens | What you hear |
 |---|---|---|
 | **Trees** | They germinate from a seed bank, make sugar in daylight, shade each other, and grow with sugar, nutrients and water. They drop seedlings of their own kin. | A drone or bark-grain voice in the seed's tuning that gains partials and loudness as it grows. Thirsty trees click (Khait 2023). |
-| **Fungal succession** | Early-stage genera arrive first on the wind, late-stage genera under a canopy, decomposers on litter. Spores germinate only near roots or litter. | New voices enter the mix over the hour. |
+| **Fungal succession** | Early-stage genera arrive first on the wind, late-stage genera under a canopy, decomposers on litter. Spores germinate only near roots or litter. | New voices enter the mix as the forest develops. |
 | **Exploration types** | Contact, short-, medium- and long-distance body plans (Agerer), from dense mats to thick, fast rhizomorph cords. | From fine high ticks to deep, long chirps. |
 | **Market** | Fungi forage nutrient patches and deliver to trees. Trees pay carbon in proportion to delivery, and more when nutrient-starved (Kiers 2011). | Soft tones at the roots when nutrients change hands. |
 | **Water** | At night, deep-rooted trees pass water through the hyphae to dry seedlings (Querejeta 2003). | A liquid gurgle travelling through the dark. |
@@ -173,6 +174,7 @@ Every forest you stay with for two minutes, or keep explicitly, is saved in this
 - **Autosave** runs every 20 seconds and when you leave the page.
 - **Continue** opens a saved forest. Opening the page returns you to the forest you were last in.
 - **While you are away the forest waits for you**, but the sky moves on to the real hour.
+- **On a phone it keeps playing with the screen off**, like a music player, with play and pause on the lock screen. The forest keeps living while the screen is dark.
 - Forests can be renamed and deleted.
 
 ### Tools on the forest floor

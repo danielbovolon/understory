@@ -37,14 +37,24 @@ const audio = {
     const url = inline ? URL.createObjectURL(new Blob([inline.textContent], { type: 'application/javascript' })) : new URL('js/engine.js', location.href).href;
     await this.ctx.audioWorklet.addModule(url);
     this.node = new AudioWorkletNode(this.ctx, 'understory-engine', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
-    this.node.connect(this.ctx.destination);
+    this.out = this.ctx.createGain(); this.node.connect(this.out);
+    // on phones, play through a media element: the system then treats the forest like music and keeps it playing with the screen off
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+    if (matchMedia('(pointer: coarse)').matches && this.ctx.createMediaStreamDestination) {
+      try {
+        this.mdest = this.ctx.createMediaStreamDestination(); this.out.connect(this.mdest);
+        this.el = document.createElement('audio'); this.el.setAttribute('playsinline', ''); this.el.srcObject = this.mdest.stream; document.body.appendChild(this.el);
+        await this.el.play(); this.viaElement = true;
+      } catch (e) { this.viaElement = false; if (this.mdest) { try { this.out.disconnect(this.mdest); } catch (e2) { } } }
+    }
+    if (!this.viaElement) this.out.connect(this.ctx.destination);
     this.node.port.onmessage = (e) => this.onMsg(e.data);
     this.post({ t: 'seedrng', s: (Math.random() * 2 ** 31) | 0 });
     this.started = true;
   },
   onMsg(m) {
     if (m.freed) for (const id of m.freed) this.live.delete(id);
-    if (m.t === 'm') Object.assign(this.meter, m);
+    if (m.t === 'm') { Object.assign(this.meter, m); if (document.hidden) hiddenTick(); }
     else if (m.t === 'rec' && this.onRec) this.onRec(m);
     else if (m.t === 'reset') { this.live.clear(); if (world) world.dropVoices(); logLine('The engine caught an unstable value and reset itself.', 'weather'); }
   },
@@ -101,7 +111,7 @@ async function loadSeed(code) {
   headerFor(seed);
   if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
   buildToolOpts();
-  showHint('Bare soil', 'Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind. Over the next hour a forest will grow around you, in its own tuning, under the real sky of this hour.', 'Grow');
+  showHint('Bare soil', 'Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind, under the real sky of this hour.', 'Grow');
   logLine(`Seed ${code}. Bare soil, ${MONTHS[world.month]}, ${fmtClock(world.clockH)}. ${seed.nTrees} seeds lie on the flower of life. Nothing has grown yet.`, 'stage');
   renderForests();
 }
@@ -135,10 +145,12 @@ async function setRunning(on) {
     if (!state.everStarted) { sendGlobals(); sendMaterials(); state.everStarted = true; }
     await audio.ensureCtx();
     audio.post({ t: 'fade', to: 1, time: 2.5 });
+    if (audio.el && audio.el.paused) { try { await audio.el.play(); } catch (e) { } }
     state.running = true; $('hint').hidden = true;
   } else {
     state.running = false; audio.post({ t: 'fade', to: 0, time: 1.2 });
   }
+  updateMediaSession();
   $('grow').setAttribute('aria-pressed', String(state.running));
   $('grow').textContent = state.running ? 'Pause' : 'Grow';
 }
@@ -157,6 +169,12 @@ function logLine(text, cat) {
   if (cat === 'stage') p.className = "logstage";
   while (box.children.length > 5) box.removeChild(box.firstChild);
   [...box.children].forEach((c, i, a) => { c.style.opacity = String(0.35 + 0.65 * (i + 1) / a.length); });
+}
+// on phones the descriptions live below the map instead of over it
+function placeFeed() {
+  const narrow = matchMedia('(max-width: 960px)').matches, feed = $('feed'), stage = $('stage');
+  for (const id of ['underfoot', 'hud', 'log']) { const el = $(id); if (narrow) feed.appendChild(el); else if (id === 'underfoot') document.querySelector('.toolcol').appendChild(el); else stage.insertBefore(el, $('hint')); }
+  feed.hidden = !narrow;
 }
 function setStatus(t) { $('status').textContent = t || ''; }
 function fmtClock(h) { const hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
@@ -657,7 +675,7 @@ function setSeason(v) {
 function buildSliders() {
   const eco = $('ecoS'), sp = $('spaceS'), la = $('layerS');
   const S = (box, id, label, min, max, def, fmt, help, after) => slider(box, { id, label, min, max, def, fmt, help, get: () => P[id], set: (v) => { P[id] = v; if (after) after(v); } });
-  slider(eco, { id: 'time', label: 'Time', min: -2, max: Math.log2(24), step: 0.01, def: 0, fmt: (v) => { const x = Math.pow(2, v); return x < 0.99 ? x.toFixed(2) + '×' : x < 9.95 ? x.toFixed(1) + '×' : Math.round(x) + '×'; }, help: 'Speed of the clock. At 1× the sky follows the real clock and a forest takes about an hour to mature. Sound always plays in real time.', get: () => Math.log2(P.time), set: (v) => { P.time = Math.pow(2, v); timeNote(); } });
+  slider(eco, { id: 'time', label: 'Time', min: -2, max: Math.log2(24), step: 0.01, def: 0, fmt: (v) => { const x = Math.pow(2, v); return x < 0.99 ? x.toFixed(2) + '×' : x < 9.95 ? x.toFixed(1) + '×' : Math.round(x) + '×'; }, help: 'Speed of the clock. At 1× the sky follows the real clock. Sound always plays in real time.', get: () => Math.log2(P.time), set: (v) => { P.time = Math.pow(2, v); timeNote(); } });
   S(eco, 'growth', 'Growth', 0, 2.5, 1, mul, 'Speed and branching of hyphal tips.');
   S(eco, 'chatter', 'Chatter', 0, 3, 1, mul, 'How often fungi fire spike trains on their own.');
   S(eco, 'bloom', 'Bloom', 0, 3, 1, mul, 'How readily fungi fruit when they are fed and the soil is wet.');
@@ -1025,33 +1043,39 @@ function toggleMode() { state.mode = state.mode ? 0 : 1; $('modeBtn').textConten
 function newSeed() { loadSeed(randomCode()); }
 
 // ---------------------------------------------------------------- main loop
-let last = 0, hudT = 0, globT = 0;
+let last = 0, hudT = 0, globT = 0, lastAdvance = 0, mediaT = 0;
+// the living part of a frame; it also runs from the audio clock while the screen is off
+function advance(dt) {
+  lastAdvance = performance.now();
+  if (!world) return;
+  if (state.running) {
+    let sdt = dt * P.time; while (sdt > 0) { const s = Math.min(0.08, sdt); world.step(s); sdt -= s; }
+    listener.yaw += P.spin * 0.25 * dt;
+    const k = state.keys || new Set(); const fx = Math.sin(listener.yaw), fy = Math.cos(listener.yaw);
+    let mx = 0, my = 0; if (k.has('w')) { mx += fx; my += fy; } if (k.has('s')) { mx -= fx; my -= fy; } if (k.has('d')) { mx += fy; my -= fx; } if (k.has('a')) { mx -= fy; my += fx; }
+    if (k.has('q')) listener.yaw -= 1.2 * dt; if (k.has('e')) listener.yaw += 1.2 * dt;
+    if (mx || my) { listener.x += mx * 3 * dt; listener.y += my * 3 * dt; state.walk = null; }
+    if (state.walkMode) walkStep(dt);
+    else if (state.drift && !state.ride) driftStep(dt);
+    if (state.ride) rideStep(dt);
+    if (state.walk) {
+      const dx = state.walk.x - listener.x, dy = state.walk.y - listener.y, d = Math.hypot(dx, dy);
+      if (d < 0.2) state.walk = null; else { const sp = Math.min(d, (state.drift ? 0.8 : 2.4) * dt); listener.x += dx / d * sp; listener.y += dy / d * sp; if (state.drift) { let a = Math.atan2(dx, dy) - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * 0.25 * dt; } }
+    }
+    const r = Math.hypot(listener.x, listener.y); if (r > PLOT_R + 3) { listener.x *= (PLOT_R + 3) / r; listener.y *= (PLOT_R + 3) / r; }
+  }
+  listener.z += (HEIGHTS[state.height] - listener.z) * Math.min(1, dt * 0.9);
+  world.frameVoices();
+  audio.post({ t: 'lis', x: listener.x, y: listener.y, z: listener.z, yaw: listener.yaw });
+  globT += dt; if (globT > 2) { globT = 0; sendGlobals(); }
+  mediaT += dt; if (mediaT > 30) { mediaT = 0; updateMediaSession(); }
+  audio.flush();
+}
+function hiddenTick() { const dt = Math.min(1, (performance.now() - lastAdvance) / 1000); if (dt > 0.02) advance(dt); }
 function frame(ts) {
   const dt = Math.min(0.05, Math.max(0, (ts - last) / 1000)); last = ts;
   if (world) {
-    if (state.running) {
-      let sdt = dt * P.time; while (sdt > 0) { const s = Math.min(0.08, sdt); world.step(s); sdt -= s; }
-      listener.yaw += P.spin * 0.25 * dt;
-      // walking
-      const k = state.keys || new Set(); const fx = Math.sin(listener.yaw), fy = Math.cos(listener.yaw);
-      let mx = 0, my = 0; if (k.has('w')) { mx += fx; my += fy; } if (k.has('s')) { mx -= fx; my -= fy; } if (k.has('d')) { mx += fy; my -= fx; } if (k.has('a')) { mx -= fy; my += fx; }
-      if (k.has('q')) listener.yaw -= 1.2 * dt; if (k.has('e')) listener.yaw += 1.2 * dt;
-      if (mx || my) { listener.x += mx * 3 * dt; listener.y += my * 3 * dt; state.walk = null; }
-      if (state.walkMode) walkStep(dt);
-      else if (state.drift && !state.ride) driftStep(dt);
-      if (state.ride) rideStep(dt);
-      if (state.walk) {
-        const dx = state.walk.x - listener.x, dy = state.walk.y - listener.y, d = Math.hypot(dx, dy);
-        if (d < 0.2) state.walk = null; else { const sp = Math.min(d, (state.drift ? 0.8 : 2.4) * dt); listener.x += dx / d * sp; listener.y += dy / d * sp; if (state.drift) { let a = Math.atan2(dx, dy) - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * 0.25 * dt; } }
-      }
-      const r = Math.hypot(listener.x, listener.y); if (r > PLOT_R + 3) { listener.x *= (PLOT_R + 3) / r; listener.y *= (PLOT_R + 3) / r; }
-    }
-    listener.z += (HEIGHTS[state.height] - listener.z) * Math.min(1, dt * 0.9);
-    world.frameVoices();
-    audio.post({ t: 'lis', x: listener.x, y: listener.y, z: listener.z, yaw: listener.yaw });
-    globT += dt; if (globT > 2) { globT = 0; sendGlobals(); }
-    audio.flush();
-    // camera follows the head
+    advance(dt);
     cam.tx += (listener.x - cam.tx) * 0.08; cam.ty += (listener.y - cam.ty) * 0.08;
     if (state.follow) { let a = listener.yaw - cam.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); cam.yaw += a * 0.12; }
     if (scene.brush && (scene.brush.t -= dt) <= 0) scene.brush = null;
@@ -1062,6 +1086,20 @@ function frame(ts) {
   if (state.recording) $('rtime').textContent = fmtTime((performance.now() - rec.t0) / 1000);
   if (player.playing || hudT === 0) drawPlayer();
   requestAnimationFrame(frame);
+}
+// lock-screen controls, like a music player
+function updateMediaSession() {
+  if (!('mediaSession' in navigator) || !world) return;
+  try {
+    const art = thumbnail();
+    navigator.mediaSession.metadata = new MediaMetadata({ title: state.forestName || 'Understory', artist: 'Understory', album: `${STAGES[world.stage][0]} · ${MONTHS[world.month]}`, artwork: art ? [{ src: art, sizes: '192x120', type: 'image/jpeg' }] : [] });
+    navigator.mediaSession.playbackState = state.running ? 'playing' : 'paused';
+  } catch (e) { }
+}
+function initMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  const set = (a, fn) => { try { navigator.mediaSession.setActionHandler(a, fn); } catch (e) { } };
+  set('play', () => setRunning(true)); set('pause', () => setRunning(false)); set('stop', () => setRunning(false));
 }
 function driftStep(dt) {
   state.driftT -= dt;
@@ -1115,6 +1153,10 @@ async function boot() {
   else await loadSeed(randomCode());
   loadArchive(); initSaver();
   setInterval(() => { if (state.running) saveForest(); }, 20000);
+  initMediaSession();
+  setInterval(() => { if (document.hidden) hiddenTick(); }, 1000);
+  document.addEventListener('visibilitychange', async () => { if (!document.hidden && state.running && audio.ctx && audio.ctx.state !== 'running') { try { await audio.ctx.resume(); } catch (e) { } if (audio.el && audio.el.paused) { try { await audio.el.play(); } catch (e) { } } } });
+  placeFeed(); matchMedia('(max-width: 960px)').addEventListener('change', placeFeed);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveForest(); });
   window.addEventListener('pagehide', () => saveForest());
 }
