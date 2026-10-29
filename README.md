@@ -7,9 +7,9 @@
 - **Signals and water:** sugar, water and electrical signals move through the hyphae.
 - **Fruit:** mushrooms appear after rain, and their spores drift past you and grow into new, mutated individuals.
 
-You hear all of it in 3D. Every seed, every species and every single tree and fungus has a voice of its own. The system runs on its own, and you can walk through it, touch it, wound it, plant in it and cut it. When you leave, it lives on: come back the next morning and it has grown, aged and changed. A field guide names everything living there, with the science behind it and what it sounds like.
+You hear all of it in 3D. Every seed, every species and every single tree and fungus has a voice of its own. The system runs on its own, and you can walk through it, touch it, wound it, plant in it and cut it. When you leave, it lives on: come back the next morning and it has grown, aged and changed. A field guide names everything living there, with the science behind it and what it sounds like, and sets out the [sound concept](docs/sonic-concept.md).
 
-It uses the Web Audio API and an AudioWorklet engine, with no build step and no dependencies. It runs in any current desktop browser.
+It uses the Web Audio API and an AudioWorklet engine, with no build step and no dependencies. It runs in any current desktop or mobile browser, and can be added to a phone's home screen as an app.
 
 ![signal flow](docs/signal-flow.svg)
 
@@ -231,10 +231,13 @@ Inside a claude.ai artifact, files go through the platform's save dialog, and WA
 | H | headphones / speakers |
 | 1–8 | tools |
 | G | walk in rhythm / stop |
+| F | field guide (Esc closes) |
 | W A S D | walk |
 | Q / E | turn |
 | Shift-drag or right-drag | tilt the view |
 | Wheel | zoom |
+| Pinch (touch) | zoom |
+| Two-finger twist / slide | turn / tilt |
 
 ## Files
 ```
@@ -251,6 +254,10 @@ tools/events-test.mjs      happenings, seasons, crowding cap, save/restore
 tools/scale-test.mjs       large shaped forest: speed and ecology
 tools/load.mjs             loads the browser sources into Node for the tests
 docs/how-it-lives.md       the biology and how it maps onto the system
+docs/sonic-concept.md      the sonic concept: sonification, layers, tuning, synthesis, space
+icons/                     wordmark, home-screen icons (PNG, SVG, maskable)
+manifest.webmanifest       web app manifest for adding to the home screen
+js/guide.js                field guide texts, map legend and the sound concept
 docs/signal-flow.svg       diagram
 ```
 

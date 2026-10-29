@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.2.0
+- Mushrooms really fruit now. Colonies save surplus sugar in season, set pins, and fruit after rain in wet, cool weather; each mushroom stands for about an hour (emerging, maturing, shedding spores, decaying) instead of four minutes. Forests that come back from a long absence show what is standing. Mushrooms are drawn larger.
+- Ten new happenings, each in its real season and hour: canopy drip after rain, seed fall (cones, nuts, spinning maple keys, squirrels stripping cones), snow unloading from conifers, meltwater rivulets, leaf fall, bats hunting at dusk (echolocation divided down into hearing, with the feeding buzz), bumblebees on willow, maple, rowan and meadow flowers, the cuckoo in May and June, fox calls on winter nights, roe deer barking. They are drawn on the map and have field guide entries.
+- The field guide is a separate sheet that opens over the forest, which stays visible underneath, blurred. Open it from the top bar or with F; Esc or a tap outside closes it. "Show on the map" closes it and marks the entry.
+- Sound concept: a third tab in the field guide, and `docs/sonic-concept.md`, set out the sonic concept in professional terms: model-based sonification, layers and acoustic niches, tuning, synthesis, heredity, time, space, density and what is literal versus translated.
+- Tools are centred above the map, without numbers (keys 1–8 still work).
+- Phones and tablets: pinch to zoom, twist with two fingers to turn, slide two fingers up or down to tilt.
+- An original wordmark, drawn as monoline lettering with hyphal tips and a mycelial thread, in the header and as the home-screen icon. Web app manifest, Apple touch icon and standalone display, so the app opens full screen from the home screen.
+
 ## 5.1.0
 - Gather tool (key 4): seed from mature trees in their real seed season, spore prints from ripe mushrooms, truffles dug, brackets scraped, sclerotia from Cenococcum. Everything goes into a pouch.
 - Planting and sowing draw only from the pouch, with real seed behaviour: viability that falls over time (orthodox, recalcitrant and short-lived seed), dormancy before germination, and the genotype and voice of the parent carried on.

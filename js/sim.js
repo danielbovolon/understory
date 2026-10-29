@@ -209,7 +209,9 @@ const SOIL_N = 28, SOIL_CELL = (2 * (PLOT_R + 1)) / SOIL_N;
 const MAX_TREES = 64, MAX_FUNGI = 128, WILD_TREES = 30, WILD_FUNGI = 30, WILD_SAPRO = 12;
 const CATCHUP_MAX = 30 * 86400; // the forest lives through at most 30 days of life while you are away
 const SILENT = { ready: false, spawn() { return null; }, set() { }, rel() { }, alive() { return false; }, move() { } };
-const MAX_TIPS = 220, EDGE_SOFT = 2200, EDGE_HARD = 3000, MAX_FRUITS = 18;
+const MAX_TIPS = 220, EDGE_SOFT = 2200, EDGE_HARD = 3000, MAX_FRUITS = 40;
+// a mushroom's life in forest seconds: it pushes up, stands, sheds spores, then collapses (real fruit bodies last days; at 1x these are compressed to about an hour and a half)
+const FRUIT_T = { emerge: 600, mature: 1200, spore: 1800, decay: 900 };
 function inMonths(m, w) { if (!w) return false; const [a, b] = w; return a <= b ? m >= a && m <= b : m >= a || m <= b; }
 function fruitSeason(sp, m) { if (!sp.months) return 0; if (inMonths(m, sp.months)) return 1; if (inMonths((m + 1) % 12, sp.months) || inMonths((m + 11) % 12, sp.months)) return 0.3; return 0; }
 
@@ -493,7 +495,7 @@ class World {
     this.ev = { rain: 0, deer: 0, storm: 0, dry: 0, cache: 0, squirrel: 0, boar: 0, beetles: 0, fog: 0 };
     this.evMax = { rain: 300, deer: 20, storm: 120, dry: 600, cache: 90, squirrel: 75, boar: 80, beetles: 150, fog: 600 };
     this.auto = { storm: this.r.range(2400, 4800), dry: this.r.range(2000, 4000), cache: this.r.range(1500, 2600), squirrel: this.r.range(1200, 2400), boar: this.r.range(2400, 4200), beetles: this.r.range(3000, 5400), fog: this.r.range(1800, 3600) };
-    this.fogT = 0; this.beetle = null; this.seen = {};
+    this.fogT = 0; this.beetle = null; this.seen = {}; this.motes = []; this.dripT = 0; this.rained = false; this.snow0 = 0;
     this.pouch = []; this.pouchV = 0; this.pid = 0; this.arrived = {}; this.forms = []; this.mast = {}; this.mastNow = {}; this.arrT = 120; this.lastDisturb = -1e9; this.formT = 0;
     this.snags = []; this.critters = []; this.calls = []; this.deposits = [];
     this.thunderT = 30;
@@ -844,6 +846,7 @@ class World {
     this.happenings(dt);
     this.fauna(dt);
     this.seasonal(dt);
+    this.nature(dt);
     this.critterStep(dt);
     this.calls = this.calls.filter(c => (c.t -= dt) > 0);
     this.stageCheck();
@@ -1357,19 +1360,23 @@ class World {
   fruitStep(dt) {
     const r = this.r;
     const cool = this.temp < 16 ? 1.3 : 0.8;
-    for (const g of this.genets.values()) g.pins = fruitSeason(g.sp, this.month) > 0 && this.moist > 0.4 ? clamp((g.fstore || 0) / (g.sp.fruitCost * 0.9), 0, 1) : 0;
+    for (const g of this.genets.values()) {
+      if (g.energy > 1.4 && fruitSeason(g.sp, this.month) > 0) { const m = Math.min(g.energy - 1.4, dt * 0.002); g.energy -= m; g.fstore = (g.fstore || 0) + m; }
+      g.pins = fruitSeason(g.sp, this.month) > 0 && this.moist > 0.4 ? clamp((g.fstore || 0) / (g.sp.fruitCost * 0.6), 0, 1) : 0;
+    }
     for (const g of this.genets.values()) {
       if (this.fruits.length >= MAX_FRUITS) break;
       // each genus fruits in its own months: snowbank Hygrophorus in March, velvet shank in frost, most in late summer and autumn
       const autumn = fruitSeason(g.sp, this.month) * 1.6; if (autumn <= 0) continue;
-      if ((g.fstore || 0) < g.sp.fruitCost * 0.9 || this.moist < 0.45 || this.t - g.born < 240) continue;
-      if (!r.chance(dt * 0.004 * this.p.bloom * (this.moist - 0.35) * autumn * cool * (1 + 2 * this.afterRain))) continue;
+      if ((g.fstore || 0) < g.sp.fruitCost * 0.6 || this.moist < 0.42 || this.t - g.born < 240) continue;
+      // a flush: in season, a few days after soaking rain, many colonies fruit at once
+      if (!r.chance(dt * 0.0025 * this.p.bloom * (this.moist - 0.3) * autumn * cool * (1 + 6 * this.afterRain))) continue;
       // fruit bodies appear at the colony margin, which is how fairy rings form
       const own = [...this.nodes.values()].filter(n => n.type === 'j' && n.genet === g.id && n.edges.size >= 1 && !this.treeAt(n.x, n.y, 2) && !this.fruits.some(f => Math.hypot(f.x - n.x, f.y - n.y) < 2.5));
       if (own.length < 3) continue;
       own.sort((a, b) => Math.hypot(b.x - g.ox, b.y - g.oy) - Math.hypot(a.x - g.ox, a.y - g.oy));
       const n = own[Math.floor(r() * Math.max(1, own.length * 0.3))];
-      g.fstore -= g.sp.fruitCost * 0.9;
+      g.fstore -= g.sp.fruitCost * 0.6;
       const f = { id: this.stats.fruits++, node: n.id, x: n.x, y: n.y, g: g.id, genus: g.sp.genus, phase: 'emerge', t: 0, size: 0, voice: null, spores: 0, maxSpores: r.int(4, 8) };
       this.mark('fruit:' + g.sp.genus);
       this.fruits.push(f);
@@ -1383,17 +1390,19 @@ class World {
     for (let i = this.fruits.length - 1; i >= 0; i--) {
       const f = this.fruits[i]; f.t += dt; const g = this.genets.get(f.g); const sp = g ? g.sp : this.seed.species[0];
       if (f.phase === 'emerge') {
-        f.size = Math.min(1, f.t / 60);
-        if (f.voice) this.audio.set(f.voice, { gain: 0.5 * f.size, dens: sp.fDens * (0.3 + f.size * 0.7) * this.grainD(), size: sp.fSize * this.grainS(), lp: 0.3 + f.size * 0.5 });
-        if (f.t > 60) { f.phase = 'mature'; f.t = 0; const n = this.nodes.get(f.node) || { deg: 0 }; this.ping(f.x, f.y, 0.5, { deg: n.deg + 2 }, sp, 1.1, 10); const nn = this.nodes.get(f.node); if (nn) { nn.refr = 0; this.fire(nn, false, 0, 0, f.g); } }
-      } else if (f.phase === 'mature') { if (f.t > 50) { f.phase = 'spore'; f.t = 0; } }
+        f.size = Math.min(1, f.t / FRUIT_T.emerge);
+        // pushing up through the litter: the grain cloud swells for the first minutes, then falls quiet
+        const voc = clamp(1 - f.t / 240, 0, 1);
+        if (f.voice) { this.audio.set(f.voice, { gain: 0.5 * Math.max(0.15, f.size) * voc, dens: sp.fDens * (0.3 + f.size * 0.7) * this.grainD(), size: sp.fSize * this.grainS(), lp: 0.3 + f.size * 0.5 }); if (voc <= 0) { this.audio.rel(f.voice, 8); f.voice = null; } }
+        if (f.t > FRUIT_T.emerge) { f.phase = 'mature'; f.t = 0; const n = this.nodes.get(f.node) || { deg: 0 }; this.ping(f.x, f.y, 0.5, { deg: n.deg + 2 }, sp, 1.1, 10); const nn = this.nodes.get(f.node); if (nn) { nn.refr = 0; this.fire(nn, false, 0, 0, f.g); } }
+      } else if (f.phase === 'mature') { if (f.t > FRUIT_T.mature) { f.phase = 'spore'; f.t = 0; } }
       else if (f.phase === 'spore') {
-        if (f.spores < f.maxSpores && f.t > f.spores * 8) { f.spores++; this.releaseSpore(f, sp); this.mark('spores'); }
-        if (f.t > f.maxSpores * 8 + 4) { f.phase = 'decay'; f.t = 0; if (f.voice) this.audio.set(f.voice, { pitch: Math.pow(2, sp.fOct - 1), lp: 0.15, dens: sp.fDens * 0.3 }); }
+        const gap = FRUIT_T.spore / f.maxSpores;
+        if (f.spores < f.maxSpores && f.t > f.spores * gap) { f.spores++; this.releaseSpore(f, sp); this.mark('spores'); }
+        if (f.t > FRUIT_T.spore) { f.phase = 'decay'; f.t = 0; if (f.voice) { this.audio.rel(f.voice, 6); f.voice = null; } }
       } else if (f.phase === 'decay') {
-        f.size = Math.max(0, 1 - f.t / 70);
-        if (f.voice) this.audio.set(f.voice, { gain: 0.4 * f.size });
-        if (f.t > 70) { if (f.voice) this.audio.rel(f.voice, 3); this.addLitter(f.x, f.y, 0.5); this.fruits.splice(i, 1); }
+        f.size = Math.max(0, 1 - f.t / FRUIT_T.decay);
+        if (f.t > FRUIT_T.decay) { if (f.voice) this.audio.rel(f.voice, 3); this.addLitter(f.x, f.y, 0.5); this.fruits.splice(i, 1); }
       }
     }
   }
@@ -1598,6 +1607,15 @@ class World {
     else A.set(this.v.wind, { gain: Math.min(0.22, 0.045 + this.windStr * 0.09 * (1 - 0.4 * clamp(this.meanSize() / 1.4, 0, 1))) * (1 - 0.35 * this.v.canopy.size / 3), bf: (350 + this.windStr * 900) * Math.pow(2, wtone * 0.7), lp: clamp(0.5 + wtone * 0.25, 0.1, 1), gust: clamp(0.3 + this.windStr * 0.6, 0, 1) });
     if (!this.v.soil || !A.alive(this.v.soil)) this.v.soil = A.spawn(K.NOISE, { x: L.x, y: L.y, z: -2, bf: 140, bq: 0.8, lp: 0.12, srate: 0.02, sdep: 0.4, gust: 0.2, crk: 2, gain: 0.05, att: 8, rel: 4, layer: LAYER.WEATHER, send: 0.25, prio: 3 });
     else { this.decomp *= 0.8; A.set(this.v.soil, { crk: (1 + this.tips.length * 0.3 + this.decomp * 300) * (1 - 0.7 * this.snow), gain: (0.045 + this.moist * 0.04) * (1 - 0.4 * this.snow), lp: clamp(0.12 + wtone * 0.08, 0.04, 0.4) }); }
+    // meltwater and run-off: water gathers in the lowest, wettest ground and runs
+    const melting = this.snow < this.snow0 - 1e-5 && this.temp > 1, runoff = clamp((this.moist - 0.95) * 6, 0, 1) + (melting ? 0.6 : 0); this.snow0 = this.snow;
+    if (runoff > 0.05) {
+      if (!this.v.creek || !A.alive(this.v.creek)) {
+        const S = this.soil; let best = -9, bx = 0, by = 0; for (let k = 0; k < S.wet.length; k += 2) { const [x, y] = this.cellXY(k % SOIL_N, Math.floor(k / SOIL_N)); const d = Math.hypot(x - L.x, y - L.y); if (d > 16 || Math.hypot(x, y) > PLOT_R) continue; const v = S.wet[k] - d * 0.02; if (v > best) { best = v; bx = x; by = y; } }
+        this.creekAt = [bx, by]; this.mark('melt');
+        this.v.creek = A.spawn(K.NOISE, { x: bx, y: by, z: -0.1, bf: 900, bq: 1.6, lp: 0.45, srate: 0.3, sdep: 0.4, gust: 0.5, drops: 22, df: 1300, gain: 0, att: 10, rel: 12, layer: LAYER.WEATHER, send: 0.4, prio: 2 });
+      } else A.set(this.v.creek, { gain: 0.07 * clamp(runoff, 0, 1), drops: 10 + 25 * clamp(runoff, 0, 1) });
+    } else if (this.v.creek) { A.rel(this.v.creek, 12); this.v.creek = null; this.creekAt = null; }
     // foxfire: a faint shimmer over glowing decomposers at night
     let glow = 0, gx = 0, gy = 0; for (const g of this.genets.values()) if (g.glow > 0) { glow += g.glow * Math.min(1, g.len / 10); gx = g.ox; gy = g.oy; }
     if (glow > 0.05) {
@@ -1613,7 +1631,7 @@ class World {
     if (this.v.wind) { const a = this.windDir + Math.PI + Math.sin(this.t * 0.03) * 0.6; A.move(this.v.wind, L.x + Math.sin(a) * 13 * wr, L.y + Math.cos(a) * 13 * wr, 8); }
     if (this.v.soil) A.move(this.v.soil, L.x, L.y, -2);
   }
-  dropVoices() { this.v = { trees: new Map(), canopy: new Map(), ticks: [], rain: [], wind: null, soil: null, fox: null }; for (const k in this.budget) this.budget[k].clear(); for (const s of this.signals) s.voice = null; for (const s of this.spores) s.voice = null; for (const f of this.fruits) f.voice = null; for (const c of this.carbon) c.voice = null; for (const c of this.water) c.voice = null; for (const c of this.critters) c.voice = null; }
+  dropVoices() { this.v = { trees: new Map(), canopy: new Map(), ticks: [], rain: [], wind: null, soil: null, fox: null, creek: null }; for (const k in this.budget) this.budget[k].clear(); for (const s of this.signals) s.voice = null; for (const s of this.spores) s.voice = null; for (const f of this.fruits) f.voice = null; for (const c of this.carbon) c.voice = null; for (const c of this.water) c.voice = null; for (const c of this.critters) c.voice = null; }
 
   // ---------------------------------------------------------- the slow drift of the sound world
   // Not biology: an aesthetic layer so long listening never settles. The
@@ -1915,6 +1933,87 @@ class World {
     if (this.r.chance(0.25)) this.log('A red deer stag roars in the distance. It is the autumn rut.', 'fauna');
   }
 
+  // ---------------------------------------------------------- the small events of a real forest
+  // Each follows the process behind it: when it happens, where, and how it sounds.
+  nature(dt) {
+    const r = this.r, L = this.listener, s = this.season(), m = this.month, night = this.light < 0.03, q = Math.sqrt(this.quiet());
+    for (let i = this.motes.length - 1; i >= 0; i--) { const o = this.motes[i]; o.t += dt; o.x += (o.vx || 0) * dt; o.y += (o.vy || 0) * dt; o.z = Math.max(0, o.z + (o.vz || 0) * dt); if (o.t > o.life) this.motes.splice(i, 1); }
+    if (this.motes.length > 160) this.motes.splice(0, this.motes.length - 160);
+    const near = (t) => Math.hypot(t.x - L.x, t.y - L.y) < 16;
+    // throughfall: after rain the crowns keep dripping; broad leaves hold big drops, needles let fine ones go
+    if (this.rainT > 0) { this.rained = true; this.dripT = 0; } else if (this.rained) { this.rained = false; this.dripT = 900; this.mark('drip'); }
+    if (this.dripT > 0 && !this.snowing && this.temp > 0.5) {
+      this.dripT -= dt; const wet = clamp(this.dripT / 900, 0, 1);
+      const crowns = this.trees.filter(t => t.size > 0.5 && (TREE_SPECIES[t.sp].conifer || t.leaf > 0.3) && near(t));
+      if (crowns.length && r.chance(dt * 1.6 * wet * q)) {
+        const t = r.pick(crowns), broad = !TREE_SPECIES[t.sp].conifer, a = r.range(0, 6.28), d = r() * (0.3 + t.size * 1.1), x = t.x + Math.sin(a) * d, y = t.y + Math.cos(a) * d;
+        this.fx(K.MODAL, { x, y, z: 0.05, f: broad ? r.range(900, 1900) : r.range(2200, 4200), r: [1, 1.58, 2.31, 3.1], d: [0.05, 0.03, 0.02, 0.012], a: [1, 0.35, 0.2, 0.1], hard: 0.9, gain: (broad ? 0.18 : 0.1) * (0.5 + 0.5 * wet), layer: LAYER.WEATHER, send: 0.45, prio: 1 }, 8);
+        this.motes.push({ kind: 'drop', x, y, z: 1.2 + t.size * 2, vz: -6, t: 0, life: 0.35 });
+      }
+    }
+    // seed fall: cones thud, acorns and beech nuts patter, maple keys spin down; squirrels strip cones in the crowns
+    if (s === 'autumn' || s === 'winter' || s === 'summer') for (const t of this.trees) {
+      if ((t.crop || 0) < 1 || !near(t) || !r.chance(dt * 0.0035 * Math.min(6, t.crop) * (this.mastNow[t.sp] ? 3 : 1) * q)) continue;
+      const S = SEED_INFO[t.sp], a = r.range(0, 6.28), d = r() * t.size * 1.2, x = t.x + Math.sin(a) * d, y = t.y + Math.cos(a) * d;
+      const cone = S.word === 'cones' || t.sp === 'stonepine', nut = t.sp === 'oak' || t.sp === 'beech';
+      if (cone || nut) this.fx(K.MODAL, { x, y, z: 0.05, f: cone ? r.range(160, 300) : r.range(500, 900), r: PING_SETS.wood, d: cone ? [0.09, 0.05, 0.03, 0.02] : [0.04, 0.025, 0.015, 0.01], a: [1, 0.5, 0.3, 0.2], hard: 0.8, gain: cone ? 0.26 : 0.18, layer: LAYER.TREES, send: 0.5, prio: 1 }, 8);
+      else if (t.sp === 'maple') this.fx(K.NOISE, { x, y, z: 1.5, bf: 900, bq: 3, lp: 0.4, srate: 9, sdep: 0.6, gust: 0, gain: 0.06, att: 0.2, rel: 0.4, dur: 1.4, layer: LAYER.TREES, send: 0.4, prio: 1 }, 8);
+      t.crop -= 0.3; this.mark('seedfall');
+      this.motes.push({ kind: 'seed', x, y, z: 1 + t.size * 3, vz: t.sp === 'maple' ? -1.2 : -5, t: 0, life: t.sp === 'maple' ? 3 : 0.8 });
+      if (cone && this.seen.squirrel && r.chance(0.25)) { this.fx(K.TICK, { x: t.x, y: t.y, z: 2 + t.size * 2, rate: 22, f: 2600, q: 3, jit: 0.5, burst: 0.7, gain: 0.16, dur: 2.5, rel: 0.3, layer: LAYER.FAUNA, send: 0.4, prio: 1 }, 6, this.budget.fauna); this.mark('stripping'); }
+    }
+    // snow unloading: snow builds on conifer branches until they bend and shed it, then spring back
+    if (this.snow > 0.3 && (this.temp > -1 || this.windStr > 0.6) && !this.snowing) {
+      const con = this.trees.filter(t => TREE_SPECIES[t.sp].conifer && t.size > 0.8 && near(t));
+      if (con.length && r.chance(dt * 0.006 * con.length / 4 * q)) {
+        const t = r.pick(con); this.mark('unload');
+        this.fx(K.NOISE, { x: t.x, y: t.y, z: 0.5, bf: 230, bq: 0.7, lp: 0.18, srate: 0.5, sdep: 0.3, gust: 0.9, gain: 0.3, att: 0.02, rel: 0.9, dur: 0.6, layer: LAYER.WEATHER, send: 0.35, prio: 1 }, 8);
+        this.fx(K.MODAL, { x: t.x, y: t.y, z: 1 + t.size * 2, f: r.range(140, 260), r: PING_SETS.wood, d: [0.25, 0.15, 0.08, 0.05], a: [1, 0.5, 0.3, 0.2], hard: 0.3, gain: 0.16, layer: LAYER.TREES, send: 0.5, prio: 1 }, 8);
+        for (let k = 0; k < 6; k++) this.motes.push({ kind: 'snow', x: t.x + r.range(-0.8, 0.8), y: t.y + r.range(-0.8, 0.8), z: 1 + t.size * 2.5, vz: -r.range(2, 4), t: 0, life: 1.2 });
+      }
+    }
+    // bats hunt insects at dusk and through warm nights, May to September; calls shifted down from ultrasound
+    if (m >= 4 && m <= 8 && this.temp > 8 && this.light < 0.08 && this.rainT <= 0 && r.chance(dt * 0.025 * q * (this.clockH > this.sun.set && this.clockH < this.sun.set + 3 ? 2 : 1))) {
+      const a = r.range(0, 6.28), d = r.range(4, 14), x = L.x + Math.sin(a) * d, y = L.y + Math.cos(a) * d, z = r.range(3, 8), dir = r.range(0, 6.28), f = r.range(3500, 5500);
+      this.voiceFauna(K.CHIRP, { x, y, z, f0: f, f1: f * 0.45, mr: 1, mi: 0, n: r.int(5, 10), isi: r.range(0.08, 0.12), bd: 0.008, gain: 0.14, layer: LAYER.FAUNA, send: 0.3, prio: 1 });
+      if (r.chance(0.4)) this.later(1, () => this.voiceFauna(K.CHIRP, { x: x + Math.sin(dir) * 3, y: y + Math.cos(dir) * 3, z, f0: f * 0.9, f1: f * 0.4, mr: 1, mi: 0, n: r.int(10, 18), isi: 0.012, bd: 0.005, gain: 0.12, layer: LAYER.FAUNA, send: 0.3, prio: 1 }));
+      this.motes.push({ kind: 'bat', x, y, z, vx: Math.sin(dir) * 4, vy: Math.cos(dir) * 4, t: 0, life: 2.5 }); this.mark('bat');
+    }
+    // bumblebees on flowering trees and flowers: willow catkins in March and April, maple and bilberry in May, rowan in June, meadow flowers in summer
+    const flower = (m === 2 || m === 3) ? ['willow'] : m === 4 ? ['maple', 'willow', 'birch'] : m === 5 ? ['rowan', 'maple'] : [];
+    if (this.temp > 9 && this.light > 0.35 && this.rainT <= 0 && m >= 2 && m <= 7) {
+      const fl = this.trees.filter(t => flower.includes(t.sp) && t.size > 0.5 && near(t));
+      const meadow = m >= 5 && m <= 7 ? 1 : m === 4 ? 0.5 : 0;
+      if ((fl.length || meadow) && r.chance(dt * 0.02 * (fl.length + meadow * 2) * q)) {
+        let x, y, z; if (fl.length && (!meadow || r.chance(0.6))) { const t = r.pick(fl); x = t.x + r.range(-1, 1); y = t.y + r.range(-1, 1); z = 1 + t.size * 2; } else { const a = r.range(0, 6.28), d = r.range(2, 10); x = L.x + Math.sin(a) * d; y = L.y + Math.cos(a) * d; z = 0.4; }
+        const f = r.range(130, 200), id = this.voiceFauna(K.DRONE, { x, y, z, f, r: [1, 2, 3, 4], a: [1, 0.6, 0.4, 0.25], breath: 0.25, bq: 3, det: 3, bright: 0.45, trate: r.range(4, 9), tdep: 0.35, glide: 0.4, gain: 0.1, att: 0.3, rel: 0.6, dur: r.range(2, 5), layer: LAYER.FAUNA, send: 0.25, prio: 1 });
+        if (id) this.later(1.2, () => this.audio.set(id, { f: f * r.range(0.85, 1.2), glide: 0.6 }));
+        this.motes.push({ kind: 'bee', x, y, z, vx: r.range(-0.6, 0.6), vy: r.range(-0.6, 0.6), t: 0, life: 4 }); this.mark('bees');
+      }
+    }
+    // the cuckoo arrives from Africa in late April and calls into June: two falling notes about a third apart
+    if ((m === 4 || m === 5 || (m === 3 && this.doy > 110)) && !night && this.rainT <= 0 && this.meanSize() > 0.5 && r.chance(dt * 0.0025 * q)) {
+      const p = this.perch(); if (p) { this.mark('cuckoo'); const f = r.range(560, 660), k2 = Math.pow(2, -r.range(3, 4) / 12), reps = r.int(4, 9);
+        for (let k = 0; k < reps; k++) { const t0 = k * r.range(0.9, 1.1); this.later(t0, () => this.voiceFauna(K.BLOW, { x: p.x, y: p.y, z: p.z, f, q: 30, r2: 3, tone: 0.9, breath: 0.12, bright: 0.3, flut: 0.05, vib: 0.002, att: 0.03, rel: 0.12, dur: 0.18, gain: 0.32, layer: LAYER.FAUNA, send: 0.7, prio: 1 })); this.later(t0 + 0.3, () => this.voiceFauna(K.BLOW, { x: p.x, y: p.y, z: p.z, f: f * k2, q: 30, r2: 3, tone: 0.9, breath: 0.12, bright: 0.3, flut: 0.05, vib: 0.002, att: 0.03, rel: 0.2, dur: 0.26, gain: 0.32, layer: LAYER.FAUNA, send: 0.7, prio: 1 })); } }
+    }
+    // red foxes mate in mid-winter: barks and the vixen's scream carry through January and February nights
+    if ((m === 0 || m === 1 || m === 11) && night && r.chance(dt * 0.002 * q)) {
+      const a = r.range(0, 6.28), d = r.range(18, 30), x = L.x + Math.sin(a) * d, y = L.y + Math.cos(a) * d; this.mark('fox');
+      const scream = r.chance(0.3), n = scream ? 1 : r.int(2, 4);
+      for (let k = 0; k < n; k++) this.later(k * 0.55, () => this.voiceFauna(K.BLOW, { x, y, z: 0.5, f: scream ? r.range(900, 1200) : r.range(420, 560), q: 5, r2: 2.4, tone: 0.35, breath: 0.8, bright: 0.6, flut: 0.6, vib: 0.02, att: 0.02, rel: 0.2, dur: scream ? 0.9 : 0.16, gain: 0.3, layer: LAYER.FAUNA, send: 0.8, prio: 1 }));
+    }
+    // roe deer bark when alarmed, and through the summer rut in July and August
+    if (((m === 6 || m === 7) && (this.light < 0.3) && r.chance(dt * 0.002 * q)) || (this.ev.deer > 19 && r.chance(0.5))) {
+      const a = r.range(0, 6.28), d = r.range(12, 24), x = L.x + Math.sin(a) * d, y = L.y + Math.cos(a) * d; this.mark('roe'); if (this.ev.deer > 19) this.ev.deer = 19;
+      for (let k = 0; k < r.int(1, 4); k++) this.later(k * r.range(1.2, 2.2), () => this.voiceFauna(K.NOISE, { x, y, z: 0.8, bf: r.range(900, 1300), bq: 2.2, lp: 0.6, srate: 0, sdep: 0, gust: 0, gain: 0.32, att: 0.01, rel: 0.12, dur: 0.12, layer: LAYER.FAUNA, send: 0.8, prio: 1 }));
+    }
+    // leaf fall: in October deciduous trees seal off their leaves and let them go; they patter into the litter
+    if (s === 'autumn' && this.windStr > 0.15) {
+      const dec = this.trees.filter(t => TREE_SPECIES[t.sp].leaf !== 'ever' && t.sen > 0.3 && t.leaf > 0.1 && near(t));
+      if (dec.length && r.chance(dt * 0.12 * dec.length / 4 * this.windStr * q)) { const t = r.pick(dec); this.mark('leaffall'); this.fx(K.TICK, { x: t.x + r.range(-2, 2), y: t.y + r.range(-2, 2), z: 0.05, rate: r.range(6, 14), f: r.range(2800, 4800), q: 2, jit: 0.5, burst: 0.2, gain: 0.07, att: 0.3, rel: 0.8, dur: 2, layer: LAYER.TREES, send: 0.3, prio: 1 }, 8); }
+    }
+  }
+
   // ---------------------------------------------------------- seasonal sounds
   seasonal(dt) {
     const r = this.r, s = this.season();
@@ -2113,8 +2212,21 @@ class World {
       while (done < span) { const s = Math.min(dt, span - done); this.coarseStep(s); done += s; if (++k % 20 === 0) yield done / span; }
     } finally {
       this.coarse = false; this.audio = real; this.dropVoices(); this.updateLight(); this.updateCover(0); this.hashDirty = true;
+      this.standingFruits();
     }
     yield 1;
+  }
+  // the mushrooms that happen to be up right now, after time has passed unseen
+  standingFruits() {
+    const r = this.r, phases = ['mature', 'mature', 'spore', 'spore', 'decay', 'emerge'];
+    for (const g of this.genets.values()) {
+      if (this.fruits.length >= MAX_FRUITS * 0.6) break;
+      if (fruitSeason(g.sp, this.month) <= 0 || this.moist < 0.42 || (g.fstore || 0) < g.sp.fruitCost * 0.4 || !r.chance(0.5 * (0.5 + this.afterRain))) continue;
+      const own = [...this.nodes.values()].filter(n => n.type === 'j' && n.genet === g.id && !this.treeAt(n.x, n.y, 2)); if (own.length < 2) continue;
+      const n = r.pick(own), ph = r.pick(phases);
+      this.fruits.push({ id: this.stats.fruits++, node: n.id, x: n.x, y: n.y, g: g.id, genus: g.sp.genus, phase: ph, t: r.range(0, FRUIT_T[ph] * 0.8), size: ph === 'emerge' ? 0.4 : ph === 'decay' ? 0.6 : 1, voice: null, spores: ph === 'spore' ? 2 : 0, maxSpores: r.int(4, 8) });
+      g.fstore -= g.sp.fruitCost * 0.4;
+    }
   }
   rewindSky(span) {
     let h = this.clockH - span / 3600, days = 0; while (h < 0) { h += 24; days++; }

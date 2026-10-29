@@ -57,7 +57,7 @@ Kiers et al. (2011) showed that plants and mycorrhizal fungi reward each other i
 - **Sound:** a delivery sounds as a soft, high tone at the root.
 
 ## Fruiting
-- **Fruit comes from the trees' sugar.** Fruit bodies are built from the host's recent photosynthate: cutting the bark ring (girdling) stopped ectomycorrhizal fruiting within days (Högberg et al. 2001). In Understory a fungus saves part of its carbon income for fruiting and fruits only when that store is full.
+- **Fruit comes from the trees' sugar.** Fruit bodies are built from the host's recent photosynthate: cutting the bark ring (girdling) stopped ectomycorrhizal fruiting within days (Högberg et al. 2001). In Understory a colony puts its surplus carbon into a fruiting store during its season, sets pins once the store can pay for a mushroom, and fruits when the soil is wet, most of all in the hours after rain. A mushroom stands for about an hour of forest time: emerging, mature, shedding spores, decaying.
 - **Triggers:**
   - wet soil
   - cool weather
@@ -231,6 +231,19 @@ Seed and spores arrive from far away all the time, but a species establishes onl
 
 ## Life while you are away
 When you return to a forest, it catches up on the time you were gone, up to 30 days of forest life, at a coarser step. Growth, ageing and death, seed and spore rain, new partnerships between fungi and trees, fruiting and the drift of voices go on; storms, beetles, boar and seed caching happen in their seasons. Passing sounds (signals, spores in the air, animals) are not simulated. The sky ends at the real hour, and a short story tells you what changed.
+
+## The forest's own year
+These happen on their own, each when and where it does in nature, and each has a field guide entry.
+- **Canopy drip:** after rain the crowns let the water go for about an hour (throughfall). Broad leaves give large, low drops; needles give fine, high ones.
+- **Seed fall:** ripe cones thud, beech nuts and acorns knock, maple keys whirr as they spin down; in mast years far more. Squirrels strip cones in the crowns.
+- **Snow unloading:** loaded conifer branches shed their snow with a soft whoomp and spring back, most in thaw and wind.
+- **Meltwater:** after snowmelt or heavy rain a small rivulet runs at the wettest ground nearby.
+- **Leaf fall:** in autumn wind, dry leaves tick into the litter.
+- **Bats** (May–September, warm dry dusk and night): echolocation sweeps divided down by about ten into hearing, as a bat detector does, with the feeding buzz as they close on prey.
+- **Bumblebees** (warm days, March–August): willow catkins first, then maple, birch and rowan, then meadow flowers; the hum is the wingbeat, about 130–200 Hz.
+- **Cuckoo** (late April–June): two falling notes about a third apart, in long series.
+- **Fox** (December–February nights): barks and the vixen's scream of the mating season.
+- **Roe deer:** a sharp bark when alarmed, and at dusk in the July–August rut.
 
 ## Birds and animals
 - **Songbirds** need forest structure. Here they appear once the canopy has grown and sing in the treetops.

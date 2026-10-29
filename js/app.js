@@ -400,6 +400,7 @@ function draw(now) {
   }
   // where animals call
   for (const c of w.calls) { const p = cam.proj(c.x, c.y, c.z); if (!p) continue; const a = Math.min(1, c.t); const r = Math.max(4, 0.35 * p[2]) * (1.6 - c.t * 0.4); g.strokeStyle = PAL.bone; g.globalAlpha = a * 0.5; g.lineWidth = 1; g.beginPath(); g.arc(p[0], p[1], r, -2.4, -0.7); g.stroke(); g.beginPath(); g.arc(p[0], p[1], r * 1.6, -2.3, -0.8); g.stroke(); g.globalAlpha = 1; }
+  drawNatureMotes(g, w, now);
   seasonParticles(g, w, now);
   // wind motes
   const wx = Math.sin(w.windDir) * w.windStr * 3, wy = Math.cos(w.windDir) * w.windStr * 3;
@@ -429,6 +430,21 @@ function draw(now) {
   if (scene.cutLine) { const [a, b] = scene.cutLine; g.strokeStyle = PAL.alarm; g.setLineDash([5, 4]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]); }
   // compass
   drawCompass(g);
+}
+// small things the forest does on its own: drops from the crowns, falling seed and snow, bats, bees, meltwater
+function drawNatureMotes(g, w, now) {
+  if (w.creekAt && w.v && w.v.creek) {
+    const [cx, cy] = w.creekAt, wc = PAL.dark ? '143,196,255' : '42,100,184';
+    for (let k = 0; k < 7; k++) { const a = k * 0.9 + now / 1400, d = 0.25 + ((now / 900 + k * 0.37) % 1) * 1.4; const q = cam.proj(cx + Math.sin(a) * d * 1.6, cy + Math.cos(a * 0.7) * d, 0); if (!q) continue; g.strokeStyle = `rgba(${wc},${0.5 * (1 - d / 1.7)})`; g.lineWidth = 1; g.beginPath(); g.ellipse(q[0], q[1], Math.max(2, 0.12 * q[2]), Math.max(1, 0.05 * q[2]), 0, 0, TAU); g.stroke(); }
+  }
+  for (const o of w.motes || []) {
+    const p = cam.proj(o.x, o.y, o.z); if (!p) continue; const life = 1 - o.t / o.life;
+    if (o.kind === 'drop') { const q = cam.proj(o.x, o.y, o.z + 0.4); g.strokeStyle = PAL.dark ? `rgba(170,205,240,${0.7 * life})` : `rgba(40,80,140,${0.7 * life})`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(p[0], p[1]); if (q) g.lineTo(q[0], q[1]); g.stroke(); if (o.z < 0.2) { g.beginPath(); g.arc(p[0], p[1], Math.max(2, 0.1 * p[2]), 0, TAU); g.stroke(); } }
+    else if (o.kind === 'seed') { g.save(); g.translate(p[0], p[1]); g.rotate(now / 90); g.fillStyle = PAL.spore; g.globalAlpha = 0.9 * Math.min(1, life * 3); g.beginPath(); g.ellipse(0, 0, Math.max(1.5, 0.08 * p[2]), Math.max(0.8, 0.03 * p[2]), 0, 0, TAU); g.fill(); g.restore(); }
+    else if (o.kind === 'snow') { g.fillStyle = PAL.dark ? `rgba(235,240,250,${0.85 * life})` : `rgba(255,255,255,${0.9 * life})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.5, 0.1 * p[2]), 0, TAU); g.fill(); }
+    else if (o.kind === 'bat') { const s = Math.max(3, 0.22 * p[2]), fl = Math.sin(now / 45 + o.x) * 0.5; g.strokeStyle = PAL.bone; g.globalAlpha = 0.75 * Math.min(1, life * 2); g.lineWidth = 1.3; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * fl); g.quadraticCurveTo(p[0] - s * 0.4, p[1] + s * 0.2, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] + s * 0.2, p[0] + s, p[1] - s * fl); g.stroke(); g.globalAlpha = 1; }
+    else if (o.kind === 'bee') { const j = Math.sin(now / 70 + o.y * 5) * 2, s = Math.max(1.6, 0.07 * p[2]); g.fillStyle = PAL.spore; g.globalAlpha = Math.min(1, life * 3); g.beginPath(); g.arc(p[0] + j, p[1] + Math.cos(now / 55 + o.x) * 2, s, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  }
 }
 function drawTree(g, t, w) {
   const h = 0.3 + t.size * 3.6, rc = 0.2 + t.size * 1.15;
@@ -516,7 +532,7 @@ function drawFruit(g, f, w) {
   for (let k = 0; k < L.n; k++) { const a = rr() * TAU, d = k ? 0.12 + rr() * 0.42 : 0; items.push([f.x + Math.sin(a) * d, f.y + Math.cos(a) * d, k ? 0.55 + rr() * 0.4 : 1]); }
   const proj = items.map(it => [it, cam.proj(it[0], it[1], 0)]).filter(a => a[1]).sort((a, b) => b[1][3] - a[1][3]);
   let top = null;
-  for (const [[, , k], p] of proj) { const u = Math.max(3, 0.62 * p[2] * L.size * k * grow); drawMushroomAt(g, p[0], p[1], u, L, gn, gn ? gn.glow : 0); if (k === 1) top = [p[0], p[1] - u * 1.5, u]; }
+  for (const [[, , k], p] of proj) { const u = Math.max(4.5 * Math.sqrt(k), 0.85 * p[2] * L.size * k * grow); drawMushroomAt(g, p[0], p[1], u, L, gn, gn ? gn.glow : 0); if (k === 1) top = [p[0], p[1] - u * 1.5, u]; }
   if (top && state.tool === 'gather' && f.phase !== 'emerge' && !f.printed) { g.strokeStyle = PAL.hypha; g.globalAlpha = 0.5 + 0.4 * Math.sin(performance.now() / 260); g.lineWidth = 1.5; g.beginPath(); g.arc(top[0], top[1] + top[2] * 0.8, top[2] * 1.6, 0, TAU); g.stroke(); g.globalAlpha = 1; }
   if (top && f.phase === 'spore') { g.strokeStyle = PAL.spore; g.globalAlpha = 0.55; g.lineWidth = 1; g.beginPath(); g.arc(top[0], top[1], top[2] * (1.2 + Math.sin(performance.now() / 200) * 0.2), 0, TAU); g.stroke(); g.globalAlpha = 1; }
 }
@@ -554,6 +570,7 @@ function drawGuideMarks(g, w, now) {
     if (key === 'beetles' && w.beetle) { const t = w.treeById(w.beetle.id); if (t) pts.push([t.x, t.y, 2]); }
     if (key === 'woodpecker') for (const sn of w.snags) pts.push([sn.x, sn.y, 1]);
     if (key === 'deer') for (const t of w.trees) if (t.stress > 0.2) pts.push([t.x, t.y, 1.4]);
+    const MK = { bat: 'bat', bees: 'bee' }; if (MK[key]) for (const o of w.motes || []) if (o.kind === MK[key]) pts.push([o.x, o.y, 0.8]);
     for (const c of w.calls) pts.push([c.x, c.y, 0.8]);
   } else if (grp === 'network') {
     if (key === 'hyphae') for (const t of w.tips) pts.push([t.x, t.y, 0.45]);
@@ -572,6 +589,13 @@ function drawGuideMarks(g, w, now) {
     else if (key === 'arrival') { for (const t of w.trees) if (w.arrived[t.sp] !== undefined) pts.push([t.x, t.y, 1.4]); for (const gn of w.genets.values()) if (w.arrived[gn.sp.genus] !== undefined) pts.push([gn.ox, gn.oy, 1]); }
     else if (key === 'form') { for (const gn of w.genets.values()) if (gn.sp.form) pts.push([gn.ox, gn.oy, 1]); }
     else if (key === 'variety') { for (const t of w.trees) if (t.dna && t.dna.variety) pts.push([t.x, t.y, 1.4]); }
+  }
+  else if (grp === 'weather') {
+    if (key === 'melt' && w.creekAt) pts.push([w.creekAt[0], w.creekAt[1], 1.4]);
+    else if (key === 'seedfall') { for (const t of w.trees) if ((t.crop || 0) >= 1) pts.push([t.x, t.y, 1.2]); }
+    else if (key === 'leaffall') { for (const t of w.trees) if (TREE_SPECIES[t.sp].leaf !== 'ever') pts.push([t.x, t.y, 1.2]); }
+    else if (key === 'unload' || key === 'drip') { for (const t of w.trees) if (key === 'drip' || TREE_SPECIES[t.sp].conifer) pts.push([t.x, t.y, 1.2]); }
+    for (const o of w.motes || []) if ((key === 'drip' && o.kind === 'drop') || (key === 'seedfall' && o.kind === 'seed') || (key === 'unload' && o.kind === 'snow')) pts.push([o.x, o.y, 0.5]);
   }
   if (!pts.length) return;
   const pulse = 0.5 + 0.5 * Math.sin(now / 280);
@@ -713,8 +737,8 @@ const TOOLS = [
 function buildTools() {
   const box = $('tools');
   TOOLS.forEach(([id, label, help], i) => {
-    const b = document.createElement('button'); b.className = 'tool'; b.id = 'tool-' + id; b.title = help; b.setAttribute('aria-pressed', String(id === state.tool));
-    b.innerHTML = `<kbd>${i + 1}</kbd>${label}`; b.onclick = () => setTool(id); box.appendChild(b);
+    const b = document.createElement('button'); b.className = 'tool'; b.id = 'tool-' + id; b.title = `${help} (key ${i + 1})`; b.setAttribute('aria-pressed', String(id === state.tool));
+    b.textContent = label; b.onclick = () => setTool(id); box.appendChild(b);
   });
 }
 function setTool(id) {
@@ -740,7 +764,7 @@ function buildToolOpts() {
     if (state[key] !== 'best' && !list.some(it => it.id === state[key])) state[key] = 'best';
     chip('Best for the spot', `The ${kind === 'seed' ? 'seed' : 'spores'} in your pouch that suit the place you click`, state[key] === 'best', () => state[key] = 'best');
     for (const it of list) chip(`${label(it)} <b>${it.n}</b><small>${Math.round(it.viab * 100)}%</small>`, tip(it), state[key] === it.id, () => state[key] = it.id, sw(it));
-    if (!list.length) note(kind === 'seed' ? 'No seed in your pouch. Gather from a tree in seed (tool 4).' : 'No spores in your pouch. Take a spore print from a ripe mushroom (tool 4).');
+    if (!list.length) note(kind === 'seed' ? 'No seed in your pouch. Gather from a tree in seed (the Gather tool).' : 'No spores in your pouch. Take a spore print from a ripe mushroom (the Gather tool).');
     else note(tool === 'plant' ? `${world.trees.length}/${MAX_TREES} trees` : `${world.genets.size}/${MAX_FUNGI} fungi`);
   } else if (tool === 'gather') {
     const ripe = [...new Set(world.trees.filter(t => (t.crop || 0) >= 1).map(t => TREE_SPECIES[t.sp].short.toLowerCase()))];
@@ -768,8 +792,15 @@ function initInput() {
   const cv = scene.cv; let drag = null;
   const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  // two fingers on a phone or tablet: pinch to zoom, twist to turn the view, slide both up or down to tilt
+  const touches = new Map(); let pinch = null;
+  const pair = () => { const [a, b] = [...touches.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), ang: Math.atan2(b[1] - a[1], b[0] - a[0]), my: (a[1] + b[1]) / 2 }; };
   cv.addEventListener('pointerdown', (e) => {
-    cv.setPointerCapture(e.pointerId); const p = pos(e);
+    try { cv.setPointerCapture(e.pointerId); } catch (_) { } const p = pos(e);
+    if (e.pointerType !== 'mouse') {
+      touches.set(e.pointerId, p);
+      if (touches.size >= 2) { drag = null; scene.cutLine = null; const q = pair(); pinch = { ...q, dist0: cam.dist, yaw0: listener.yaw, cyaw0: cam.yaw, pitch0: cam.pitch }; return; }
+    }
     const tilt = e.button === 2 || e.shiftKey;
     const onHead = scene.head && Math.hypot(p[0] - scene.head[0], p[1] - scene.head[1]) < scene.head[2] + 12;
     drag = { x0: p[0], y0: p[1], x: p[0], y: p[1], moved: 0, tilt, head: onHead && state.tool === 'listen' && !tilt, yaw0: listener.yaw };
@@ -777,6 +808,15 @@ function initInput() {
     if (state.tool === 'shape' && !tilt && state.shapeKind !== 'log') paintAt(p);
   });
   cv.addEventListener('pointermove', (e) => {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, pos(e));
+    if (pinch && touches.size >= 2) {
+      e.preventDefault(); const q = pair();
+      cam.dist = Math.max(10, Math.min(80, pinch.dist0 * pinch.d / Math.max(20, q.d)));
+      const da = q.ang - pinch.ang;
+      const tw = Math.abs(da) > 0.06 ? da - Math.sign(da) * 0.06 : 0; if (state.follow) listener.yaw = pinch.yaw0 + tw; else cam.yaw = pinch.cyaw0 - tw;
+      cam.pitch = Math.max(0.3, Math.min(1.5, pinch.pitch0 + (q.my - pinch.my) * 0.005));
+      return;
+    }
     if (!drag) return; const p = pos(e); const dx = p[0] - drag.x, dy = p[1] - drag.y; drag.x = p[0]; drag.y = p[1]; drag.moved += Math.abs(dx) + Math.abs(dy);
     if (drag.tilt) { cam.pitch = Math.max(0.3, Math.min(1.5, cam.pitch + dy * 0.006)); if (!state.follow) cam.yaw += dx * 0.006; return; }
     if (state.tool === 'cut') { scene.cutLine = [[drag.x0, drag.y0], p]; return; }
@@ -787,6 +827,8 @@ function initInput() {
     }
   });
   const end = (e) => {
+    touches.delete(e.pointerId);
+    if (pinch) { if (touches.size < 2) { pinch = null; drag = null; } return; }
     if (!drag) return; const p = pos(e); const click = drag.moved < 6; const d = drag; drag = null;
     if (d.tilt) return;
     const gp = cam.ground(p[0], p[1]);
@@ -801,11 +843,11 @@ function initInput() {
     else if (state.tool === 'touch') world.touch(gp[0], gp[1]);
     else if (state.tool === 'wound') { const t = world.treeAt(gp[0], gp[1], 1.8); if (t) world.stressTree(t, 'user'); }
     else if (state.tool === 'gather') { const r = world.gatherAt(gp[0], gp[1]); logLine(r.msg, r.ok ? 'gather' : 'touch'); if (r.ok) buildToolOpts(); }
-    else if (state.tool === 'plant') { const r = world.plantFromPouch(gp[0], gp[1], state.plantItem); if (r !== true) logHelp(r === 'full' ? `The forest holds at most ${MAX_TREES} trees.` : r === 'crowded' ? 'Too close to another trunk or a seed already planted.' : r === 'empty' ? 'Your pouch has no seed for this. Gather seed from a mature tree in its season (tool 4).' : 'Plant inside the circle.'); buildToolOpts(); }
-    else if (state.tool === 'sow') { const r = world.sowFromPouch(gp[0], gp[1], state.sowItem); if (r !== true) logHelp(r === 'full' ? `The soil holds at most ${MAX_FUNGI} fungal individuals.` : r === 'empty' ? 'Your pouch has no spores for this. Take a spore print from a ripe mushroom (tool 4).' : 'Sow inside the circle.'); buildToolOpts(); }
+    else if (state.tool === 'plant') { const r = world.plantFromPouch(gp[0], gp[1], state.plantItem); if (r !== true) logHelp(r === 'full' ? `The forest holds at most ${MAX_TREES} trees.` : r === 'crowded' ? 'Too close to another trunk or a seed already planted.' : r === 'empty' ? 'Your pouch has no seed for this. Gather seed from a mature tree in its season (the Gather tool).' : 'Plant inside the circle.'); buildToolOpts(); }
+    else if (state.tool === 'sow') { const r = world.sowFromPouch(gp[0], gp[1], state.sowItem); if (r !== true) logHelp(r === 'full' ? `The soil holds at most ${MAX_FUNGI} fungal individuals.` : r === 'empty' ? 'Your pouch has no spores for this. Take a spore print from a ripe mushroom (the Gather tool).' : 'Sow inside the circle.'); buildToolOpts(); }
     else if (state.tool === 'shape' && state.shapeKind === 'log') { if (!world.addLog(gp[0], gp[1])) logHelp('A log needs open ground, a little away from other logs (at most 16).'); }
   };
-  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', () => { drag = null; scene.cutLine = null; });
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', (e) => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; drag = null; scene.cutLine = null; });
   cv.addEventListener('pointermove', (e) => { const p = pos(e); scene.hover = cam.ground(p[0], p[1]); });
   cv.addEventListener('pointerleave', () => { scene.hover = null; });
   cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = Math.max(10, Math.min(80, cam.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
@@ -818,6 +860,8 @@ function initInput() {
     if (k === 'n') { newSeed(); return; }
     if (k === 'r' && !e.metaKey && !e.ctrlKey) { toggleRec(); return; }
     if (k === 'h') { toggleMode(); return; }
+    if (k === 'f') { toggleGuide(); return; }
+    if (k === 'escape' && !$('guideSheet').hidden) { toggleGuide(false); return; }
     if (k >= '1' && k <= '8') { setTool(TOOLS[+k - 1][0]); return; }
     if (k === 'g') { setWalk(state.walkMode ? null : 'rhythm'); return; }
     if ('wasdqe'.includes(k) && k.length === 1) { keys.add(k); e.preventDefault(); }
@@ -943,6 +987,17 @@ const guide = { tab: 'living', entries: new Map(), sel: null, sig: '', mode: '' 
 function initGuide() {
   $('gtabLiving').onclick = () => { guide.tab = 'living'; renderGuide(true); };
   $('gtabLegend').onclick = () => { guide.tab = 'legend'; guide.sel = null; renderGuide(true); };
+  $('gtabSound').onclick = () => { guide.tab = 'sound'; guide.sel = null; renderGuide(true); };
+  $('guideBtn').onclick = () => toggleGuide();
+  $('guideClose').onclick = () => toggleGuide(false);
+  // a tap on the blurred forest around the sheet closes it
+  $('guideSheet').addEventListener('click', (e) => { if (e.target === $('guideSheet')) toggleGuide(false); });
+}
+function toggleGuide(open) {
+  const sh = $('guideSheet'); if (open === undefined) open = sh.hidden;
+  sh.hidden = !open; $('guideBtn').setAttribute('aria-expanded', String(open)); $('guideBtn').setAttribute('aria-pressed', String(open));
+  if (open) { guide.lastFocus = document.activeElement; renderGuide(true); $('guideClose').focus(); }
+  else if (guide.lastFocus && guide.lastFocus.focus) guide.lastFocus.focus();
 }
 const GEN_WORD = { drone: 'sustained partials', pluck: 'plucked strands', blow: 'breath through a hollow', grain: 'grains of bark and water' };
 const PING_WORD = { modal: 'ring like a struck bar', pluck: 'pluck like a taut thread', blow: 'sound like a small pipe' };
@@ -995,9 +1050,9 @@ function guideItems(w) {
   groups.push(['ground', 'Ground', ground]);
   // animals
   const fauna = [];
-  for (const k of ['songbird', 'owl', 'cricket', 'woodpecker', 'deer', 'stag', 'nutcrackers', 'jays', 'squirrel', 'boar', 'beetles']) {
-    if (!seen[k]) continue; const G = GUIDE.fauna[k];
-    fauna.push({ key: 'fauna:' + k, glyph: ['fauna', k], name: G.name, sub: G.latin || '', count: seen[k], here: `Heard or seen ${seen[k] === 1 ? 'once' : seen[k] + ' times'} in this forest.`, nature: G.nature, sound: G.sound });
+  for (const k of ['songbird', 'cuckoo', 'owl', 'bat', 'cricket', 'bees', 'woodpecker', 'deer', 'stag', 'roe', 'fox', 'nutcrackers', 'jays', 'squirrel', 'boar', 'beetles']) {
+    const n = k === 'squirrel' ? (seen.squirrel || 0) + (seen.stripping || 0) : seen[k]; if (!n) continue; const G = GUIDE.fauna[k];
+    fauna.push({ key: 'fauna:' + k, glyph: ['fauna', k], name: G.name, sub: G.latin || '', count: n, here: `Heard or seen ${n === 1 ? 'once' : n + ' times'} in this forest.`, nature: G.nature, sound: G.sound });
   }
   groups.push(['fauna', 'Animals', fauna]);
   // the network
@@ -1008,7 +1063,7 @@ function guideItems(w) {
   groups.push(['network', 'In the network', net]);
   // weather and seasons
   const wx = [];
-  for (const k of ['rain', 'snow', 'fog', 'storm', 'windthrow', 'drought', 'thunder', 'frost', 'browse']) {
+  for (const k of ['rain', 'drip', 'snow', 'unload', 'melt', 'fog', 'storm', 'windthrow', 'drought', 'thunder', 'frost', 'seedfall', 'leaffall', 'browse']) {
     if (!seen[k] || (k === 'snow' && w.snow > 0.1)) continue; const G = GUIDE.weather[k];
     wx.push({ key: 'weather:' + k, glyph: ['weather', k], name: G.name, sub: '', count: seen[k], here: `${seen[k] === 1 ? 'Once' : seen[k] + ' times'} in this forest so far.`, nature: G.nature, sound: G.sound });
   }
@@ -1017,7 +1072,12 @@ function guideItems(w) {
 }
 function renderGuide(force) {
   const box = $('guideList'); if (!box || !world) return;
-  $('gtabLiving').setAttribute('aria-pressed', String(guide.tab === 'living')); $('gtabLegend').setAttribute('aria-pressed', String(guide.tab === 'legend'));
+  if ($('guideSheet').hidden) return;
+  $('gtabLiving').setAttribute('aria-pressed', String(guide.tab === 'living')); $('gtabLegend').setAttribute('aria-pressed', String(guide.tab === 'legend')); $('gtabSound').setAttribute('aria-pressed', String(guide.tab === 'sound'));
+  if (guide.tab === 'sound') {
+    if (force || guide.mode !== 'sound') { box.innerHTML = `<div class="concept gwide">${SOUND_CONCEPT}</div>`; guide.mode = 'sound'; guide.sig = ''; }
+    return;
+  }
   if (guide.tab === 'legend') {
     if (force || guide.mode !== 'legend') {
       box.innerHTML = '';
@@ -1026,7 +1086,7 @@ function renderGuide(force) {
     }
     return;
   }
-  if (guide.mode !== 'living' || force) { if (guide.mode !== 'living') { box.innerHTML = ''; guide.entries.clear(); } guide.mode = 'living'; }
+  if (guide.mode !== 'living' || force) { if (guide.mode !== 'living') { box.innerHTML = ''; guide.entries.clear(); guide.sig = ''; } guide.mode = 'living'; }
   const groups = guideItems(world), nodes = [], keys = [];
   for (const [gk, title, items] of groups) {
     if (!items.length) continue;
@@ -1051,7 +1111,9 @@ function guideEntry(it) {
     const here = document.createElement('p'); here.className = 'ghere';
     const nat = document.createElement('p'); nat.innerHTML = '<b>In nature.</b> <span></span>';
     const snd = document.createElement('p'); snd.innerHTML = '<b>As sound.</b> <span></span>';
-    body.append(here, nat, snd); el.append(head, body);
+    const show = document.createElement('button'); show.className = 'btn small'; show.textContent = 'Show on the map'; show.title = 'Close the guide; the forest marks where this lives';
+    show.onclick = () => { guide.sel = it.key; toggleGuide(false); };
+    body.append(here, nat, snd, show); el.append(head, body);
     e = { el, b, i, cnt, here, nat: nat.querySelector('span'), snd: snd.querySelector('span'), body, head, last: {} };
     head.onclick = () => {
       const open = el.dataset.open !== 'true'; el.dataset.open = String(open); body.hidden = !open; head.setAttribute('aria-expanded', String(open));
@@ -1104,6 +1166,10 @@ function drawGlyph(g, [kind, key]) {
     else if (key === 'deer' || key === 'stag') { line([[30, 54], [30, 34]], bone, 3); line([[30, 34], [18, 14], [10, 12]], bone, 2); line([[30, 34], [42, 14], [50, 12]], bone, 2); line([[22, 22], [16, 26]], bone, 2); line([[38, 22], [44, 26]], bone, 2); }
     else if (key === 'squirrel') { g.fillStyle = dark ? '#c4683a' : '#9a4a22'; g.beginPath(); g.ellipse(26, 40, 9, 7, 0, 0, TAU); g.fill(); g.strokeStyle = g.fillStyle; g.lineWidth = 6; g.beginPath(); g.moveTo(34, 42); g.quadraticCurveTo(52, 30, 40, 12); g.stroke(); }
     else if (key === 'boar') { g.fillStyle = dark ? '#7a6250' : '#3d2e22'; g.beginPath(); g.ellipse(28, 34, 18, 10, 0, 0, TAU); g.fill(); g.beginPath(); g.ellipse(48, 36, 7, 5, 0.4, 0, TAU); g.fill(); g.strokeStyle = g.fillStyle; g.lineWidth = 3; for (const x of [18, 24, 34, 40]) line([[x, 40], [x, 50]], g.fillStyle, 3); }
+    else if (key === 'bat') { g.beginPath(); g.moveTo(6, 22); g.quadraticCurveTo(14, 34, 22, 28); g.quadraticCurveTo(26, 38, 30, 32); g.quadraticCurveTo(34, 38, 38, 28); g.quadraticCurveTo(46, 34, 54, 22); g.quadraticCurveTo(42, 26, 30, 22); g.quadraticCurveTo(18, 26, 6, 22); g.fill(); g.globalAlpha = 0.5; for (const r of [8, 13]) { g.beginPath(); g.arc(30, 44, r, -2.2, -0.9); g.stroke(); } g.globalAlpha = 1; }
+    else if (key === 'bees') { g.fillStyle = PAL.spore; g.beginPath(); g.ellipse(30, 34, 11, 8, 0, 0, TAU); g.fill(); line([[26, 27], [26, 41]], PAL.soil, 2.5); line([[33, 27], [33, 41]], PAL.soil, 2.5); g.globalAlpha = 0.5; g.fillStyle = bone; g.beginPath(); g.ellipse(26, 22, 6, 9, -0.5, 0, TAU); g.fill(); g.beginPath(); g.ellipse(35, 22, 6, 9, 0.5, 0, TAU); g.fill(); g.globalAlpha = 1; }
+    else if (key === 'cuckoo') { g.beginPath(); g.moveTo(10, 30); g.quadraticCurveTo(24, 22, 34, 28); g.lineTo(54, 36); g.lineTo(34, 34); g.quadraticCurveTo(22, 40, 10, 30); g.fill(); g.font = '600 13px sans-serif'; g.textAlign = 'center'; g.fillText('♪', 16, 16); g.fillText('♪', 28, 20); }
+    else if (key === 'fox' || key === 'roe') { const c = key === 'fox' ? (dark ? '#d9763a' : '#a4501e') : (dark ? '#b08a62' : '#6e5232'); g.fillStyle = c; g.strokeStyle = c; g.beginPath(); g.ellipse(28, 34, 15, 8, 0, 0, TAU); g.fill(); g.beginPath(); g.moveTo(40, 30); g.lineTo(50, 22); g.lineTo(52, 32); g.closePath(); g.fill(); if (key === 'fox') { g.lineWidth = 6; g.beginPath(); g.moveTo(14, 34); g.quadraticCurveTo(4, 40, 8, 50); g.stroke(); } for (const x of [20, 36]) line([[x, 40], [x, 52]], c, 2.5); if (key === 'roe') { line([[49, 22], [47, 12]], c, 1.5); line([[51, 22], [53, 12]], c, 1.5); } }
     else if (key === 'beetles') { g.fillStyle = dark ? '#8a6040' : '#4a3020'; g.beginPath(); g.ellipse(30, 34, 8, 14, 0, 0, TAU); g.fill(); line([[30, 20], [30, 48]], PAL.soil, 1); for (const s of [-1, 1]) for (const y of [26, 34, 42]) line([[30 + s * 7, y], [30 + s * 14, y + 3]], g.fillStyle, 1.5); }
     return;
   }
@@ -1136,6 +1202,11 @@ function drawGlyph(g, [kind, key]) {
       case 'rain': g.strokeStyle = dark ? 'rgba(180,200,230,0.9)' : 'rgba(40,60,90,0.9)'; g.lineWidth = 1.5; for (let i = 0; i < 6; i++) line([[12 + i * 7, 14 + (i % 2) * 8], [9 + i * 7, 26 + (i % 2) * 8]], g.strokeStyle, 1.5); for (let i = 0; i < 5; i++) line([[16 + i * 7, 38 + (i % 2) * 6], [13 + i * 7, 50 + (i % 2) * 6]], g.strokeStyle, 1.5); return;
       case 'snow': g.strokeStyle = bone; g.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; line([[30 - Math.cos(a) * 16, 30 - Math.sin(a) * 16], [30 + Math.cos(a) * 16, 30 + Math.sin(a) * 16]], bone, 1.5); } return;
       case 'fog': for (let i = 0; i < 4; i++) line([[8 + (i % 2) * 6, 18 + i * 9], [52 - (i % 2) * 6, 18 + i * 9]], dark ? 'rgba(210,220,225,0.7)' : 'rgba(120,130,140,0.7)', 3); return;
+      case 'drip': g.fillStyle = dark ? 'rgba(170,205,240,0.9)' : 'rgba(40,80,140,0.9)'; for (const [x, y, r] of [[20, 16, 3], [36, 26, 4], [26, 40, 3]]) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.moveTo(x - r, y); g.lineTo(x, y - r * 2.2); g.lineTo(x + r, y); g.fill(); } g.strokeStyle = g.fillStyle; g.lineWidth = 1; g.beginPath(); g.ellipse(30, 52, 12, 3, 0, 0, TAU); g.stroke(); return;
+      case 'unload': { const c = TREE_SPECIES.spruce.col[1]; g.fillStyle = dark ? hsl(c[0], c[1], c[2] + 14) : hsl(c[0], c[1], c[2]); g.beginPath(); g.moveTo(24, 6); g.lineTo(40, 44); g.lineTo(8, 44); g.closePath(); g.fill(); g.fillStyle = bone; for (const [x, y] of [[44, 20], [48, 30], [44, 40], [50, 48], [46, 54]]) { g.beginPath(); g.arc(x, y, 2.5, 0, TAU); g.fill(); } return; }
+      case 'melt': g.strokeStyle = dark ? '#8fc4ff' : '#2a64b8'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(8, 14); g.bezierCurveTo(30, 18, 14, 36, 34, 40); g.bezierCurveTo(46, 43, 44, 52, 54, 54); g.stroke(); return;
+      case 'seedfall': line([[8, 10], [52, 10]], dim, 2); g.fillStyle = PAL.spore; for (const [x, y] of [[16, 22], [30, 34], [42, 26], [22, 48]]) { g.beginPath(); g.ellipse(x, y, 4, 2.5, x, 0, TAU); g.fill(); } return;
+      case 'leaffall': g.fillStyle = dark ? 'rgba(220,150,70,0.9)' : 'rgba(160,90,30,0.9)'; for (const [x, y, a] of [[18, 16, 0.5], [38, 26, -0.6], [24, 40, 1.2], [44, 48, 0.2]]) { g.save(); g.translate(x, y); g.rotate(a); g.beginPath(); g.ellipse(0, 0, 7, 3.5, 0, 0, TAU); g.fill(); g.restore(); } return;
       case 'storm': g.strokeStyle = bone; g.lineWidth = 2; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(8, 18 + i * 12); g.bezierCurveTo(24, 10 + i * 12, 34, 26 + i * 12, 52, 16 + i * 12); g.stroke(); } return;
       case 'windthrow': line([[8, 44], [50, 36]], dark ? '#9a7a60' : '#5f4632', 5); g.fillStyle = dark ? 'rgba(140,105,65,0.8)' : 'rgba(90,65,40,0.8)'; g.beginPath(); g.ellipse(10, 38, 6, 12, 0, 0, TAU); g.fill(); return;
       case 'drought': g.strokeStyle = PAL.spore; g.lineWidth = 2; g.beginPath(); g.arc(30, 28, 9, 0, TAU); g.stroke(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; line([[30 + Math.cos(a) * 13, 28 + Math.sin(a) * 13], [30 + Math.cos(a) * 18, 28 + Math.sin(a) * 18]], PAL.spore, 2); } return;
