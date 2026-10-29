@@ -1,0 +1,140 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Italiana; src: url(italiana.woff2); }
+@font-face { font-family: MM; font-weight: 300; src: url(mm300.woff2); }
+@font-face { font-family: MM; font-weight: 400; src: url(mm400.woff2); }
+@font-face { font-family: MM; font-weight: 500; src: url(mm500.woff2); }
+html, body { margin: 0; background: #0c0f0b; }
+#c { display: block; }
+</style></head><body><canvas id="c" width="2160" height="2700"></canvas>
+<script>
+const W = 2160, H = 2700, TAU = Math.PI * 2;
+const C = { soil: '#0c0f0b', bone: '#ece6d4', dim: '#8e9786', hypha: '#9fe6c8', spore: '#e7b860', geo: '#d9cfa8', alarm: '#ff6f5c' };
+let s = 7; const R = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const rr = (a, b) => a + (b - a) * R();
+const g = document.getElementById('c').getContext('2d');
+const GROUND = 1290;
+async function main() {
+  await document.fonts.load('400 40px Italiana'); await document.fonts.load('300 20px MM'); await document.fonts.load('400 20px MM'); await document.fonts.load('500 20px MM');
+  // ground: deep soil gradient below, night air above
+  let gr = g.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, '#0a0d0c'); gr.addColorStop(0.42, '#101611'); gr.addColorStop(0.478, '#141b13'); gr.addColorStop(0.48, '#120f0b'); gr.addColorStop(0.8, '#0d0b08'); gr.addColorStop(1, '#090807');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // flower of life, faint, centred on the ground line
+  g.strokeStyle = C.geo; g.lineWidth = 1.6;
+  const P = 210; const cx = W / 2, cy = GROUND;
+  const centres = [[0, 0]]; for (let k = 0; k < 6; k++) centres.push([Math.sin(k * TAU / 6) * P, Math.cos(k * TAU / 6) * P]);
+  for (let k = 0; k < 6; k++) for (const m of [2]) centres.push([Math.sin(k * TAU / 6) * P * m, Math.cos(k * TAU / 6) * P * m]);
+  for (let k = 0; k < 6; k++) centres.push([Math.sin((k + 0.5) * TAU / 6) * P * Math.sqrt(3), Math.cos((k + 0.5) * TAU / 6) * P * Math.sqrt(3)]);
+  g.globalAlpha = 0.06; for (const [x, y] of centres) { g.beginPath(); g.arc(cx + x, cy + y, P, 0, TAU); g.stroke(); }
+  g.globalAlpha = 0.08; g.beginPath(); g.arc(cx, cy, P * 3, 0, TAU); g.stroke(); g.globalAlpha = 1;
+
+  // trees
+  const trees = [];
+  const xs = [250, 520, 760, 1010, 1240, 1500, 1730, 1950];
+  xs.forEach((x0, i) => { const x = x0 + rr(-40, 40), con = [1, 0, 1, 1, 0, 1, 0, 1][i], h = rr(330, 620) * (i === 3 ? 1.25 : 1); trees.push({ x, h, con, hue: con ? rr(150, 175) : rr(85, 120) }); });
+  // mycelium first (behind roots)
+  const tips = [];
+  const hyph = [];
+  function growPath(x0, y0, x1, y1, n, wob) {
+    // a few wandering control points, joined by a Catmull-Rom spline: cords curve, they don't zig-zag
+    const dist = Math.hypot(x1 - x0, y1 - y0); wob = Math.min(wob, dist * 0.35); const sag = rr(40, 320) * Math.min(1, dist / 500), cps = [[x0, y0]]; const m = 5;
+    for (let k = 1; k < m; k++) { const t = k / m; cps.push([x0 + (x1 - x0) * t + rr(-wob, wob) * 0.5, y0 + (y1 - y0) * t + Math.sin(t * Math.PI) * sag + rr(-wob, wob) * 0.35]); }
+    cps.push([x1, y1]); const P = [cps[0], ...cps, cps[cps.length - 1]], out = [];
+    for (let i = 1; i < P.length - 2; i++) for (let k = 0; k < 10; k++) { const t = k / 10, t2 = t * t, t3 = t2 * t, a = P[i - 1], b = P[i], c = P[i + 1], d = P[i + 2];
+      const f = (j) => 0.5 * ((2 * b[j]) + (-a[j] + c[j]) * t + (2 * a[j] - 5 * b[j] + 4 * c[j] - d[j]) * t2 + (-a[j] + 3 * b[j] - 3 * c[j] + d[j]) * t3);
+      out.push([f(0) + rr(-1.5, 1.5), f(1) + rr(-1.5, 1.5)]); }
+    out.push([x1, y1]); return out;
+  }
+  function smooth(p) { for (let it = 0; it < 2; it++) { const q = [p[0]]; for (let k = 1; k < p.length - 1; k++) q.push([(p[k - 1][0] + p[k][0] * 2 + p[k + 1][0]) / 4, (p[k - 1][1] + p[k][1] * 2 + p[k + 1][1]) / 4]); q.push(p[p.length - 1]); p = q; } return p; }
+  function walk(x, y, a, len, step, curl) { const pts = [[x, y]]; for (let k = 0; k < len; k++) { a += rr(-curl, curl); x += Math.cos(a) * step; y += Math.sin(a) * step; if (y < GROUND + 30) { a = Math.abs(a); y = GROUND + 30; } pts.push([x, y]); } return pts; }
+  // root systems
+  const roots = [];
+  for (const t of trees) {
+    t.rootTips = [];
+    const n = 7;
+    for (let k = 0; k < n; k++) { const a = Math.PI / 2 + rr(-1.15, 1.15); const pts = walk(t.x, GROUND, a, Math.floor(rr(14, 24)), rr(13, 18), 0.22); roots.push({ pts, w: rr(3, 7) }); t.rootTips.push(pts[pts.length - 1]);
+      for (let b = 0; b < 2; b++) { const p0 = pts[Math.floor(rr(4, pts.length - 2))]; const p2 = walk(p0[0], p0[1], a + rr(-0.9, 0.9), Math.floor(rr(6, 12)), 11, 0.3); roots.push({ pts: p2, w: rr(1.2, 2.5) }); t.rootTips.push(p2[p2.length - 1]); } }
+  }
+  // cords between neighbouring trees (and a few long-distance ones)
+  const COLS = [[160, 75, 72], [155, 60, 64], [330, 55, 72], [42, 80, 66], [190, 60, 68]];
+  const cords = [];
+  for (let i = 0; i < trees.length; i++) for (const j of [i + 1, i + 2]) {
+    if (j >= trees.length || (j === i + 2 && R() < 0.55)) continue; const A = trees[i], B = trees[j];
+    for (let c = 0; c < (j === i + 1 ? 3 : 1); c++) { const a = A.rootTips[Math.floor(R() * A.rootTips.length)], b = B.rootTips[Math.floor(R() * B.rootTips.length)]; const pts = growPath(a[0], a[1] + rr(-20, 60), b[0], b[1] + rr(-20, 60), 40, rr(60, 200)); cords.push({ pts, col: COLS[Math.floor(R() * COLS.length)], w: c === 0 ? rr(3.5, 5.5) : rr(1.4, 2.6) }); }
+  }
+  // fine exploring hyphae from cords
+  for (const cd of cords) for (let k = 0; k < 9; k++) { const p0 = cd.pts[Math.floor(rr(2, cd.pts.length - 2))]; const pts = walk(p0[0], p0[1], rr(0, TAU), Math.floor(rr(5, 16)), rr(9, 14), 0.5); hyph.push({ pts, col: cd.col }); tips.push([pts[pts.length - 1], cd.col]); }
+  for (let k = 0; k < 160; k++) { const x = rr(60, W - 60), y = rr(GROUND + 60, 2120); const pts = walk(x, y, rr(0, TAU), Math.floor(rr(4, 12)), 9, 0.6); const col = COLS[Math.floor(R() * COLS.length)]; hyph.push({ pts, col, faint: true }); if (R() < 0.5) tips.push([pts[pts.length - 1], col]); }
+  const line = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) g.lineTo(pts[k][0], pts[k][1]); };
+  const hsl = (c, a) => `hsla(${c[0]},${c[1]}%,${c[2]}%,${a})`;
+  // clip underground region with a soft fade near the text
+  g.save(); g.beginPath(); g.rect(0, GROUND, W, 2200 - GROUND); g.clip();
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const r of roots) { g.strokeStyle = 'rgba(150,118,88,0.55)'; g.lineWidth = r.w; line(r.pts); g.stroke(); }
+  g.globalCompositeOperation = 'lighter';
+  for (const h of hyph) { g.strokeStyle = hsl(h.col, h.faint ? 0.16 : 0.32); g.lineWidth = h.faint ? 1.4 : 1.8; line(h.pts); g.stroke(); }
+  for (const cd of cords) { g.strokeStyle = hsl(cd.col, 0.18); g.lineWidth = cd.w + 10; line(cd.pts); g.stroke(); g.strokeStyle = hsl(cd.col, 0.75); g.lineWidth = cd.w; line(cd.pts); g.stroke(); }
+  // a signal travelling as a waveform along the main cords: the network heard
+  for (const cd of cords.filter(c => c.w > 3.4)) {
+    const pts = cd.pts, L = pts.length; const t0 = rr(0.12, 0.4), t1 = t0 + rr(0.3, 0.45);
+    g.beginPath(); let first = true;
+    for (let k = Math.floor(L * t0); k < Math.min(L - 1, Math.floor(L * t1)); k++) { const [x, y] = pts[k], [x2, y2] = pts[k + 1]; const pa = pts[Math.max(0, k - 4)], pb = pts[Math.min(L - 1, k + 5)]; const nx = -(pb[1] - pa[1]), ny = pb[0] - pa[0], nl = Math.hypot(nx, ny) || 1; for (let m = 0; m < 6; m++) { const f = m / 6, px = x + (x2 - x) * f, py = y + (y2 - y) * f, u = (k + f - L * t0) / (L * (t1 - t0)); const env = Math.sin(u * Math.PI); const amp = 20 * env * env * Math.sin((k + f) * 0.95); if (first) { g.moveTo(px + nx / nl * amp, py + ny / nl * amp); first = false; } else g.lineTo(px + nx / nl * amp, py + ny / nl * amp); } }
+    g.strokeStyle = 'rgba(236,230,212,0.8)'; g.lineWidth = 2.2; g.stroke();
+    // spike-train pulses ahead of the wave
+    for (let q = 0; q < 4; q++) { const p = pts[Math.min(L - 1, Math.floor(L * (t1 + 0.03 + q * 0.04)))]; glow(p[0], p[1], 9 - q * 1.5, hsl(cd.col, 1)); }
+  }
+  for (const [p, col] of tips) glow(p[0], p[1], 3.2, hsl([col[0], col[1], 78], 1), 0.6);
+  // sugar packets
+  for (let k = 0; k < 14; k++) { const cd = cords[Math.floor(R() * cords.length)]; const p = cd.pts[Math.floor(rr(3, cd.pts.length - 3))]; glow(p[0], p[1], 7, C.spore); }
+  g.globalCompositeOperation = 'source-over';
+  // fade the soil into the text area
+  const fd = g.createLinearGradient(0, 1980, 0, 2200); fd.addColorStop(0, 'rgba(12,11,8,0)'); fd.addColorStop(1, 'rgba(12,11,8,1)'); g.fillStyle = fd; g.fillRect(0, 1980, W, 220);
+  g.restore();
+  function glow(x, y, r, col, k = 1) { const gg = g.createRadialGradient(x, y, 0, x, y, r * 4.5); gg.addColorStop(0, col); gg.addColorStop(0.22, col.replace(/[\d.]+\)$/, (0.5 * k) + ')').replace(/^#.*/, col)); gg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gg; g.beginPath(); g.arc(x, y, r * 4.5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.globalAlpha = 0.85 * k; g.beginPath(); g.arc(x, y, r * 0.45, 0, TAU); g.fill(); g.globalAlpha = 1; }
+
+  // ground line, a little glow
+  g.strokeStyle = 'rgba(217,207,168,0.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, GROUND); for (let x = 0; x <= W; x += 20) g.lineTo(x, GROUND + Math.sin(x / 140) * 3 + Math.sin(x / 37) * 1.2); g.stroke();
+  // grass and moss tufts
+  g.strokeStyle = 'rgba(140,170,110,0.45)'; g.lineWidth = 2;
+  for (let k = 0; k < 120; k++) { const x = rr(0, W); for (let b = 0; b < 3; b++) { g.beginPath(); g.moveTo(x + b * 4, GROUND); g.quadraticCurveTo(x + b * 4 + rr(-4, 4), GROUND - 10, x + b * 5 + rr(-8, 8), GROUND - rr(10, 26)); g.stroke(); } }
+
+  // trees above ground: trunks, crowns, and the sound each one makes
+  for (const t of trees) {
+    const top = GROUND - t.h, tc = `hsla(${t.hue},${t.con ? 32 : 40}%,${t.con ? 46 : 50}%,`;
+    g.strokeStyle = 'rgba(160,128,98,0.85)'; g.lineWidth = t.con ? 7 : 9; g.beginPath(); g.moveTo(t.x, GROUND); g.lineTo(t.x, top + 40); g.stroke();
+    if (t.con) { const w = t.h * 0.2; for (const [f, al] of [[1, 0.28], [0.72, 0.22]]) { g.fillStyle = tc + al + ')'; g.strokeStyle = tc + '0.9)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(t.x, top - 30); g.lineTo(t.x + w * f, top + t.h * 0.62 * f + 40); g.lineTo(t.x - w * f, top + t.h * 0.62 * f + 40); g.closePath(); g.fill(); if (f === 1) g.stroke(); } }
+    else { const r = t.h * 0.24; g.fillStyle = tc + '0.26)'; g.strokeStyle = tc + '0.9)'; g.lineWidth = 2.5; g.beginPath(); g.arc(t.x, top + r * 0.6, r, 0, TAU); g.fill(); g.stroke(); g.globalAlpha = 0.5; g.beginPath(); g.arc(t.x - r * 0.35, top + r * 0.75, r * 0.55, 0, TAU); g.stroke(); g.globalAlpha = 1; }
+    // root plate rings
+    g.strokeStyle = 'rgba(231,184,96,0.25)'; g.lineWidth = 1.5; for (let i = 1; i <= 2; i++) { g.beginPath(); g.ellipse(t.x, GROUND, 30 * i, 7 * i, 0, 0, TAU); g.stroke(); }
+  }
+  // sound rings radiating from three trees and the ground
+  for (const [t, n] of [[trees[1], 5], [trees[3], 6], [trees[6], 4]]) { const y = GROUND - t.h * 0.55; for (let i = 1; i <= n; i++) { g.strokeStyle = `rgba(236,230,212,${0.38 - i * 0.055})`; g.lineWidth = 2; g.beginPath(); g.arc(t.x, y, 60 + i * 52, -Math.PI * 0.92, -Math.PI * 0.08); g.stroke(); } }
+  // mushrooms at the colony edges, and spores rising
+  const shroom = (x, u, cap) => { g.fillStyle = 'rgba(232,224,204,0.95)'; g.beginPath(); g.moveTo(x - u * 0.16, GROUND); g.lineTo(x - u * 0.12, GROUND - u * 0.9); g.lineTo(x + u * 0.12, GROUND - u * 0.9); g.lineTo(x + u * 0.16, GROUND); g.closePath(); g.fill(); g.fillStyle = cap; g.beginPath(); g.ellipse(x, GROUND - u * 0.9, u * 0.62, u * 0.42, 0, Math.PI, 0); g.closePath(); g.fill(); };
+  for (const [x, u, cap] of [[620, 46, '#c76a3a'], [655, 30, '#c76a3a'], [1120, 40, '#d8c9a2'], [1380, 52, '#9b5fb0'], [1410, 34, '#9b5fb0'], [1840, 42, '#e0a63c'], [345, 32, '#b98a5c']]) shroom(x, u, cap);
+  g.globalCompositeOperation = 'lighter';
+  for (let k = 0; k < 70; k++) { const base = [620, 1380, 1840, 1120][k % 4]; const x = base + rr(-60, 140) + (GROUND - 0) * 0, y = GROUND - rr(60, 520); g.fillStyle = `rgba(231,184,96,${rr(0.25, 0.8)})`; g.beginPath(); g.arc(x + (GROUND - y) * 0.25, y, rr(1.5, 3.4), 0, TAU); g.fill(); }
+  // stars
+  for (let k = 0; k < 90; k++) { g.fillStyle = `rgba(236,230,212,${rr(0.1, 0.5)})`; g.beginPath(); g.arc(rr(0, W), rr(560, 760), rr(0.8, 2), 0, TAU); g.fill(); }
+  g.globalCompositeOperation = 'source-over';
+
+  // wordmark
+  const img = new Image(); img.src = 'data:image/svg+xml,' + encodeURIComponent((await (await fetch('wordmark.svg')).text()).replace(/currentColor/g, '#ece6d4'));
+  await img.decode(); const ww = 1180, wh = ww * img.height / img.width; g.drawImage(img, 150, 150, ww, wh);
+  g.fillStyle = '#8e9786'; g.font = '400 30px MM'; g.letterSpacing = '9px'; g.fillText('A MYCORRHIZAL SOUND FOREST', 168, 150 + wh + 30);
+  // concept text
+  g.letterSpacing = '0px'; g.fillStyle = C.bone; g.font = '400 92px Italiana';
+  g.fillText('Listen to the wood wide web.', 150, 2320);
+  g.font = '300 34px MM'; g.fillStyle = '#c9c4b2';
+  const body = ['Beneath the forest floor, trees and fungi trade', 'sugar, water and electrical signals through a', 'living network. Understory turns every root,', 'hypha and spike into sound, in 3D, as it grows.'];
+  body.forEach((l, i) => g.fillText(l, 152, 2410 + i * 52));
+  g.font = '500 24px MM'; g.letterSpacing = '6px'; g.fillStyle = C.hypha; g.fillText('BEST WITH HEADPHONES', 152, 2640);
+  g.fillStyle = '#8e9786'; g.textAlign = 'right'; g.fillText('DANIEL BOVOLON', W - 150, 2640);
+  // layer key on the right, in the margin of the sky
+  g.textAlign = 'right'; g.letterSpacing = '5px'; g.font = '400 22px MM'; g.fillStyle = 'rgba(236,230,212,0.55)';
+  g.fillText('CANOPY · WIND · BIRDS', W - 150, GROUND - 690); g.fillText('ROOTS · HYPHAE · SIGNALS', W - 150, 2150);
+  document.title = 'done';
+}
+main();
+</script></body></html>

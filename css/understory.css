@@ -245,7 +245,7 @@ input[type=range]:focus-visible { outline: 2px solid var(--hypha); outline-offse
   .feed { grid-template-columns: minmax(0, 1fr); max-height: none; }
   .feed .hud, .feed .hint, .feed .feedright { grid-column: 1; grid-row: auto; }
   .seedbox { flex-basis: 100%; }
-  .outbox { flex-wrap: nowrap; }
+  .outbox { flex-wrap: wrap; }
 }
 @media (max-width: 520px) {
   .layer .sl { grid-template-columns: 96px minmax(0, 1fr) 36px 30px; }
@@ -261,3 +261,13 @@ input[type=range]:focus-visible { outline: 2px solid var(--hypha); outline-offse
 .chip b { font-weight: 600; color: var(--bone); }
 .chip small { color: var(--dim); font-size: 9px; }
 .chip.static { cursor: default; }
+
+/* settings sheet */
+.setin { width: min(520px, 100%); grid-template-rows: auto minmax(0, 1fr); padding-bottom: 16px; }
+.setbody { display: grid; gap: 4px; overflow-y: auto; }
+.setrow { border-top: 1px solid var(--line); padding: 12px 0 8px; }
+.setrow h3 { margin: 0 0 2px; font: 400 18px/1.2 var(--f-display); letter-spacing: 0.04em; }
+.setrow .sub { margin: 0 0 10px; color: var(--dim); font-size: 10.5px; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg .chip { min-width: 74px; justify-content: center; }
+@media (max-width: 720px) { .sheet .setin { height: auto; max-height: 100svh; align-self: end; border-top: 1px solid var(--line); overflow-y: auto; padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)); } }

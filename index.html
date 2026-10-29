@@ -16,6 +16,7 @@
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<script>try { var m = localStorage.getItem('understory.theme'); if (m === 'light' || m === 'dark') document.documentElement.dataset.theme = m; } catch (e) { }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Italiana&family=Martian+Mono:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="css/understory.css">
@@ -40,6 +41,7 @@
     <div class="outbox">
       <canvas id="meter" width="220" height="52" aria-label="Output level"></canvas>
       <button class="btn small" id="guideBtn" aria-haspopup="dialog" aria-expanded="false" title="Field guide: what lives here, the map legend and the sound concept (F)">Field guide</button>
+      <button class="btn small" id="setBtn" aria-haspopup="dialog" aria-expanded="false" title="Settings: appearance, sharing">Settings</button>
       <button class="btn small" id="modeBtn" title="Headphones: binaural 3D with interaural delay and head shadow. Speakers: stereo panning with distance and depth (H)">Headphones 3D</button>
     </div>
   </header>
@@ -170,6 +172,34 @@
       <button class="chip" id="gtabSound" role="tab" aria-pressed="false">Sound concept</button>
     </div>
     <div class="glist" id="guideList"></div>
+  </div>
+</div>
+<div class="sheet" id="setSheet" role="dialog" aria-modal="true" aria-labelledby="setTitle" hidden>
+  <div class="sheetin setin">
+    <header class="sheethead">
+      <div><h2 id="setTitle">Settings</h2><p class="sub">How Understory looks, and how to pass it on.</p></div>
+      <button class="btn small sheetx" id="setClose" aria-label="Close settings">Close</button>
+    </header>
+    <div class="setbody">
+      <section class="setrow">
+        <h3>Appearance</h3>
+        <p class="sub">Night soil or daylight paper. Auto follows your device.</p>
+        <div class="seg" role="radiogroup" aria-label="Appearance">
+          <button class="chip" role="radio" data-theme-set="auto" aria-pressed="true">Auto</button>
+          <button class="chip" role="radio" data-theme-set="dark" aria-pressed="false">Dark</button>
+          <button class="chip" role="radio" data-theme-set="light" aria-pressed="false">Light</button>
+        </div>
+      </section>
+      <section class="setrow">
+        <h3>Share Understory</h3>
+        <p class="sub">Send the app to someone, or send this forest: its seed code grows the same beginnings anywhere.</p>
+        <div class="row">
+          <button class="btn grow" id="shareApp">Share Understory</button>
+          <button class="btn" id="shareForest">Share this forest</button>
+        </div>
+        <p class="note" id="shareNote" aria-live="polite"></p>
+      </section>
+    </div>
   </div>
 </div>
 <script src="js/sim.js"></script>

@@ -1,6 +1,6 @@
 {
   "name": "understory",
-  "version": "5.2.0",
+  "version": "5.3.0",
   "description": "A mycorrhizal sound forest for the browser (Web Audio + AudioWorklet): trees, fungi, signals, sugar and spores in binaural 3D.",
   "private": true,
   "type": "module",

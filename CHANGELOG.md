@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.3.0
+- Settings: a new sheet in the top bar with Appearance (Auto, Dark, Light) and sharing. The choice is remembered and applies on desktop and mobile; Auto follows the device.
+- Share Understory: shares the app with the device's share sheet, or copies the link. Share this forest sends the link with the current seed code.
+- Header controls wrap cleanly on narrow phones.
+- Press: a 4:5 cover image for Instagram and social media in `press/`.
+
 ## 5.2.0
 - Mushrooms really fruit now. Colonies save surplus sugar in season, set pins, and fruit after rain in wet, cool weather; each mushroom stands for about an hour (emerging, maturing, shedding spores, decaying) instead of four minutes. Forests that come back from a long absence show what is standing. Mushrooms are drawn larger.
 - Ten new happenings, each in its real season and hour: canopy drip after rain, seed fall (cones, nuts, spinning maple keys, squirrels stripping cones), snow unloading from conifers, meltwater rivulets, leaf fall, bats hunting at dusk (echolocation divided down into hearing, with the feeding buzz), bumblebees on willow, maple, rowan and meadow flowers, the cuckoo in May and June, fox calls on winter nights, roe deer barking. They are drawn on the map and have field guide entries.

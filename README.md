@@ -232,6 +232,7 @@ Inside a claude.ai artifact, files go through the platform's save dialog, and WA
 | 1–8 | tools |
 | G | walk in rhythm / stop |
 | F | field guide (Esc closes) |
+| Settings button | appearance (auto, dark, light) and sharing |
 | W A S D | walk |
 | Q / E | turn |
 | Shift-drag or right-drag | tilt the view |

@@ -862,6 +862,7 @@ function initInput() {
     if (k === 'h') { toggleMode(); return; }
     if (k === 'f') { toggleGuide(); return; }
     if (k === 'escape' && !$('guideSheet').hidden) { toggleGuide(false); return; }
+    if (k === 'escape' && !$('setSheet').hidden) { toggleSettings(false); return; }
     if (k >= '1' && k <= '8') { setTool(TOOLS[+k - 1][0]); return; }
     if (k === 'g') { setWalk(state.walkMode ? null : 'rhythm'); return; }
     if ('wasdqe'.includes(k) && k.length === 1) { keys.add(k); e.preventDefault(); }
@@ -992,6 +993,39 @@ function initGuide() {
   $('guideClose').onclick = () => toggleGuide(false);
   // a tap on the blurred forest around the sheet closes it
   $('guideSheet').addEventListener('click', (e) => { if (e.target === $('guideSheet')) toggleGuide(false); });
+}
+// ---------------------------------------------------------------- settings: appearance and sharing
+const THEME_KEY = 'understory.theme';
+const APP_URL = 'https://claude.ai/artifact/Y94SF7pTQ4Cdm9QVGCD3CX';
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'light' || mode === 'dark') root.dataset.theme = mode; else delete root.dataset.theme;
+  for (const b of document.querySelectorAll('[data-theme-set]')) b.setAttribute('aria-pressed', String(b.dataset.themeSet === mode));
+  const dark = mode === 'dark' || (mode !== 'light' && !matchMedia('(prefers-color-scheme: light)').matches);
+  let m = document.querySelector('meta[name="theme-color"]'); if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
+  m.content = dark ? '#0c0f0b' : '#e8ebe2';
+  if (typeof readPalette === 'function') readPalette();
+}
+function initSettings() {
+  let mode = 'auto'; try { mode = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { }
+  applyTheme(mode);
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { let m = 'auto'; try { m = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { } if (m === 'auto') applyTheme('auto'); });
+  for (const b of document.querySelectorAll('[data-theme-set]')) b.onclick = () => { const m = b.dataset.themeSet; try { localStorage.setItem(THEME_KEY, m); } catch (e) { } applyTheme(m); };
+  $('setBtn').onclick = () => toggleSettings(); $('setClose').onclick = () => toggleSettings(false);
+  $('setSheet').addEventListener('click', (e) => { if (e.target === $('setSheet')) toggleSettings(false); });
+  const appUrl = () => (window.top === window && /^https?:$/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname)) ? location.origin + location.pathname : APP_URL;
+  const share = async (url, title, text) => {
+    const note = $('shareNote');
+    try { if (navigator.share) { await navigator.share({ title, text, url }); note.textContent = 'Shared.'; return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(url); note.textContent = `Link copied: ${url}`; } catch (e) { note.textContent = url; }
+  };
+  $('shareApp').onclick = () => share(appUrl(), 'Understory', 'Understory: a mycorrhizal sound forest. Trees and fungi grow, trade and signal underground, and every process is heard in 3D. Best with headphones.');
+  $('shareForest').onclick = () => { const c = state.seed && state.seed.code; share(appUrl() + '#' + c, `Understory · ${state.seed ? state.seed.name : ''}`, `Grow my forest in Understory: seed ${c}.`); };
+}
+function toggleSettings(open) {
+  const sh = $('setSheet'); if (open === undefined) open = sh.hidden;
+  sh.hidden = !open; $('setBtn').setAttribute('aria-expanded', String(open)); $('setBtn').setAttribute('aria-pressed', String(open));
+  if (open) { $('shareNote').textContent = ''; if (!$('guideSheet').hidden) toggleGuide(false); $('setClose').focus(); }
 }
 function toggleGuide(open) {
   const sh = $('guideSheet'); if (open === undefined) open = sh.hidden;
@@ -1573,7 +1607,7 @@ async function boot() {
   scene.cv = $('scene'); scene.g = scene.cv.getContext('2d'); resize(); new ResizeObserver(resize).observe(scene.cv);
   buildTools(); buildSliders(); initInput();
   $('grow').onclick = () => setRunning(!state.running); $('hintGrow').onclick = () => setRunning(true);
-  initGuide();
+  initGuide(); initSettings();
   $('newSeed').onclick = newSeed; $('rec').onclick = toggleRec; $('modeBtn').onclick = toggleMode;
   $('seedCode').onclick = async () => { const c = state.seed.code; try { await navigator.clipboard.writeText(c); setStatus(`Seed code ${c} copied.`); } catch (e) { setStatus(`Seed code: ${c}`); } };
   buildHappenings();
