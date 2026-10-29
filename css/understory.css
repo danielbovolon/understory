@@ -38,18 +38,18 @@ button { cursor: pointer; }
 .app { min-height: 100%; display: grid; grid-template-rows: auto 1fr; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; gap: 12px; }
 
 /* ---------- header */
+
 .app > * { min-width: 0; }
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
-.brand { display: grid; gap: 0; justify-items: start; }
-.brand .wordmark { width: 178px; height: auto; display: block; color: var(--bone); margin: -4px 0 0 -6px; }
-.brand p { margin: 0; color: var(--dim); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; }
+.brand { display: flex; align-items: center; flex: none; }
+.brand .wordmark { width: 196px; height: auto; display: block; color: var(--bone); margin: -6px 0 -10px -8px; }
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; margin: -1px; padding: 0; border: 0; }
-.seedbox { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 260px; }
+.seedbox { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 340px; }
 .seedcode { border: 1px solid var(--line); background: var(--bark); padding: 6px 9px; letter-spacing: 0.2em; font-weight: 600; color: var(--spore); border-radius: 2px; }
 .seedcode:hover { border-color: var(--spore); }
 .seedtxt { min-width: 0; }
 .seedtxt b { display: block; font: 400 19px/1.1 var(--f-display); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.seedtxt small { display: block; color: var(--dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seedtxt small { display: block; color: var(--dim); font-size: 10px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; margin-top: 2px; }
 .transport { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .btn { border: 1px solid var(--line); background: var(--bark); padding: 8px 12px; border-radius: 2px; letter-spacing: 0.1em; font-size: 11px; font-weight: 500; text-transform: uppercase; white-space: nowrap; }
 .btn:hover { border-color: var(--dim); }
@@ -68,12 +68,17 @@ button { cursor: pointer; }
 /* ---------- main */
 main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; min-height: 0; align-items: start; }
 /* the left column: tools above the map, the map itself kept clear, and everything written below it */
-.leftcol { position: sticky; top: 12px; height: calc(100svh - 96px); min-height: 560px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; min-width: 0; }
+.leftcol { container-type: inline-size; position: sticky; top: 12px; height: calc(100svh - 96px); min-height: 560px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; min-width: 0; }
 /* tools centred over the stage; the view controls sit at the right, out of the way */
 .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px 10px; align-items: center; min-width: 0; }
 .toolbar .tools { grid-column: 2; justify-content: center; min-width: 0; }
 .viewctl { grid-column: 3; justify-self: end; display: flex; gap: 4px; }
 .toolbar .toolopts { grid-column: 1 / -1; justify-content: center; }
+/* when the stage is narrower than the tools and view controls side by side, stack them, both centred */
+@container (max-width: 1040px) {
+  .toolbar { grid-template-columns: minmax(0, 1fr); }
+  .toolbar .tools, .viewctl, .toolbar .toolopts { grid-column: 1; justify-self: center; }
+}
 .stage { position: relative; min-height: 0; border: 1px solid var(--line); background: var(--soil); overflow: hidden; border-radius: 2px; touch-action: none; }
 #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .stage[data-tool="listen"] #scene { cursor: grab; }
@@ -250,7 +255,7 @@ input[type=range]:focus-visible { outline: 2px solid var(--hypha); outline-offse
 @media (max-width: 520px) {
   .layer .sl { grid-template-columns: 96px minmax(0, 1fr) 36px 30px; }
   .nudge { grid-template-columns: 62px 40px minmax(0, 1fr) 40px; }
-  .brand .wordmark { width: 150px; }
+  .brand .wordmark { width: 168px; }
   .toolbar { grid-template-columns: minmax(0, 1fr); }
   .toolbar .tools, .viewctl, .toolbar .toolopts { grid-column: 1; justify-self: center; }
   .tools .tool { min-width: 0; flex: 1 1 calc(25% - 4px); padding-inline: 4px; }
@@ -271,3 +276,18 @@ input[type=range]:focus-visible { outline: 2px solid var(--hypha); outline-offse
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg .chip { min-width: 74px; justify-content: center; }
 @media (max-width: 720px) { .sheet .setin { height: auto; max-height: 100svh; align-self: end; border-top: 1px solid var(--line); overflow-y: auto; padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)); } }
+
+/* wide screens: logo, seed and its full description on top; the controls in one row beneath (or beside, on very wide screens) */
+@media (min-width: 961px) {
+  .top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 22px; row-gap: 10px; align-items: center; }
+  .top .brand { grid-column: 1; grid-row: 1; }
+  .top .seedbox { grid-column: 2 / 4; grid-row: 1; }
+  .top .transport { grid-column: 1 / 3; grid-row: 2; }
+  .top .outbox { grid-column: 3; grid-row: 2; justify-self: end; }
+}
+@media (min-width: 1600px) {
+  .top { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+  .top .seedbox { grid-column: 2; }
+  .top .transport { grid-column: 3; grid-row: 1; }
+  .top .outbox { grid-column: 4; grid-row: 1; }
+}

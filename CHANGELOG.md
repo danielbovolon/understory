@@ -4,6 +4,8 @@
 - Settings: a new sheet in the top bar with Appearance (Auto, Dark, Light) and sharing. The choice is remembered and applies on desktop and mobile; Auto follows the device.
 - Share Understory: shares the app with the device's share sheet, or copies the link. Share this forest sends the link with the current seed code.
 - Header controls wrap cleanly on narrow phones.
+- The forest's description under its name is shown in full at every screen width, no longer cut off. The header is logo, seed and description on top, controls beneath (one row on very wide screens); the tagline under the logo is gone.
+- Tools no longer run under the view controls at medium widths: they stack, centred, when the stage is narrow.
 - Press: a 4:5 cover image for Instagram and social media in `press/`.
 
 ## 5.2.0
