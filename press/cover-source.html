@@ -121,19 +121,17 @@ async function main() {
 
   // wordmark
   const img = new Image(); img.src = 'data:image/svg+xml,' + encodeURIComponent((await (await fetch('wordmark.svg')).text()).replace(/currentColor/g, '#ece6d4'));
-  await img.decode(); const ww = 1180, wh = ww * img.height / img.width; g.drawImage(img, 150, 150, ww, wh);
-  g.fillStyle = '#8e9786'; g.font = '400 30px MM'; g.letterSpacing = '9px'; g.fillText('A MYCORRHIZAL SOUND FOREST', 168, 150 + wh + 30);
-  // concept text
+  await img.decode(); const ww = 1180, wh = ww * img.height / img.width; g.drawImage(img, 150, 190, ww, wh);
+    // concept text
   g.letterSpacing = '0px'; g.fillStyle = C.bone; g.font = '400 92px Italiana';
   g.fillText('Listen to the wood wide web.', 150, 2320);
   g.font = '300 34px MM'; g.fillStyle = '#c9c4b2';
-  const body = ['Beneath the forest floor, trees and fungi trade', 'sugar, water and electrical signals through a', 'living network. Understory turns every root,', 'hypha and spike into sound, in 3D, as it grows.'];
+  const body = ['Beneath the forest floor, trees and fungi share', 'sugar, water and electrical signals through a', 'living network. Understory turns every root,', 'hypha and spike into sound, in 3D, as it grows.'];
   body.forEach((l, i) => g.fillText(l, 152, 2410 + i * 52));
-  g.font = '500 24px MM'; g.letterSpacing = '6px'; g.fillStyle = C.hypha; g.fillText('BEST WITH HEADPHONES', 152, 2640);
-  g.fillStyle = '#8e9786'; g.textAlign = 'right'; g.fillText('DANIEL BOVOLON', W - 150, 2640);
+  g.font = '500 24px MM'; g.letterSpacing = '6px'; g.fillStyle = C.hypha; g.fillText('BEST IN STEREO', 152, 2640);
+  g.fillStyle = '#8e9786'; g.textAlign = 'right'; g.fillText('BY DANIEL BOVOLON', W - 150, 2640);
   // layer key on the right, in the margin of the sky
   g.textAlign = 'right'; g.letterSpacing = '5px'; g.font = '400 22px MM'; g.fillStyle = 'rgba(236,230,212,0.55)';
-  g.fillText('CANOPY · WIND · BIRDS', W - 150, GROUND - 690); g.fillText('ROOTS · HYPHAE · SIGNALS', W - 150, 2150);
   document.title = 'done';
 }
 main();

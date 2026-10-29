@@ -350,13 +350,14 @@ function draw(now) {
     const near = clamp01(1 - (b.t - w.t) / 40); const pulse = 0.5 + 0.5 * Math.sin(now / 600 + b.x);
     g.fillStyle = PAL.spore; g.globalAlpha = 0.25 + near * 0.5 * pulse; g.beginPath(); g.arc(q[0], q[1], Math.max(1.5, 0.08 * q[2]), 0, TAU); g.fill(); g.globalAlpha = 1;
   }
+  drawRoots(g, w, now);
   // hyphae
   g.globalCompositeOperation = add; g.lineCap = 'round'; g.lineJoin = 'round';
   for (const e of w.edges.values()) {
     const gn = w.genets.get(e.g); const mid = e.pts[(e.pts.length / 2) | 0]; const pm = cam.proj(mid[0], mid[1], -0.05); if (!pm) continue;
     const young = Math.min(1, (w.t - e.born) / 3);
     g.lineWidth = Math.max(0.5, (0.025 + 0.05 * Math.min(3, e.D)) * pm[2]);
-    g.strokeStyle = gcol(gn, Math.min(1, (0.22 + 0.25 * Math.min(1, e.D) + 0.5 * e.act) * young * (PAL.dark ? 1 : 1.7)), e.act);
+    g.strokeStyle = gcol(gn, Math.min(1, (0.22 + 0.25 * Math.min(1, e.D) + 0.5 * e.act) * young * (PAL.dark ? 1 : 1.7)) * (1 - 0.45 * soilMix), e.act);
     polyline(g, e.pts, -0.05); g.stroke();
     if (gn && gn.glow > 0.05 && PAL.dark) { g.strokeStyle = `hsla(105,95%,62%,${0.35 * gn.glow})`; g.lineWidth += 3; g.stroke(); }
   }
@@ -391,7 +392,7 @@ function draw(now) {
   spr.sort((a, b) => b[0] - a[0]);
   g.font = '500 10px "Martian Mono", ui-monospace, monospace'; g.textAlign = 'center';
   for (const [, k, o] of spr) {
-    if (k === 'tree') drawTree(g, o, w);
+    if (k === 'tree') { const sv = soilView(); if (sv > 0.02) g.globalAlpha = 1 - 0.72 * sv; drawTree(g, o, w); g.globalAlpha = 1; }
     else if (k === 'fruit') drawFruit(g, o, w);
     else if (k === 'snag') drawSnag(g, o);
     else if (k === 'critter') drawCritter(g, o, now);
@@ -444,6 +445,80 @@ function drawNatureMotes(g, w, now) {
     else if (o.kind === 'snow') { g.fillStyle = PAL.dark ? `rgba(235,240,250,${0.85 * life})` : `rgba(255,255,255,${0.9 * life})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.5, 0.1 * p[2]), 0, TAU); g.fill(); }
     else if (o.kind === 'bat') { const s = Math.max(3, 0.22 * p[2]), fl = Math.sin(now / 45 + o.x) * 0.5; g.strokeStyle = PAL.bone; g.globalAlpha = 0.75 * Math.min(1, life * 2); g.lineWidth = 1.3; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * fl); g.quadraticCurveTo(p[0] - s * 0.4, p[1] + s * 0.2, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] + s * 0.2, p[0] + s, p[1] - s * fl); g.stroke(); g.globalAlpha = 1; }
     else if (o.kind === 'bee') { const j = Math.sin(now / 70 + o.y * 5) * 2, s = Math.max(1.6, 0.07 * p[2]); g.fillStyle = PAL.spore; g.globalAlpha = Math.min(1, life * 3); g.beginPath(); g.arc(p[0] + j, p[1] + Math.cos(now / 55 + o.x) * 2, s, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  }
+}
+// ---------------------------------------------------------------- roots
+// Each species grows its own architecture (taproot, heart root, plate root, flat laterals), generated once per tree
+// in units of its reach (x, y) and depth (z), then scaled as the tree grows. Fine root tips carry the fungal mantles.
+const rootCache = new Map();
+function rootArch(t) {
+  const key = t.id + ':' + t.sp; let a = rootCache.get(key); if (a) return a;
+  const R = (typeof ROOTS !== 'undefined' && ROOTS[t.sp]) || { form: 'heart' }, rnd = seeded(t.id * 7919 + 101), rr = (lo, hi) => lo + (hi - lo) * rnd();
+  const roots = [], tips = [];
+  // a root from p0 heading outward along angle ang, ending at horizontal distance h1 and depth z1, wavering a little
+  const grow = (p0, ang, h1, z1, w, order, n = 7) => {
+    const pts = [p0]; const h0 = Math.hypot(p0[0], p0[1]);
+    for (let i = 1; i <= n; i++) { const f = i / n, e = f * f * (3 - 2 * f), aa = ang + Math.sin(f * 5 + w * 9) * 0.12 * order + rr(-0.05, 0.05), h = h0 + (h1 - h0) * f; pts.push([Math.sin(aa) * h, Math.cos(aa) * h, p0[2] + (z1 - p0[2]) * (order === 0 && R.form !== 'tap' ? Math.pow(f, 0.8) : e) + rr(-0.02, 0.02)]); }
+    roots.push({ pts, w, order });
+    if (order < 2) for (let b = 0; b < (order ? 1 : 2); b++) { const q = pts[2 + Math.floor(rnd() * (n - 3))]; const hq = Math.hypot(q[0], q[1]); grow(q, ang + (rnd() < 0.5 ? -1 : 1) * rr(0.35, 0.8), hq + (h1 - hq) * rr(0.35, 0.6) + 0.08, Math.min(q[2], q[2] + rr(-0.15, 0.05)), w * 0.5, order + 1, 4); }
+    // a fan of fine roots at the end: this is where the fungi meet the tree
+    const e = pts[pts.length - 1]; for (let k = 0; k < (order ? 2 : 3); k++) { const fa = ang + rr(-0.9, 0.9), fl = rr(0.04, 0.09); const tip = [e[0] + Math.sin(fa) * fl, e[1] + Math.cos(fa) * fl, Math.min(-0.01, e[2] + rr(-0.04, 0.04))]; roots.push({ pts: [e, tip], w: 0.12, order: 3 }); tips.push(tip); }
+  };
+  const top = [0, 0, -0.03];
+  if (R.form === 'tap') {
+    const pts = [top]; let x = 0, y = 0; for (let i = 1; i <= 9; i++) { x += rr(-0.03, 0.03); y += rr(-0.03, 0.03); pts.push([x, y, -i / 9]); } roots.push({ pts, w: 1, order: 0 });
+    for (let k = 0; k < 2; k++) { const q = pts[3 + k * 3]; grow(q, rr(0, TAU), rr(0.25, 0.4), q[2] - rr(0.05, 0.15), 0.35, 1, 4); }
+    const n = 5 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -rr(0.04, 0.12)], (k + rr(-0.3, 0.3)) / n * TAU, rr(0.6, 1), -rr(0.12, 0.25), 0.55, 0);
+  } else if (R.form === 'heart') {
+    const n = 6 + Math.floor(rnd() * 4); for (let k = 0; k < n; k++) { const dip = rr(0.25, 1.15), L = rr(0.7, 1); grow(top, (k + rr(-0.3, 0.3)) / n * TAU, Math.cos(dip) * L, -Math.sin(dip) * L * 0.95, 0.7, 0); }
+  } else if (R.form === 'plate') {
+    const n = 8 + Math.floor(rnd() * 4); for (let k = 0; k < n; k++) grow([0, 0, -0.04], (k + rr(-0.25, 0.25)) / n * TAU, rr(0.75, 1.05), -rr(0.08, 0.2), 0.6, 0);
+    for (let k = 0; k < 3; k++) { const r0 = roots[Math.floor(rnd() * roots.length)]; if (r0.order) continue; const q = r0.pts[3]; roots.push({ pts: [q, [q[0], q[1], -rr(0.6, 1)]], w: 0.25, order: 2 }); }
+  } else {
+    const n = 5 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -0.05], (k + rr(-0.3, 0.3)) / n * TAU, rr(0.8, 1.1), -rr(0.06, 0.16), 0.5, 0, 9);
+  }
+  a = { roots, tips, form: R.form, nodules: !!R.nodules, suckers: !!R.suckers }; rootCache.set(key, a);
+  if (rootCache.size > 400) rootCache.delete(rootCache.keys().next().value);
+  return a;
+}
+// how far the soil view is open: the Roots button, or listening from under the soil
+let soilMix = 0;
+function soilView() { return soilMix; }
+function drawRoots(g, w, now) {
+  const target = state.soil ? 1 : clamp01((1.6 - listener.z) / 2.3) * 0.8;
+  soilMix += (target - soilMix) * 0.08;
+  const sv = soilMix, base = PAL.dark ? [196, 160, 120] : [104, 74, 50];
+  const alpha = 0.16 + 0.74 * sv; if (typeof rootReach !== 'function') return;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  if (sv > 0.05) { // depth reference: faint rings one and two units down
+    g.setLineDash([3, 6]); g.strokeStyle = PAL.dim; g.lineWidth = 1;
+    for (const z of [-1, -2]) { g.globalAlpha = 0.25 * sv; groundCircle(g, listener.x, listener.y, 6, z, 48); g.stroke(); }
+    g.setLineDash([]); g.globalAlpha = 1;
+  }
+  for (const t of w.trees) {
+    const a = rootArch(t), reach = rootReach(t), depth = rootDepth(t) * (1.25 + 1.6 * sv);
+    const P = (q) => cam.proj(t.x + q[0] * reach, t.y + q[1] * reach, q[2] * depth);
+    for (const r of a.roots) {
+      let first = true; g.beginPath(); let pw = 0;
+      for (const q of r.pts) { const p = P(q); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); pw = p[2]; }
+      g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha * (r.order === 3 ? 0.7 : 1)})`;
+      g.lineWidth = Math.max(r.order === 3 ? 0.5 : 0.8, r.w * (0.025 + 0.05 * t.size) * (1 + 0.9 * sv) * pw * (r.order === 0 ? 1 : 0.8)); g.stroke();
+    }
+    if (a.nodules && sv > 0.05) { g.fillStyle = PAL.dark ? `rgba(235,214,170,${0.8 * sv})` : `rgba(150,110,60,${0.8 * sv})`; for (const r of a.roots) if (r.order === 1) for (const q of r.pts.slice(1, 4)) { const p = P(q); if (p) { g.beginPath(); g.arc(p[0], p[1], Math.max(1.2, 0.04 * p[2]), 0, TAU); g.fill(); } } }
+    // mycorrhizal mantles: the root tips each partner fungus has wrapped, with its hyphae fanning out into the soil
+    const partners = [...t.links.keys()].map(id => w.genets.get(id)).filter(Boolean);
+    if (partners.length) {
+      const share = Math.min(1, 0.25 + 0.2 * partners.length);
+      a.tips.forEach((q, i) => {
+        if ((i * 0.618) % 1 > share) return; const gn = partners[i % partners.length], p = P(q); if (!p) return;
+        const col = gcol(gn, Math.min(1, 0.35 + 0.65 * sv) * (PAL.dark ? 1 : 1.2), 0.6);
+        glowDot(g, p[0], p[1], Math.max(1.1, 0.035 * p[2]), col, false);
+        if (sv > 0.1) { g.strokeStyle = gcol(gn, 0.55 * sv); g.lineWidth = 0.8; for (let k = 0; k < 3; k++) { const fa = i * 2.1 + k * 2.09, q2 = cam.proj(t.x + q[0] * reach + Math.sin(fa) * 0.35, t.y + q[1] * reach + Math.cos(fa) * 0.35, q[2] * depth * 0.6); if (q2) { g.beginPath(); g.moveTo(p[0], p[1]); g.quadraticCurveTo((p[0] + q2[0]) / 2 + 3, (p[1] + q2[1]) / 2 - 3, q2[0], q2[1]); g.stroke(); } } }
+      });
+    }
+    // root grafts with neighbours of the same species
+    if (t.grafts && t.grafts.length) for (const id of t.grafts) { if (id < t.id) continue; const o = w.treeById(id); if (!o) continue; const m = cam.proj((t.x + o.x) / 2, (t.y + o.y) / 2, -0.25 * depth), pa = cam.proj(t.x, t.y, -0.12), pb = cam.proj(o.x, o.y, -0.12); if (!m || !pa || !pb) continue;
+      g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha})`; g.lineWidth = Math.max(1, 0.06 * m[2]); g.beginPath(); g.moveTo(pa[0], pa[1]); g.quadraticCurveTo(m[0], m[1] + 6, pb[0], pb[1]); g.stroke(); glowDot(g, m[0], m[1] + 3, Math.max(1.5, 0.06 * m[2]), PAL.spore, sv > 0.3); }
   }
 }
 function drawTree(g, t, w) {
@@ -574,6 +649,8 @@ function drawGuideMarks(g, w, now) {
     for (const c of w.calls) pts.push([c.x, c.y, 0.8]);
   } else if (grp === 'network') {
     if (key === 'hyphae') for (const t of w.tips) pts.push([t.x, t.y, 0.45]);
+    else if (key === 'roots') { for (const t of w.trees) pts.push([t.x, t.y, 0.5 + 0.7 * rootReach(t)]); }
+    else if (key === 'graft') { for (const t of w.trees) if (t.grafts && t.grafts.length) pts.push([t.x, t.y, 1.2]); }
     else if (key === 'bond') { for (const t of w.trees) if (t.links.size) pts.push([t.x, t.y, 1 + 0.2 * t.links.size]); }
     else if (key === 'signals' || key === 'alarm') { for (const sg of w.signals) if (key === 'signals' || sg.alarm) pts.push([sg.x, sg.y, 0.5]); }
     else if (key === 'sugar') for (const c of w.carbon) pts.push([c.x, c.y, 0.7]);
@@ -861,6 +938,7 @@ function initInput() {
     if (k === 'r' && !e.metaKey && !e.ctrlKey) { toggleRec(); return; }
     if (k === 'h') { toggleMode(); return; }
     if (k === 'f') { toggleGuide(); return; }
+    if (k === 'v') { toggleRoots(); return; }
     if (k === 'escape' && !$('guideSheet').hidden) { toggleGuide(false); return; }
     if (k === 'escape' && !$('setSheet').hidden) { toggleSettings(false); return; }
     if (k >= '1' && k <= '8') { setTool(TOOLS[+k - 1][0]); return; }
@@ -1022,6 +1100,12 @@ function initSettings() {
   $('shareApp').onclick = () => share(appUrl(), 'Understory', 'Understory: a mycorrhizal sound forest. Trees and fungi grow, trade and signal underground, and every process is heard in 3D. Best with headphones.');
   $('shareForest').onclick = () => { const c = state.seed && state.seed.code; share(appUrl() + '#' + c, `Understory · ${state.seed ? state.seed.name : ''}`, `Grow my forest in Understory: seed ${c}.`); };
 }
+function toggleRoots(on) {
+  state.soil = on === undefined ? !state.soil : on; $('rootsBtn').setAttribute('aria-pressed', String(state.soil));
+  // look in from lower down, so depth reads as depth
+  if (state.soil) { state.pitch0 = cam.pitch; cam.pitch = Math.min(cam.pitch, 0.42); logHelp('Roots and fungi below ground: each species grows its own root form, and the coloured tips are root tips wrapped by fungal partners.'); }
+  else if (state.pitch0) cam.pitch = state.pitch0;
+}
 function toggleSettings(open) {
   const sh = $('setSheet'); if (open === undefined) open = sh.hidden;
   sh.hidden = !open; $('setBtn').setAttribute('aria-expanded', String(open)); $('setBtn').setAttribute('aria-pressed', String(open));
@@ -1055,10 +1139,11 @@ function guideItems(w) {
   groups.push(['trees', 'Trees', [...trees].sort((a, b) => b[1].n - a[1].n).map(([vk, o]) => {
     const [k, variety] = vk.split('@'), T = TREE_SPECIES[k], G = GUIDE.trees[k] || {}, SI = SEED_INFO[k], vf = variety ? w.forms.find(f => f.name === variety) : null;
     const gens = Object.entries(o.gens).sort((a, b) => b[1] - a[1]).map(([gk, n]) => `${o.n > 1 ? n + ' as ' : 'as '}${GEN_WORD[gk] || gk}`).join(', ');
+    const RT = (typeof ROOTS !== 'undefined' && ROOTS[k]) || null; const rootTxt = RT ? ` Roots: ${RT.word}.` : '';
     const seedTxt = `Seed: ${SI.word}, ripe ${MONTHS[SI.months[0]]} to ${MONTHS[SI.months[1]]}${o.crop ? `; ${o.crop} in seed now` : ''}${w.mastNow && w.mastNow[k] ? ', a mast year' : ''}.`;
     const isNew = w.arrived[k] !== undefined;
     return { key: 'trees:' + k + (variety ? '@' + variety : ''), glyph: ['tree', k], name: variety ? variety[0].toUpperCase() + variety.slice(1) : T.name, sub: variety ? `a local variety of ${T.name.toLowerCase()}` : `${G.latin || ''}${isNew ? ' · newcomer' : ''}`, count: o.n,
-      here: `${o.n === 1 ? 'One here' : o.n + ' here'}, the oldest ${fmtAge(o.maxAge)}${o.partners ? `; ${o.partners === o.n && o.n > 1 ? 'all' : o.partners} with fungal partners` : '; no fungal partners yet'}${o.hub ? '; one is the hub of the network' : ''}. In this forest ${o.n > 1 ? 'they sound' : 'it sounds'} ${gens}. ${seedTxt}${vf ? ` This variety arose ${fmtAge(w.t - vf.t)} ago from a lineage adapted to its own ground.` : isNew ? ` It arrived ${fmtAge(w.t - w.arrived[k])} ago.` : ''}`,
+      here: `${o.n === 1 ? 'One here' : o.n + ' here'}, the oldest ${fmtAge(o.maxAge)}${o.partners ? `; ${o.partners === o.n && o.n > 1 ? 'all' : o.partners} with fungal partners` : '; no fungal partners yet'}${o.hub ? '; one is the hub of the network' : ''}. In this forest ${o.n > 1 ? 'they sound' : 'it sounds'} ${gens}. ${seedTxt}${rootTxt}${vf ? ` This variety arose ${fmtAge(w.t - vf.t)} ago from a lineage adapted to its own ground.` : isNew ? ` It arrived ${fmtAge(w.t - w.arrived[k])} ago.` : ''}`,
       nature: G.nature, sound: G.sound };
   })]);
   // fungi
@@ -1092,7 +1177,7 @@ function guideItems(w) {
   // the network
   const net = [], N = GUIDE.network, has = (k) => !!seen[k];
   const anyFruit = Object.keys(seen).some(k => k.startsWith('fruit:')), pins = [...w.genets.values()].some(g => g.pins > 0.15);
-  const conds = [['hyphae', w.edges.size > 0, `${w.edges.size} hyphae and ${w.tips.length} growing tips right now.`], ['bond', w.trees.some(t => t.links.size), `${w.trees.reduce((a, t) => a + t.links.size, 0)} partnerships between trees and fungi.`], ['signals', w.edges.size > 3, `${w.signals.length} spike trains travelling right now.`], ['alarm', has('alarm'), 'Alarms have run through this network.'], ['sugar', has('sugar'), `${w.carbon.length} sugar packets in transit now.`], ['water', has('water'), 'Water has moved through the network at night.'], ['clicks', has('clicks'), `${w.stats.clicks} clicks so far.`], ['fruit', anyFruit, `${w.fruits.length} mushrooms standing now; ${w.stats.fruits} so far.`], ['pins', pins, 'Some colonies have set pins.'], ['spores', has('spores'), `${w.spores.length} spores in the air now.`], ['glow', has('glow'), 'Decomposers here glow at night.'], ['gather', true, `Your pouch holds ${w.pouch.filter(p => p.kind === 'seed').reduce((a, p) => a + p.n, 0)} seeds and ${w.pouch.filter(p => p.kind === 'spores').reduce((a, p) => a + p.n, 0)} spore packets. Trees in seed now: ${w.trees.filter(t => (t.crop || 0) >= 1).length}.`], ['mast', has('mast'), `${w.seen.mast || 0} mast year${(w.seen.mast || 0) === 1 ? '' : 's'} so far${Object.keys(w.mastNow || {}).filter(k => w.mastNow[k]).length ? '; one is happening now (' + Object.keys(w.mastNow).filter(k => w.mastNow[k]).map(k => TREE_SPECIES[k].short.toLowerCase()).join(', ') + ')' : ''}.`], ['arrival', Object.keys(w.arrived).length > 0, `Newcomers so far: ${Object.keys(w.arrived).map(k => TREE_SPECIES[k] ? TREE_SPECIES[k].short.toLowerCase() : k).join(', ')}.`], ['form', w.forms.some(f => f.kind === 'fungus'), `Local forms so far: ${w.forms.filter(f => f.kind === 'fungus').map(f => f.name).join(', ')}.`], ['variety', w.forms.some(f => f.kind === 'tree'), `Local varieties so far: ${w.forms.filter(f => f.kind === 'tree').map(f => f.name).join(', ')}.`], ['snag', w.snags.length > 0 || w.logs.length > 0 || has('snag'), `${w.snags.length} standing dead trees, ${w.logs.length} fallen logs.`]];
+  const conds = [['roots', w.trees.length > 0, `${w.trees.length} root systems; ${w.trees.reduce((a, t) => a + t.links.size, 0)} partnerships at their tips. Press Roots (V) to look below ground.`], ['graft', has('graft'), `${w.trees.reduce((a, t) => a + (t.grafts ? t.grafts.length : 0), 0) / 2} root grafts in this forest.`], ['hyphae', w.edges.size > 0, `${w.edges.size} hyphae and ${w.tips.length} growing tips right now.`], ['bond', w.trees.some(t => t.links.size), `${w.trees.reduce((a, t) => a + t.links.size, 0)} partnerships between trees and fungi.`], ['signals', w.edges.size > 3, `${w.signals.length} spike trains travelling right now.`], ['alarm', has('alarm'), 'Alarms have run through this network.'], ['sugar', has('sugar'), `${w.carbon.length} sugar packets in transit now.`], ['water', has('water'), 'Water has moved through the network at night.'], ['clicks', has('clicks'), `${w.stats.clicks} clicks so far.`], ['fruit', anyFruit, `${w.fruits.length} mushrooms standing now; ${w.stats.fruits} so far.`], ['pins', pins, 'Some colonies have set pins.'], ['spores', has('spores'), `${w.spores.length} spores in the air now.`], ['glow', has('glow'), 'Decomposers here glow at night.'], ['gather', true, `Your pouch holds ${w.pouch.filter(p => p.kind === 'seed').reduce((a, p) => a + p.n, 0)} seeds and ${w.pouch.filter(p => p.kind === 'spores').reduce((a, p) => a + p.n, 0)} spore packets. Trees in seed now: ${w.trees.filter(t => (t.crop || 0) >= 1).length}.`], ['mast', has('mast'), `${w.seen.mast || 0} mast year${(w.seen.mast || 0) === 1 ? '' : 's'} so far${Object.keys(w.mastNow || {}).filter(k => w.mastNow[k]).length ? '; one is happening now (' + Object.keys(w.mastNow).filter(k => w.mastNow[k]).map(k => TREE_SPECIES[k].short.toLowerCase()).join(', ') + ')' : ''}.`], ['arrival', Object.keys(w.arrived).length > 0, `Newcomers so far: ${Object.keys(w.arrived).map(k => TREE_SPECIES[k] ? TREE_SPECIES[k].short.toLowerCase() : k).join(', ')}.`], ['form', w.forms.some(f => f.kind === 'fungus'), `Local forms so far: ${w.forms.filter(f => f.kind === 'fungus').map(f => f.name).join(', ')}.`], ['variety', w.forms.some(f => f.kind === 'tree'), `Local varieties so far: ${w.forms.filter(f => f.kind === 'tree').map(f => f.name).join(', ')}.`], ['snag', w.snags.length > 0 || w.logs.length > 0 || has('snag'), `${w.snags.length} standing dead trees, ${w.logs.length} fallen logs.`]];
   for (const [k, ok, here] of conds) if (ok) net.push({ key: 'network:' + k, glyph: ['net', k], name: N[k].name, sub: '', count: '', here, nature: N[k].nature, sound: N[k].sound });
   groups.push(['network', 'In the network', net]);
   // weather and seasons
@@ -1211,6 +1296,9 @@ function drawGlyph(g, [kind, key]) {
     const hyc = dark ? hsl(150, 70, 64) : hsl(150, 70, 32);
     switch (key) {
       case 'hyphae': case 'hypha': line([[6, 44], [16, 36], [24, 40], [34, 28], [44, 30], [54, 18]], hyc, 2); line([[24, 40], [30, 52]], hyc, 1.5); if (key === 'hyphae') dot(54, 18, 3, hyc, true); return;
+      case 'roots': { const rc = dark ? 'rgba(176,140,104,0.95)' : 'rgba(104,74,50,0.95)'; line([[4, 16], [56, 16]], dim, 1); line([[30, 16], [30, 56]], rc, 3); line([[30, 20], [12, 30], [6, 34]], rc, 2); line([[30, 20], [48, 28], [54, 34]], rc, 2); line([[30, 34], [20, 44]], rc, 1.5); line([[30, 38], [42, 48]], rc, 1.5); return; }
+      case 'mantle': { const rc = dark ? 'rgba(176,140,104,0.95)' : 'rgba(104,74,50,0.95)'; line([[6, 20], [30, 34]], rc, 3); line([[30, 34], [38, 30]], rc, 1.5); line([[30, 34], [36, 42]], rc, 1.5); dot(38, 30, 3.5, hyc, true); dot(36, 42, 3.5, hyc, true); line([[38, 30], [54, 22]], hyc, 1); line([[36, 42], [52, 52]], hyc, 1); return; }
+      case 'graft': { const rc = dark ? 'rgba(176,140,104,0.95)' : 'rgba(104,74,50,0.95)'; line([[8, 12], [8, 30], [30, 44], [52, 30], [52, 12]], rc, 3); dot(30, 44, 4.5, PAL.spore, true); return; }
       case 'tip': line([[8, 48], [22, 38], [34, 34]], hyc, 1.5); dot(36, 33, 4, hyc, true); return;
       case 'bond': line([[30, 54], [30, 26]], dark ? '#9a7a60' : '#5f4632', 3); g.strokeStyle = hyc; g.lineWidth = 2; g.beginPath(); g.ellipse(30, 50, 12, 5, 0, 0, TAU); g.stroke(); line([[8, 30], [20, 44], [26, 48]], hyc, 1.5); return;
       case 'signals': case 'signal': line([[6, 40], [54, 24]], hyc, 1.5); dot(22, 35, 3.5, hyc, true); dot(40, 29, 3.5, PAL.alarm, true); return;
@@ -1621,6 +1709,7 @@ async function boot() {
   $('centreBtn').onclick = () => { state.walk = { x: 0, y: 0 }; state.drift = false; state.ride = false; if (state.height !== 'ground') setHeight(state.height); updateOptionButtons(); };
   $('calmBtn').onclick = () => { audio.post({ t: 'calm' }); logLine('Calm: reverb tails cleared, fading back in.', 'weather'); };
   $('followBtn').onclick = () => { state.follow = !state.follow; $('followBtn').setAttribute('aria-pressed', String(state.follow)); if (!state.follow) cam.yaw = 0; };
+  $('rootsBtn').onclick = () => toggleRoots();
   $('zoomIn').onclick = () => { cam.dist = Math.max(10, cam.dist / 1.2); }; $('zoomOut').onclick = () => { cam.dist = Math.min(80, cam.dist * 1.2); };
   $('pPlay').onclick = togglePlay; $('pSave').onclick = () => { const t = takes.find(x => x.id === player.id); if (t) saveTake(t); };
   $('pwave').addEventListener('click', seekPlayer); $('saveAll').onclick = saveAll;

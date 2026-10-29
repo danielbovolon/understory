@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.4.0
+- Roots. Every tree grows the root system of its species: taproots (silver fir, oak, Scots pine, stone pine), heart roots (beech, larch, birch, alder, maple, rowan, yew), the flat plate of Norway spruce, and the far-running shallow laterals of aspen and willow. Alder roots carry nitrogen-fixing nodules.
+- Roots matter: hyphae bond with a tree where its roots reach, not at the trunk; deep roots reach water that shallow ones cannot, so spruce suffers first in drought and is thrown first by storms; only deep-rooted trees lift water at night for their neighbours.
+- Root grafts: neighbouring trees of the same species fuse their roots and share sugar and water directly, with a low knock deep in the soil.
+- Roots view (button or V): the camera drops, the crowns fade, and the roots hang below the ground in 3D, their fine tips glowing in the colour of the fungus that has wrapped them, with its hyphae fanning out into the soil.
+- Field guide: root form for every tree species, entries for roots and root tips and for root grafts, and three new map-legend items.
+- Cover image: tagline and layer labels removed; "share" instead of "trade"; "Best in stereo"; "by Daniel Bovolon".
+
 ## 5.3.0
 - Settings: a new sheet in the top bar with Appearance (Auto, Dark, Light) and sharing. The choice is remembered and applies on desktop and mobile; Auto follows the device.
 - Share Understory: shares the app with the device's share sheet, or copies the link. Share this forest sends the link with the current seed code.

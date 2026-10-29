@@ -127,6 +127,32 @@ const TREE_KEYS = Object.keys(TREE_SPECIES).filter(k => !TREE_SPECIES[k].rare), 
 // When each species bears ripe seed (months, 0 = January; wraps), from what size, how long its seed stays viable,
 // how it travels, and how long it lies dormant in the soil (forest seconds).
 //   keep: 'long' orthodox seed (cones hold it for months), 'mid', 'recal' (recalcitrant: acorns and beech nuts die if they dry), 'short' (willow and aspen cotton: days)
+// Root architecture by species, after the classic forestry types (Köstler, Brückner & Bibelriether 1968; Polomski & Kuhn 1998):
+//   tap   a deep central taproot with laterals near the surface (fir, oak, pine, stone pine)
+//   heart many strong roots fanning obliquely down into a hemisphere (beech, larch, birch, alder, maple, rowan, yew)
+//   plate a flat plate of long laterals in the top 30–50 cm, few sinkers (Norway spruce: drought- and storm-prone)
+//   flat  shallow, far-reaching laterals that can sprout new stems (aspen suckers, willow)
+// deep: relative rooting depth; spread: lateral reach relative to the crown; graft: species known to fuse roots with neighbours of their kind.
+const ROOTS = {
+  fir: { form: 'tap', deep: 1.0, spread: 0.9, graft: true, word: 'a deep taproot with heart-like laterals; among the most storm-firm trees of the Alps' },
+  oak: { form: 'tap', deep: 1.0, spread: 1.0, graft: true, word: 'a taproot that can go several metres down, with strong laterals; it reaches water other trees cannot' },
+  pine: { form: 'tap', deep: 0.95, spread: 1.1, graft: true, word: 'a taproot on deep, sandy soil and long surface laterals; very drought-hardy' },
+  stonepine: { form: 'tap', deep: 0.8, spread: 0.95, graft: true, word: 'a deep, adaptable root that anchors in rock clefts above the treeline' },
+  beech: { form: 'heart', deep: 0.65, spread: 1.1, graft: true, word: 'a heart root: many strong roots fanning down into a dense hemisphere' },
+  larch: { form: 'heart', deep: 0.85, spread: 1.0, graft: true, word: 'a deep heart root, very storm-firm, anchoring scree and slopes' },
+  birch: { form: 'heart', deep: 0.5, spread: 1.15, graft: false, word: 'a shallow heart root with a wide, fine-rooted mat' },
+  alder: { form: 'heart', deep: 0.8, spread: 1.0, graft: false, nodules: true, word: 'a heart root that grows into waterlogged ground, with root nodules of Frankia bacteria that fix nitrogen from the air' },
+  maple: { form: 'heart', deep: 0.75, spread: 1.0, graft: true, word: 'a heart root, deep and wide' },
+  rowan: { form: 'heart', deep: 0.6, spread: 0.9, graft: false, word: 'a heart root, wide and fine' },
+  yew: { form: 'heart', deep: 0.75, spread: 0.95, graft: false, word: 'a dense, extremely strong heart root that holds on rock and slopes' },
+  spruce: { form: 'plate', deep: 0.3, spread: 1.35, graft: true, word: 'a plate root: long laterals in the top half metre and few sinkers, so it suffers first in drought and is thrown by storms' },
+  aspen: { form: 'flat', deep: 0.45, spread: 1.5, graft: false, suckers: true, word: 'far-reaching shallow laterals that send up new stems: a stand of aspen is often one clone' },
+  willow: { form: 'flat', deep: 0.4, spread: 1.2, graft: false, word: 'shallow, dense, fast roots that bind wet banks' },
+};
+const rootOf = (k) => ROOTS[k] || ROOTS.beech;
+// lateral reach and depth of a tree's roots, in forest units, growing with the tree
+function rootReach(t) { return rootOf(t.sp).spread * (0.35 + 1.0 * t.size); }
+function rootDepth(t) { return rootOf(t.sp).deep * (0.2 + 1.05 * t.size); }
 const SEED_INFO = {
   spruce: { months: [9, 2], mature: 1.0, keep: 'long', disp: 'wind', dorm: [120, 400], word: 'cones' },
   fir: { months: [8, 9], mature: 1.1, keep: 'mid', disp: 'wind', dorm: [200, 500], word: 'cones' },
@@ -678,6 +704,27 @@ class World {
     return bank;
   }
   // ---------------------------------------------------------- entities
+  // the tree whose roots reach this spot: hyphae meet roots where the roots are, not at the trunk
+  rootAt(x, y) { let best = null, bs = 1; for (const t of this.trees) { const d = Math.hypot(t.x - x, t.y - y), R = 0.5 + 0.7 * rootReach(t); if (d < R && d / R < bs) { bs = d / R; best = t; } } return best; }
+  // natural root grafts: neighbouring trees of the same species fuse where their roots cross and share sugar and water directly
+  rootsStep(dt, quiet) {
+    this._rootT = (this._rootT || 0) + dt; if (this._rootT < 60) return; const span = this._rootT; this._rootT = 0;
+    const byId = new Map(this.trees.map(t => [t.id, t]));
+    for (const t of this.trees) {
+      if (!t.grafts) t.grafts = []; t.grafts = t.grafts.filter(id => byId.has(id));
+      if (!rootOf(t.sp).graft || t.size < 0.6) continue;
+      for (const o of this.trees) {
+        if (o.id <= t.id || o.sp !== t.sp || o.size < 0.6 || t.grafts.includes(o.id)) continue;
+        const d = Math.hypot(o.x - t.x, o.y - t.y); if (d > 0.75 * (rootReach(t) + rootReach(o))) continue;
+        if (!this.r.chance(span / 5400)) continue;
+        t.grafts.push(o.id); (o.grafts || (o.grafts = [])).push(t.id); this.mark('graft');
+        if (!quiet) this.fx(K.MODAL, { x: (t.x + o.x) / 2, y: (t.y + o.y) / 2, z: -0.3, f: this.freq(Math.min(t.deg, o.deg), -1), r: PING_SETS.wood, d: [1.2, 0.7, 0.4, 0.25], a: [1, 0.4, 0.2, 0.1], hard: 0.15, gain: 0.16, layer: LAYER.TREES, send: 0.6, prio: 1 }, 6);
+        this.log(`The roots of trees ${t.id} and ${o.id}, two ${TREE_SPECIES[t.sp].short.toLowerCase()}s, have grown into one another and fused: a root graft. They now share sugar and water directly, besides the fungal network.`, 'carbon');
+      }
+      // grafted neighbours even out their sugar and water, slowly
+      for (const id of t.grafts) { const o = byId.get(id); if (!o || o.id < t.id) continue; const ds = (t.sugar - o.sugar) * Math.min(0.3, span / 1800); t.sugar -= ds; o.sugar += ds; const dw = (t.hyd - o.hyd) * 0.3; t.hyd -= dw; o.hyd += dw; }
+    }
+  }
   addTree(x, y, o) {
     const s = this.seed, r = this.r;
     const node = this.addNode(x, y, 'tree', 0); node.deg = (o.deg || 0) + s.tun.ratios.length;
@@ -847,6 +894,7 @@ class World {
     this.fauna(dt);
     this.seasonal(dt);
     this.nature(dt);
+    this.rootsStep(dt);
     this.critterStep(dt);
     this.calls = this.calls.filter(c => (c.t -= dt) > 0);
     this.stageCheck();
@@ -987,7 +1035,7 @@ class World {
       if (Math.hypot(tip.x - last[0], tip.y - last[1]) >= 0.3) tip.pts.push([tip.x, tip.y]);
       // 1. root contact → mycorrhizal bond (ectomycorrhizal fungi only)
       if (sp.guild === 'ecm') {
-        const tree = this.treeAt(tip.x, tip.y, 0.9 + tip.len * 0 + (this.treeAt(tip.x, tip.y, 2) ? this.treeAt(tip.x, tip.y, 2).size * 0.5 : 0));
+        const tree = this.rootAt(tip.x, tip.y);
         if (tree && tree.node !== tip.from && tip.len > 0.8 && (tree.links.get(g.id) || 0) < 2 && this.hostOk(sp, tree)) {
           tip.pts.push([tree.x, tree.y]); this.finish(tip, tree.node); this.tips.splice(ti, 1);
           tree.links.set(g.id, (tree.links.get(g.id) || 0) + 1); this.stats.bonds++;
@@ -1154,7 +1202,7 @@ class World {
       const share = t.size / (t.size + shade * 1.6);
       t.light = this.light * share;
       // water: deep roots reach deeper water; hydraulic redistribution helps at night
-      const depth = clamp(t.size / 1.4, 0, 1);
+      const depth = clamp(rootDepth(t) / 1.15, 0, 1); // taproots reach water a plate root cannot
       t.water = clamp(lp.moist * (0.75 + 0.25 * depth) + depth * 0.25 + t.hyd, 0, 1.2);
       t.hyd *= Math.exp(-dt / 600);
       t.drought = clamp((0.5 - t.water) * 2.5 * (0.5 + this.light) * (this.temp > 20 ? 1.3 : 1), 0, 1);
@@ -1338,7 +1386,7 @@ class World {
     this.movePackets(this.water, dt, -0.4);
     this.waterT -= dt; if (this.waterT > 0 || this.light > 0.08) return;
     this.waterT = this.r.range(15, 35);
-    const donors = this.trees.filter(t => t.size > 0.9 && t.water > 0.6);
+    const donors = this.trees.filter(t => t.size > 0.9 && t.water > 0.6 && rootOf(t.sp).deep >= 0.6); // hydraulic lift needs deep roots
     const needy = this.trees.filter(t => t.size < 0.8 && t.water < 0.75);
     if (!donors.length || !needy.length) return;
     for (let tries = 0; tries < 4; tries++) {
@@ -1707,7 +1755,8 @@ class World {
     const r = this.r;
     const cands = this.trees.filter(t => t.size > 1.1 && t.dying <= 0 && (t.drought > 0.3 || t.sugar < 0.6 || t.hunger > 0 || r.chance(0.35)));
     if (!cands.length || this.trees.length < 5 || !r.chance(0.6)) { this.log('The storm passes. Broken branches lie on the ground for the decomposers.', 'weather'); return; }
-    const t = r.pick(cands), a = this.windDir;
+    const shallow = cands.filter(c => rootOf(c.sp).deep < 0.5); // plate and flat roots are thrown first
+    const t = shallow.length && r.chance(0.7) ? r.pick(shallow) : r.pick(cands), a = this.windDir;
     this.fx(K.NOISE, { x: t.x, y: t.y, z: 1, bf: 140, bq: 0.6, lp: 0.2, srate: 0.5, sdep: 0.6, gust: 0.9, crk: 120, gain: 0.5, att: 0.05, rel: 3, dur: 1.6, layer: LAYER.WEATHER, send: 0.8, prio: 2 }, 8);
     this.fx(K.MODAL, { x: t.x, y: t.y, z: 0.5, f: 55, r: [1, 1.7, 2.6, 3.9], d: [1.4, 0.9, 0.5, 0.3], a: [1, 0.6, 0.4, 0.2], hard: 0.3, gain: 0.55, layer: LAYER.WEATHER, send: 0.9, prio: 2 }, 8);
     for (let k = 1; k <= 3; k++) this.addLitter(t.x + Math.sin(a) * k * 1.6 * t.size, t.y + Math.cos(a) * k * 1.6 * t.size, 0.8 * t.size);
@@ -2237,7 +2286,7 @@ class World {
     this.t += dt;
     this.updateSky(dt); this.updateLight(); this.updateCover(dt);
     this.germinate(); this.seedRain(dt); this.coarseSpores(dt); this.arrivalsStep(dt); this.pouchStep(dt);
-    this.treesStep(dt); this.trade(dt); this.coarseGrow(dt); this.prune(dt); this.coarseHappen(dt);
+    this.treesStep(dt); this.rootsStep(dt, true); this.trade(dt); this.coarseGrow(dt); this.prune(dt); this.coarseHappen(dt);
     this.soundDrift(dt);
     for (let i = this.deposits.length - 1; i >= 0; i--) { const d = this.deposits[i]; d.t -= dt; if (d.t <= 0) { this.deposits.splice(i, 1); this.germinateDeposit(d); } }
     for (let i = this.snags.length - 1; i >= 0; i--) { const g = this.snags[i]; g.t += dt; if (g.t > g.life) { this.addLitter(g.x, g.y, 0.8 * g.size); this.snags.splice(i, 1); } }
@@ -2453,4 +2502,4 @@ function segX(ax, ay, bx, by, cx, cy, dx, dy) {
   return u >= 0 && u <= 1 && v >= 0 && v <= 1;
 }
 
-if (typeof module !== 'undefined') module.exports = { SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };
+if (typeof module !== 'undefined') module.exports = { ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };

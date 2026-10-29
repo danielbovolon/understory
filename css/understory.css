@@ -75,7 +75,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; mi
 .viewctl { grid-column: 3; justify-self: end; display: flex; gap: 4px; }
 .toolbar .toolopts { grid-column: 1 / -1; justify-content: center; }
 /* when the stage is narrower than the tools and view controls side by side, stack them, both centred */
-@container (max-width: 1040px) {
+@container (max-width: 1200px) {
   .toolbar { grid-template-columns: minmax(0, 1fr); }
   .toolbar .tools, .viewctl, .toolbar .toolopts { grid-column: 1; justify-self: center; }
 }

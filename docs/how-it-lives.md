@@ -31,6 +31,21 @@ Every forest starts as **bare soil** and grows through seven stages. Each new st
 
 **Spores need roots.** The germination of ectomycorrhizal spores is stimulated by host roots. In Understory a drifting spore only germinates within reach of a root, or on litter for decomposers.
 
+## Roots
+Every tree grows the root architecture of its species, after the classic forestry types (Köstler, Brückner & Bibelriether 1968):
+- **Taproot** — silver fir, sessile oak, Scots pine, Swiss stone pine. A deep central root with laterals near the surface. These trees reach deep water, survive drought best, stand firm in storms, and are the ones that lift water at night for shallow-rooted neighbours (hydraulic redistribution).
+- **Heart root** — beech, larch, birch, alder, sycamore maple, rowan, yew. Many strong roots fan obliquely down into a hemisphere. Alder carries root nodules of *Frankia* bacteria that fix nitrogen from the air.
+- **Plate root** — Norway spruce. Long laterals in the top half metre and few sinkers. In Understory, as in real forests, spruce is the first to suffer in drought and the first to be thrown by a storm.
+- **Flat laterals** — aspen and goat willow. Shallow roots running far out; aspen sends up new stems from them.
+
+**Where fungi meet trees.** Most fine roots lie in the top 10–30 cm of soil. Nearly every fine root tip of the ectomycorrhizal trees is sheathed in a fungal mantle, with hyphae growing between the root cells (the Hartig net) and out into the soil. A hypha in Understory bonds with a tree where that tree's roots actually reach, so wide-rooted species meet more fungi.
+
+**Is the network real?** Yes, in the sense that matters here: one fungal individual wraps the roots of several trees, and one tree hosts many fungi. This common mycorrhizal network has been mapped with DNA, for example a single Rhizopogon individual linking dozens of Douglas firs (Beiler et al. 2010), and carbon has been traced moving through it with isotopes (Simard et al. 1997; Klein et al. 2016). How much it carries, and whether trees "help" each other through it, is debated (Karst et al. 2023). Understory shows the connections as they are, and keeps the flows modest.
+
+**Root grafts.** Where roots of two trees of the same species cross, they can fuse. Grafted spruce, fir, pine and beech share water and sugar directly; a stump can stay alive for decades on its grafted neighbours.
+
+**Roots view.** Press Roots (V): the camera drops, the crowns fade, and the root systems hang below the ground in 3D. Fine root tips glow in the colour of the fungus that has wrapped them, with its hyphae fanning out into the soil.
+
 ## Exploration types
 Agerer classified ectomycorrhizal mycelium by how far it reaches out from the root tip. Each species here has one of these body plans:
 
