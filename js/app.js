@@ -90,12 +90,27 @@ function sendMaterials() {
   if (!state.matB) { const m2 = makeMaterial({ ...state.seed, matParams: { ...state.seed.matParams, seed: state.seed.matParams.seed ^ 0x5bd1e995, mix: 1 - state.seed.matParams.mix } }, audio.ctx.sampleRate); audio.post({ t: 'mat', slot: 1, data: m2 }, [m2.buffer]); }
 }
 
+// the Ecosystem sliders start from the real conditions of this seed's place
+const SITE_KEYS = ['growth', 'chatter', 'bloom', 'mutation', 'moisture', 'wind', 'warmth', 'nitrogen', 'seeds', 'spores', 'grazing'];
+function applySite(seed) {
+  const pr = seed && seed.site && seed.site.preset; if (!pr) return;
+  for (const k of SITE_KEYS) if (typeof pr[k] === 'number') P[k] = pr[k];
+  if (typeof refreshSliders === 'function' && UI.sliders.length) refreshSliders();
+}
+function siteDefault(k, d) { const pr = state.seed && state.seed.site && state.seed.site.preset; return pr && typeof pr[k] === 'number' ? pr[k] : d; }
+function siteText(site, long) {
+  if (!site) return '';
+  const asp = site.aspect === 'flat' ? 'level ground' : `${site.aspect}-facing`;
+  return long ? `${site.name} (${site.latin}) · ${site.elev} m, ${asp}, ${site.lat.toFixed(1)}° N · mean ${site.meanT.toFixed(1)} °C, ${site.precip} mm rain a year, ${site.season} growing days · ${site.soilName}, pH ${site.ph.toFixed(1)} · nitrogen deposition ${site.ndep} kg/ha a year · deer ${site.deer < 0.7 ? 'few' : site.deer < 1.2 ? 'some' : 'many'}`
+    : `${site.name} · ${site.elev} m, ${asp} · ${site.meanT.toFixed(1)} °C · ${site.precip} mm · pH ${site.ph.toFixed(1)}`;
+}
 function headerFor(seed) {
   $('seedCode').textContent = seed.code;
   $('seedName').textContent = state.forestName || seed.name;
   const ecm = seed.species.filter(s => s.guild === 'ecm').map(s => s.genus), sap = seed.species.filter(s => s.guild === 'sapro').map(s => s.genus);
   const snd = soundOf(seed);
-  $('seedMeta').textContent = `${WORLDS[snd.worlds[0]].name} with ${WORLDS[snd.worlds[1]].name} · ${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · spores of ${ecm.join(', ')} and ${sap.join(', ')} in the air · room ${seed.rev.rt.toFixed(1)} s`;
+  $('siteNote').textContent = seed.site ? siteText(seed.site, true) : 'This forest was planted before places had their own conditions.';
+  $('seedMeta').textContent = `${seed.site ? siteText(seed.site) + ' · ' : ''}${WORLDS[snd.worlds[0]].name} with ${WORLDS[snd.worlds[1]].name} · ${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · spores of ${ecm.join(', ')} and ${sap.join(', ')} in the air · room ${seed.rev.rt.toFixed(1)} s`;
   try { history.replaceState(null, '', '#' + seed.code); } catch (e) { }
 }
 async function swapOut() { if (audio.node) { audio.post({ t: 'fade', to: 0, time: 0.5 }); await new Promise(r => setTimeout(r, 560)); audio.kill(); } }
@@ -105,6 +120,7 @@ async function loadSeed(code) {
   const seed = makeSeed(code);
   await swapOut();
   state.seed = seed; state.forestId = 'f' + Date.now(); state.forestName = seed.name; state.kept = false;
+  applySite(seed);
   // every forest starts as bare soil at the real time of day
   world = new World(seed, audio, { log: logLine, params: P, char: P.char, now: new Date(), month: seasonMonth() });
   world.matB = state.matB;
@@ -119,7 +135,7 @@ async function loadSeed(code) {
 }
 async function continueForest(rec) {
   if (rec.id !== state.forestId) await saveForest();
-  const seed = Object.assign(makeSeed(rec.code), (rec.data && rec.data.seed) || {});
+  const saved = rec.data && rec.data.seed, seed = Object.assign(makeSeed(rec.code), saved || {}); if (saved && !saved.site) delete seed.site;
   await swapOut();
   state.seed = seed; state.forestId = rec.id; state.forestName = rec.name || seed.name; state.kept = true;
   // the forest's temperament and the listener's nudges come back with it
@@ -200,7 +216,7 @@ async function setRunning(on) {
   }
   updateMediaSession();
   $('grow').setAttribute('aria-pressed', String(state.running));
-  $('grow').textContent = state.running ? 'Pause' : 'Grow';
+  setBtnText($('grow'), state.running ? 'Pause' : 'Grow'); setIcon($('grow'), state.running ? 'pause' : 'play');
 }
 
 // ---------------------------------------------------------------- log + hud
@@ -793,7 +809,7 @@ function seasonParticles(g, w, now) {
   }
 }
 function drawCompass(g) {
-  const x = scene.w - 34, y = 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
+  const land = scene.w > scene.h, x = MUI.on && land ? scene.w - 150 : scene.w - 34, y = MUI.on && !land ? Math.min(scene.h * 0.2, 112) : 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
   const a = Math.atan2(pN[0] - p0[0], -(pN[1] - p0[1]));
   g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = PAL.dim; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, 12, 0, TAU); g.stroke();
   g.fillStyle = PAL.spore; g.beginPath(); g.moveTo(0, -11); g.lineTo(3.5, 0); g.lineTo(-3.5, 0); g.closePath(); g.fill();
@@ -966,8 +982,10 @@ function slider(box, o) {
   const inp = row.querySelector('input'), out = row.querySelector('output');
   const show = () => { const v = +inp.value; out.textContent = o.fmt ? o.fmt(v) : v.toFixed(2); inp.style.setProperty('--p', ((v - o.min) / (o.max - o.min) * 100) + '%'); };
   inp.addEventListener('input', () => { o.set(+inp.value); show(); });
-  inp.addEventListener('dblclick', () => { if (o.def !== undefined) { inp.value = o.def; o.set(o.def); show(); } });
-  show(); box.appendChild(row); UI.sliders.push({ inp, show, o });
+  inp.addEventListener('dblclick', () => { const d = SITE_KEYS.includes(o.id) ? siteDefault(o.id, o.def) : o.def; if (d !== undefined) { inp.value = d; o.set(d); show(); } });
+  const ctl = attachControls(row, inp, o); const show0 = show; const showAll = () => { show0(); ctl(); };
+  inp.addEventListener('input', ctl);
+  showAll(); box.appendChild(row); UI.sliders.push({ inp, show: showAll, o });
   return row;
 }
 const pct = (v) => Math.round(v * 100) + '%';
@@ -999,7 +1017,7 @@ function buildSliders() {
   S(sp, 'wet', 'Reverb', 0, 1.2, 0.45, pct, 'Level of the forest room.', sendGlobals);
   S(sp, 'room', 'Room', 0, 1, 0.5, pct, 'Size and decay of the room, around the seed\'s own character.', sendGlobals);
   S(sp, 'master', 'Volume', 0, 1.2, 0.8, pct, 'Master level, before the limiter.', sendGlobals);
-  S($('changeS'), 'change', 'Change', 0, 1, 0.5, (v) => v < 0.15 ? 'still' : v < 0.4 ? 'slow' : v < 0.7 ? 'drifting' : 'restless', 'How restless the sound world is: how often the tonal centre drifts, how far the timbre tide swings, how quickly each fungus’s voice mutates.');
+  slider($('changeS'), { fader: true, id: 'change', label: 'Change', min: 0, max: 1, def: 0.5, get: () => P.change, set: (v) => { P.change = v; }, fmt:  (v) => v < 0.15 ? 'still' : v < 0.4 ? 'slow' : v < 0.7 ? 'drifting' : 'restless', help: 'How restless the sound world is: how often the tonal centre drifts, how far the timbre tide swings, how quickly each fungus’s voice mutates.' });
   buildLayers(la);
 }
 const LAYER_DEFS = [
@@ -1013,7 +1031,7 @@ const LAYER_DEFS = [
 function buildLayers(box) {
   LAYER_DEFS.forEach((L, i) => {
     const wrap = document.createElement('div'); wrap.className = 'layer'; box.appendChild(wrap);
-    const row = slider(wrap, { id: 'layer' + i, label: L.name, min: 0, max: 1.5, def: i === 4 ? 0.8 : i === 5 ? 0.9 : 1, fmt: pct, help: `Level of ${L.name.toLowerCase()}`, color: `var(--${L.color})`, get: () => P.layers[i], set: (v) => { P.layers[i] = v; sendGlobals(); } });
+    const row = slider(wrap, { fader: true, id: 'layer' + i, label: L.name, min: 0, max: 1.5, def: i === 4 ? 0.8 : i === 5 ? 0.9 : 1, fmt: pct, help: `Level of ${L.name.toLowerCase()}`, color: `var(--${L.color})`, get: () => P.layers[i], set: (v) => { P.layers[i] = v; sendGlobals(); } });
     const tog = document.createElement('button'); tog.className = 'shape'; tog.textContent = '⋯'; tog.title = `Shape ${L.name.toLowerCase()}`; tog.setAttribute('aria-expanded', 'false'); row.appendChild(tog);
     const nd = document.createElement('div'); nd.className = 'nudges'; nd.hidden = true; wrap.appendChild(nd);
     tog.onclick = () => { nd.hidden = !nd.hidden; tog.setAttribute('aria-expanded', String(!nd.hidden)); };
@@ -1166,6 +1184,7 @@ function guideItems(w) {
   for (const [key, idx] of Object.entries(COVER_KEY)) { const n = cc[idx] || 0; if (n < 5) continue; const G = GUIDE.cover[key]; ground.push({ key: 'ground:' + key, glyph: ['cover', key], name: G.name, sub: '', count: Math.round(n / tot * 100) + '%', here: `Covers about ${Math.round(n / tot * 100)}% of this forest floor.`, nature: G.nature, sound: G.sound, n }); }
   ground.sort((a, b) => b.n - a.n);
   if (w.snow > 0.1) { const G = GUIDE.weather.snow; ground.unshift({ key: 'weather:snow', glyph: ['weather', 'snow'], name: 'Snow cover', sub: '', count: Math.round(w.snow * 100) + '%', here: `Snow lies on ${Math.round(w.snow * 100)}% of the ground.`, nature: G.nature, sound: G.sound }); }
+  if (w.seed.site) { const st = w.seed.site; ground.unshift({ key: 'ground:site', glyph: ['cover', st.key === 'subalpine' || st.key === 'pine' ? 'stone' : st.key === 'alder' || st.key === 'bog' ? 'sedge' : 'moss'], name: 'This place', sub: `${st.name} · ${st.latin}`, count: st.elev + ' m', here: siteText(st, true) + '.', nature: st.about || '', sound: `Its room: reverberation of about ${state.seed.rev.rt.toFixed(1)} s, ${st.key === 'spruce' || st.key === 'alder' ? 'damped by dense foliage and wet ground' : st.key === 'subalpine' || st.key === 'pine' ? 'open and bright, with the echo of rock and slopes' : 'the long, soft tail of a tall forest hall'}. Cold air and snow shorten it; fog carries sound further.` }); }
   groups.push(['ground', 'Ground', ground]);
   // animals
   const fauna = [];
@@ -1472,10 +1491,10 @@ async function togglePlay() {
   const ctx = audio.ctx; if (!player.gain) { player.gain = ctx.createGain(); player.gain.connect(ctx.destination); }
   if (player.offset >= player.buf.duration) player.offset = 0;
   const s = ctx.createBufferSource(); s.buffer = player.buf; s.connect(player.gain); s.start(0, player.offset);
-  s.onended = () => { if (player.src === s) { player.playing = false; player.offset = 0; $('pPlay').textContent = 'Play'; } };
-  player.src = s; player.startAt = ctx.currentTime; player.playing = true; $('pPlay').textContent = 'Pause';
+  s.onended = () => { if (player.src === s) { player.playing = false; player.offset = 0; setBtnText($('pPlay'), 'Play'); setIcon($('pPlay'), 'play'); } };
+  player.src = s; player.startAt = ctx.currentTime; player.playing = true; setBtnText($('pPlay'), 'Pause'); setIcon($('pPlay'), 'pause');
 }
-function stopPlayer(keep) { if (player.src) { const s = player.src; player.src = null; try { s.stop(); } catch (e) { } } player.playing = false; if (!keep) player.offset = 0; $('pPlay').textContent = 'Play'; }
+function stopPlayer(keep) { if (player.src) { const s = player.src; player.src = null; try { s.stop(); } catch (e) { } } player.playing = false; if (!keep) player.offset = 0; setBtnText($('pPlay'), 'Play'); setIcon($('pPlay'), 'play'); }
 function playerPos() { if (!player.playing) return player.offset; return player.offset + audio.ctx.currentTime - player.startAt; }
 function drawPlayer() {
   const c = $('pwave'), r = c.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1609,7 +1628,7 @@ function walkStep(dt) {
   listener.x += Math.sin(state.walkH) * state.walkV * dt; listener.y += Math.cos(state.walkH) * state.walkV * dt;
   let a = state.walkH - listener.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); listener.yaw += a * Math.min(1, dt * 1.4);
 }
-function toggleMode() { state.mode = state.mode ? 0 : 1; $('modeBtn').textContent = state.mode ? 'Speakers stereo' : 'Headphones 3D'; sendGlobals(); }
+function toggleMode(m) { state.mode = m === undefined ? (state.mode ? 0 : 1) : m; for (const b of document.querySelectorAll('[data-mode-set]')) b.setAttribute('aria-pressed', String(+b.dataset.modeSet === state.mode)); sendGlobals(); }
 function newSeed() { loadSeed(randomCode()); }
 
 // ---------------------------------------------------------------- main loop
@@ -1688,6 +1707,169 @@ function driftStep(dt) {
 }
 
 // ---------------------------------------------------------------- boot
+// ---------------------------------------------------------------- icons
+// One line-drawn icon set for the phone layout: 24-unit grid, round strokes, drawn in currentColor.
+const ICON = {
+  ear: '<path d="M7 9a5 5 0 0 1 10 0c0 3-2 4-3 5.5S13 18 11.5 19.5A2.5 2.5 0 0 1 7 18"/><path d="M10 9a2 2 0 0 1 4 0c0 1.2-1 1.8-1.6 2.4"/>',
+  hand: '<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5"/><path d="M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13"/><path d="M8 12.5 6.6 11a1.6 1.6 0 0 0-2.4 2.1L8 18c1.3 1.6 3 2.5 5 2.5h1a5 5 0 0 0 5-5V9.5a1.5 1.5 0 0 0-3 0"/>',
+  wound: '<path d="M12 3v18"/><path d="M8 21h8"/><path d="m12 9 3-2-2 4 3 1-4 2"/>',
+  gather: '<path d="M4 10h16l-1.6 9.2a1 1 0 0 1-1 .8H6.6a1 1 0 0 1-1-.8z"/><path d="M8 10a4 4 0 0 1 8 0"/><circle cx="9.5" cy="14.5" r="1"/><circle cx="14.5" cy="15.5" r="1"/>',
+  plant: '<path d="M12 21v-9"/><path d="M12 12c0-4 3-6 7-6 0 4-3 6-7 6z"/><path d="M12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/><path d="M7 21h10"/>',
+  sow: '<circle cx="7" cy="7" r="1.4"/><circle cx="13" cy="5" r="1"/><circle cx="17" cy="10" r="1.4"/><circle cx="10" cy="12" r="1"/><circle cx="15" cy="16" r="1"/><circle cx="7" cy="17" r="1.4"/><path d="M3 21h18"/>',
+  cut: '<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8 7.5 20 17M8 16.5 20 7"/>',
+  shape: '<path d="M3 18c3-4 5-6 8-6s5 3 10 2"/><path d="M3 21h18"/><path d="M14 3l3 3-5 5-3-3z"/>',
+  play: '<path d="M8 5v14l11-7z"/>',
+  pause: '<path d="M8 5v14M16 5v14"/>',
+  seed: '<path d="M12 3c4 3 6 7 6 10a6 6 0 0 1-12 0c0-3 2-7 6-10z"/><path d="M12 9v10"/>',
+  book: '<path d="M4 5c3-1 6-1 8 1v14c-2-2-5-2-8-1z"/><path d="M20 5c-3-1-6-1-8 1v14c2-2 5-2 8-1z"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  eco: '<path d="M5 19c0-8 6-13 14-14-1 8-6 14-14 14z"/><path d="M5 19l8-8"/>',
+  space: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
+  mixer: '<path d="M6 4v16M12 4v16M18 4v16"/><path d="M4 14h4M10 8h4M16 12h4"/>',
+  forests: '<path d="M7 3 3 11h8z"/><path d="M7 11v8"/><circle cx="16" cy="9" r="5"/><path d="M16 14v5"/><path d="M2 21h20"/>',
+  archive: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="15.5" cy="12" r="2.2"/><path d="M8.5 14.2h7"/>',
+  follow: '<circle cx="12" cy="13" r="5"/><path d="M12 8V3M9.5 5.5 12 3l2.5 2.5"/>',
+  roots: '<path d="M2 7h20"/><path d="M12 7v13"/><path d="M12 10 6 14l-2 4M12 10l6 4 2 4M12 14l-3 4M12 14l3 4"/>',
+  plus: '<circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M16 16l5 5"/>',
+  minus: '<circle cx="11" cy="11" r="7"/><path d="M8 11h6M16 16l5 5"/>',
+  rain: '<path d="M7 14a4 4 0 0 1 .5-8A5.5 5.5 0 0 1 18 7a3.5 3.5 0 0 1 0 7z"/><path d="m8 17-1 3M12 17l-1 3M16 17l-1 3"/>',
+  deer: '<path d="M8 3v3l3 2M16 3v3l-3 2"/><path d="M6 5 8 6M18 5l-2 1"/><path d="M9 9h6l-1 5h-4z"/><path d="M10 14v7M14 14v7"/>',
+  storm: '<path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/>',
+  dry: '<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+  cache: '<path d="M4 13c3-5 9-6 14-3l3-2-1 4c-3 4-9 5-14 2z"/><circle cx="16" cy="10" r=".8"/><path d="M8 18l-1 3M12 18l1 3"/>',
+  squirrel: '<path d="M15 20H8a4 4 0 0 1 0-8h2"/><path d="M15 20c3 0 5-2 5-5 0-4-3-5-3-9a3 3 0 0 0-6 0c0 3 2 4 2 7"/><circle cx="9" cy="9" r="2.5"/>',
+  boar: '<path d="M4 15c0-4 3-7 8-7s7 2 8 4l2 1-2 2c-1 2-3 3-6 3H8c-2 0-4-1-4-3z"/><path d="M7 18v3M16 18v3"/><path d="M19 12h.01"/>',
+  beetles: '<ellipse cx="12" cy="13" rx="5" ry="7"/><path d="M12 6v14M9 4l1.5 2M15 4l-1.5 2M7 10H4M7 14H3M7 18H4M17 10h3M17 14h4M17 18h3"/>',
+  fog: '<path d="M3 8h14M6 12h15M3 16h12M8 20h10"/>',
+  drift: '<path d="M4 18c3-6 6-2 8-6s5-6 8-6"/><circle cx="20" cy="6" r="1.5"/>',
+  ride: '<path d="M3 12h13"/><path d="m12 7 5 5-5 5"/><circle cx="20" cy="12" r="1.5"/>',
+  under: '<path d="M2 8h20"/><path d="M12 11v9M8 16l4 4 4-4"/>',
+  canopy: '<path d="M12 3 5 13h14z"/><path d="M12 13v8"/><path d="M8 7l4-4 4 4"/>',
+  centre: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/>',
+  calm: '<path d="M3 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  sowsound: '<path d="M4 12h2l2-5 3 10 3-8 2 3h4"/>',
+  reset: '<path d="M4 12a8 8 0 1 0 3-6.3"/><path d="M4 4v4h4"/>',
+};
+function icon(name, cls = 'ic') { return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[name] || ''}</svg>`; }
+// give a button an icon for the phone layout; its words stay for screen readers and for the desktop layout
+function iconize(b, name) {
+  if (!b || b.dataset.icon) return; const label = b.textContent.trim();
+  b.dataset.icon = name; if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', label);
+  const lb = document.createElement('span'); lb.className = 'lb'; while (b.firstChild) lb.appendChild(b.firstChild);
+  b.innerHTML = icon(name); b.appendChild(lb);
+}
+function setIcon(b, name) { const s = b && b.querySelector('svg.ic'); if (s) s.innerHTML = ICON[name] || ''; }
+function setBtnText(b, t) { const lb = b.querySelector('.lb'); if (lb) lb.textContent = t; else b.textContent = t; if (b.dataset.icon) b.setAttribute('aria-label', t); }
+
+// ---------------------------------------------------------------- the phone layout
+// The map fills the screen. Tools on the left, sections on the right, playing and recording at the bottom,
+// what is happening in the bottom-left corner. Every section opens in a narrow drawer on the right, with knobs;
+// the layer mixer rises from the bottom edge with vertical faders, straight over the map.
+const MOBILE_Q = '(max-width: 760px), (max-height: 520px) and (pointer: coarse)';
+const MUI = { on: false, homes: new Map(), section: null };
+const SECTIONS = [['eco', 'Ecosystem'], ['space', 'Space'], ['mixer', 'Layers'], ['forests', 'Forests'], ['archive', 'Archive']];
+function panelFor(key) {
+  const ps = [...document.querySelectorAll('.side > .panel, #mDrawer > .panel, #mMixer > .panel')];
+  const name = { eco: 'Ecosystem', space: 'Space', mixer: 'Layers', forests: 'Forests', archive: 'Archive' }[key];
+  return ps.find(p => { const h = p.querySelector('h2'); return h && h.textContent.trim() === name; });
+}
+function park(node, target, before) { if (!node) return; if (!MUI.homes.has(node)) MUI.homes.set(node, { parent: node.parentNode, next: node.nextSibling }); if (before) target.insertBefore(node, before); else target.appendChild(node); }
+function unparkAll() { for (const [node, h] of [...MUI.homes].reverse()) { if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(node, h.next); else h.parent.appendChild(node); } MUI.homes.clear(); }
+function initMobile() {
+  // icons for everything that sits on the map
+  const TI = { listen: 'ear', touch: 'hand', wound: 'wound', gather: 'gather', plant: 'plant', sow: 'sow', cut: 'cut', shape: 'shape' };
+  for (const [id] of TOOLS) iconize($('tool-' + id), TI[id]);
+  iconize($('followBtn'), 'follow'); iconize($('rootsBtn'), 'roots'); iconize($('zoomIn'), 'plus'); iconize($('zoomOut'), 'minus');
+  iconize($('grow'), state.running ? 'pause' : 'play'); iconize($('newSeed'), 'seed'); setBtnText($('newSeed'), 'Seed');
+  iconize($('guideBtn'), 'book'); iconize($('setBtn'), 'gear');
+  for (const [k] of HAPPEN) iconize($('hap-' + k), k);
+  for (const [id, n] of [['driftBtn', 'drift'], ['rideBtn', 'ride'], ['underBtn', 'under'], ['canopyBtn', 'canopy'], ['centreBtn', 'centre'], ['calmBtn', 'calm'], ['sowBtn', 'sowsound'], ['resetShape', 'reset'], ['pPlay', 'play'], ['siteReset', 'reset']]) iconize($(id), n);
+  // the overlay that holds the phone layout
+  const m = document.createElement('div'); m.id = 'mui'; m.innerHTML = `
+    <div class="m-top"><div class="m-id"><div id="mBrand"></div><button class="m-name" id="mName" aria-expanded="false" title="About this forest"></button><div class="m-hud" id="mHud"></div></div><div class="m-topr" id="mTopR"></div></div>
+    <div class="m-about" id="mAbout" hidden></div>
+    <div class="m-opts" id="mOpts"></div>
+    <div class="m-tools" id="mTools"></div>
+    <div class="m-rail" id="mRail"><div class="m-sec" id="mSec"></div><div class="m-view" id="mView"></div></div>
+    <aside class="m-drawer" id="mDrawer" hidden><header><span id="mDrawerT"></span><button class="m-x" id="mDrawerX" aria-label="Close">${icon('close')}</button></header></aside>
+    <div class="m-mixer" id="mMixer" hidden></div>
+    <div class="m-notes" id="mNotes"></div>
+    <div class="m-trans" id="mTrans"></div>
+    <div class="m-edge" id="mEdge" aria-hidden="true"></div>`;
+  document.body.insertBefore(m, document.querySelector('.sheet'));
+  // short names under the mixer's faders
+  for (const lab of document.querySelectorAll('#layerS .sl label, #changeS .sl label')) { const full = lab.textContent; const short = full.split(/ &| and/)[0].replace('Birds', 'Fauna'); lab.innerHTML = `<span class="lf"></span><span class="ls"></span>`; lab.querySelector('.lf').textContent = full; lab.querySelector('.ls').textContent = short; }
+  for (const [k, l] of SECTIONS) { const b = document.createElement('button'); b.className = 'm-ic'; b.id = 'msec-' + k; b.innerHTML = icon(k) + `<span class="lb">${l}</span>`; b.setAttribute('aria-label', l); b.setAttribute('aria-pressed', 'false'); b.onclick = () => k === 'mixer' ? toggleMixer() : openSection(MUI.section === k ? null : k); $('mSec').appendChild(b); }
+  $('mDrawerX').onclick = () => openSection(null);
+  $('mName').onclick = () => { const a = $('mAbout'); a.hidden = !a.hidden; $('mName').setAttribute('aria-expanded', String(!a.hidden)); if (!a.hidden) { a.innerHTML = ''; for (const t of [state.seed && state.seed.site ? siteText(state.seed.site, true) : '', $('seedMeta').textContent]) if (t) { const p = document.createElement('p'); p.textContent = t; a.appendChild(p); } } };
+  // swipe up from the bottom edge opens the mixer; swipe down on it closes it
+  let sy = null;
+  $('mEdge').addEventListener('pointerdown', (e) => { sy = e.clientY; });
+  window.addEventListener('pointerup', (e) => { if (sy !== null && sy - e.clientY > 40) toggleMixer(true); sy = null; });
+  let my = null; $('mMixer').addEventListener('pointerdown', (e) => { if (!e.target.closest('.fader')) my = e.clientY; });
+  $('mMixer').addEventListener('pointerup', (e) => { if (my !== null && e.clientY - my > 40) toggleMixer(false); my = null; });
+  const mq = matchMedia(MOBILE_Q); const apply = () => setMobile(mq.matches); mq.addEventListener('change', apply); apply();
+}
+function setMobile(on) {
+  if (on === MUI.on) return; MUI.on = on; document.body.classList.toggle('m', on);
+  if (on) {
+    park($('stage'), $('mui'), $('mui').firstChild);
+    park(document.querySelector('.brand'), $('mBrand'));
+    for (const id of ['guideBtn', 'setBtn']) park($(id), $('mTopR'));
+    park($('toolopts'), $('mOpts')); park($('tools'), $('mTools'));
+    for (const id of ['followBtn', 'rootsBtn', 'zoomIn', 'zoomOut']) park($(id), $('mView'));
+    for (const id of ['newSeed', 'grow', 'rec', 'rtime', 'meter']) park($(id), $('mTrans'));
+    park($('hint'), $('mNotes')); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
+    for (const k of ['eco', 'space', 'forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
+    const lp = panelFor('mixer'); if (lp) park(lp, $('mMixer'));
+  } else { openSection(null); toggleMixer(false); unparkAll(); }
+  resize(); updateMobileText();
+}
+function openSection(k) {
+  MUI.section = k; $('mDrawer').hidden = !k; document.body.classList.toggle('m-open', !!k);
+  for (const p of $('mDrawer').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
+  for (const [s] of SECTIONS) if (s !== 'mixer') $('msec-' + s).setAttribute('aria-pressed', String(s === k));
+  const t = SECTIONS.find(s => s[0] === k); $('mDrawerT').innerHTML = t ? icon(t[0]) + `<b>${t[1]}</b>` : '';
+  if (k) toggleMixer(false);
+}
+function toggleMixer(on) {
+  const el = $('mMixer'); if (!el) return; on = on === undefined ? el.hidden : on; el.hidden = !on; document.body.classList.toggle('m-mix', on);
+  $('msec-mixer') && $('msec-mixer').setAttribute('aria-pressed', String(on)); if (on) openSection(null);
+}
+function updateMobileText() {
+  if (!MUI.on || !world || !state.seed) return;
+  $('mName').textContent = state.forestName || state.seed.name;
+  const w = world, st = STAGES[w.stage];
+  const t = `${fmtClock(w.clockH)} · ${w.temp.toFixed(0)} °C${w.rainT > 0 ? (w.snowing ? ' · snow' : ' · rain') : ''} · ${st[0]}`;
+  if ($('mHud').textContent !== t) $('mHud').textContent = t;
+}
+
+// ---------------------------------------------------------------- knobs and faders
+// Every slider also carries a knob (in the drawer) and, for the mixer, a vertical fader. Both drive the same input.
+function attachControls(row, inp, o) {
+  const frac = () => (+inp.value - o.min) / (o.max - o.min);
+  const setFrac = (f) => { f = Math.max(0, Math.min(1, f)); const step = +inp.step || 0.01; let v = o.min + f * (o.max - o.min); v = Math.round(v / step) * step; inp.value = v; inp.dispatchEvent(new Event('input')); };
+  const dbl = () => inp.dispatchEvent(new Event('dblclick'));
+  const k = document.createElement('div'); k.className = 'knob'; k.setAttribute('aria-hidden', 'true');
+  k.innerHTML = '<svg viewBox="0 0 48 48"><circle class="kt" cx="24" cy="24" r="18" pathLength="100"/><circle class="kv" cx="24" cy="24" r="18" pathLength="100"/><line class="kp" x1="24" y1="24" x2="24" y2="9"/></svg>';
+  let drag = null, lastTap = 0;
+  k.addEventListener('pointerdown', (e) => { e.preventDefault(); try { k.setPointerCapture(e.pointerId); } catch (_) { } drag = { y: e.clientY, x: e.clientX, f: frac() }; const now = performance.now(); if (now - lastTap < 320) { dbl(); drag = null; } lastTap = now; });
+  k.addEventListener('pointermove', (e) => { if (!drag) return; setFrac(drag.f + ((drag.y - e.clientY) + (e.clientX - drag.x) * 0.5) / 160); });
+  k.addEventListener('pointerup', () => { drag = null; }); k.addEventListener('pointercancel', () => { drag = null; });
+  row.appendChild(k);
+  let fd = null;
+  if (o.fader) {
+    fd = document.createElement('div'); fd.className = 'fader'; fd.setAttribute('aria-hidden', 'true'); fd.innerHTML = '<i class="ff"></i><i class="fh"></i>';
+    let fdrag = false, ftap = 0;
+    const at = (e) => { const r = fd.getBoundingClientRect(); setFrac(1 - (e.clientY - r.top) / r.height); };
+    fd.addEventListener('pointerdown', (e) => { e.preventDefault(); try { fd.setPointerCapture(e.pointerId); } catch (_) { } const now = performance.now(); if (now - ftap < 320) { dbl(); ftap = 0; return; } ftap = now; fdrag = true; at(e); });
+    fd.addEventListener('pointermove', (e) => { if (fdrag) at(e); }); fd.addEventListener('pointerup', () => { fdrag = false; }); fd.addEventListener('pointercancel', () => { fdrag = false; });
+    row.appendChild(fd);
+  }
+  return () => { const f = frac(); k.style.setProperty('--f', f); k.querySelector('.kp').setAttribute('transform', `rotate(${-135 + 270 * f} 24 24)`); if (fd) fd.style.setProperty('--f', f); };
+}
+
 async function boot() {
   readPalette();
   const mq = window.matchMedia('(prefers-color-scheme: light)'); mq.addEventListener && mq.addEventListener('change', readPalette);
@@ -1696,9 +1878,10 @@ async function boot() {
   buildTools(); buildSliders(); initInput();
   $('grow').onclick = () => setRunning(!state.running); $('hintGrow').onclick = () => setRunning(true);
   initGuide(); initSettings();
-  $('newSeed').onclick = newSeed; $('rec').onclick = toggleRec; $('modeBtn').onclick = toggleMode;
+  $('newSeed').onclick = newSeed; $('rec').onclick = toggleRec; for (const b of document.querySelectorAll('[data-mode-set]')) b.onclick = () => toggleMode(+b.dataset.modeSet);
   $('seedCode').onclick = async () => { const c = state.seed.code; try { await navigator.clipboard.writeText(c); setStatus(`Seed code ${c} copied.`); } catch (e) { setStatus(`Seed code: ${c}`); } };
   buildHappenings();
+  initMobile();
   $('rideBtn').onclick = () => { state.ride = !state.ride; state.rideObj = null; state.rideWait = 0; if (state.ride) { state.drift = false; state.walk = null; if (state.walkMode) setWalk(null); } updateOptionButtons(); };
   $('underBtn').onclick = () => setHeight('under'); $('canopyBtn').onclick = () => setHeight('canopy');
   const gb = $('gaits'); for (const [g, l, t] of [['stop', 'Stand', 'Stop walking'], ['slow', 'Amble', 'Walk slowly'], ['walk', 'Walk', 'Walk at an easy pace'], ['run', 'Run', 'Run through the forest'], ['rhythm', 'Rhythm', 'Amble, walk, run now and then, walk again']]) { const b = document.createElement('button'); b.className = 'chip'; b.dataset.g = g; b.textContent = l; b.title = t; b.setAttribute('aria-pressed', String(g === 'stop')); b.onclick = async () => { if (!state.running && g !== 'stop') await setRunning(true); setWalk(g === 'stop' ? null : g); }; gb.appendChild(b); }
@@ -1710,6 +1893,7 @@ async function boot() {
   $('calmBtn').onclick = () => { audio.post({ t: 'calm' }); logLine('Calm: reverb tails cleared, fading back in.', 'weather'); };
   $('followBtn').onclick = () => { state.follow = !state.follow; $('followBtn').setAttribute('aria-pressed', String(state.follow)); if (!state.follow) cam.yaw = 0; };
   $('rootsBtn').onclick = () => toggleRoots();
+  $('siteReset').onclick = () => { applySite(state.seed); logLine('The ecosystem is back to the real conditions of this place.', 'weather'); };
   $('zoomIn').onclick = () => { cam.dist = Math.max(10, cam.dist / 1.2); }; $('zoomOut').onclick = () => { cam.dist = Math.min(80, cam.dist * 1.2); };
   $('pPlay').onclick = togglePlay; $('pSave').onclick = () => { const t = takes.find(x => x.id === player.id); if (t) saveTake(t); };
   $('pwave').addEventListener('click', seekPlayer); $('saveAll').onclick = saveAll;
@@ -1728,6 +1912,7 @@ async function boot() {
   setInterval(() => { if (state.running) saveForest(); }, 20000);
   initMediaSession();
   setInterval(() => { if (document.hidden) hiddenTick(); }, 1000);
+  setInterval(updateMobileText, 1000);
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
     if (state.running && audio.ctx && audio.ctx.state !== 'running') { try { await audio.ctx.resume(); } catch (e) { } if (audio.el && audio.el.paused) { try { await audio.el.play(); } catch (e) { } } }

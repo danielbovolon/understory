@@ -70,9 +70,9 @@ function flowerCenters(r) {
 const MONTH_T = [0, 3, 8, 12, 17, 20, 23, 22, 18, 12, 6, 1]; // monthly mean °C, Alpine valley floor
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 function dayOfYear(d) { return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); }
-function sunTimes(doy, dst) {
+function sunTimes(doy, dst, lat = LAT) {
   const decl = 23.44 * Math.sin(2 * Math.PI * (284 + doy) / 365) * Math.PI / 180;
-  const c = clamp(-Math.tan(LAT * Math.PI / 180) * Math.tan(decl), -1, 1);
+  const c = clamp(-Math.tan(lat * Math.PI / 180) * Math.tan(decl), -1, 1);
   const len = 2 * Math.acos(c) * 180 / Math.PI / 15;
   const noon = 12.3 + (dst ? 1 : 0);
   return { rise: noon - len / 2, set: noon + len / 2, len };
@@ -241,6 +241,44 @@ const FRUIT_T = { emerge: 600, mature: 1200, spore: 1800, decay: 900 };
 function inMonths(m, w) { if (!w) return false; const [a, b] = w; return a <= b ? m >= a && m <= b : m >= a || m <= b; }
 function fruitSeason(sp, m) { if (!sp.months) return 0; if (inMonths(m, sp.months)) return 1; if (inMonths((m + 1) % 12, sp.months) || inMonths((m + 11) % 12, sp.months)) return 0.3; return 0; }
 
+// ------------------------------------------------------------ sites
+// Every seed is a real kind of place: a forest community of the Alps and their foreland, with its elevation, exposure,
+// climate, soil and fauna drawn from the ranges measured there. Sources: Ellenberg & Leuschner, Vegetation Mitteleuropas
+// mit den Alpen (2010); Mayer, Waldbau (1992); Ozenda, La végétation de la chaîne alpine (1985); EMEP nitrogen
+// deposition maps; climate normals of the Alpine stations (HISTALP). Temperature falls about 0.55 °C per 100 m.
+const SITES = [
+  { key: 'subalpine', about: 'The highest forest of the Alps, up to the treeline. Stone pine and larch stand open and wide apart; snow lies six months; the growing season is short and the soil poor and acid. Nutcrackers plant the stone pine. Few deer, much wind.', name: 'Subalpine larch and stone pine forest', latin: 'Larici-Pinetum cembrae', elev: [1850, 2250], lat: [46.2, 47.2], precip: [900, 1400], ph: [3.8, 5.0], soilName: 'podzol and raw humus over silicate', rich: [0.18, 0.32], moist: [0.45, 0.6], wind: [0.55, 0.8], ndep: [3, 7], deer: [0.3, 0.6], season: [95, 125],
+    trees: ['stonepine', 'larch', 'spruce', 'rowan'], places: ['Firn line', 'Cirque', 'Larch meadow', 'Scree', 'Talus', 'Ridge', 'Glacier foreland'], room: [4, 8], roomDamp: [0.2, 0.45], aspect: ['south', 'west', 'east', 'north'] },
+  { key: 'spruce', about: 'The dark spruce forests of the high montane belt: a thick carpet of needles, moss and bilberry on acid podzol, cool and wet, with snow from November to April. Spruce roots shallow here, so storms and bark beetles shape it.', name: 'High-montane spruce forest', latin: 'Homogyno-Piceetum', elev: [1350, 1850], lat: [46.0, 47.6], precip: [1000, 1700], ph: [3.4, 4.6], soilName: 'podzol under a thick mor of needles', rich: [0.22, 0.38], moist: [0.55, 0.75], wind: [0.4, 0.65], ndep: [5, 12], deer: [0.7, 1.2], season: [120, 160],
+    trees: ['spruce', 'larch', 'fir', 'rowan'], places: ['Hollow', 'Ravine', 'Terrace', 'Clearing', 'Bog', 'Charcoal pit'], room: [1.6, 3.2], roomDamp: [0.55, 0.85], aspect: ['north', 'east', 'west', 'south'] },
+  { key: 'firbeech', about: 'The mixed mountain forest of the northern and southern Alps: silver fir and beech on deep, fertile brown earth, with spruce and sycamore. Wet and mild, rich in fungi, and heavily browsed by deer, which keep the young fir down.', name: 'Montane fir and beech forest', latin: 'Abieti-Fagetum', elev: [900, 1400], lat: [45.8, 47.8], precip: [1200, 2000], ph: [4.8, 6.4], soilName: 'deep brown earth with mull humus', rich: [0.5, 0.68], moist: [0.6, 0.78], wind: [0.25, 0.45], ndep: [10, 20], deer: [1.0, 1.6], season: [160, 190],
+    trees: ['fir', 'beech', 'spruce', 'maple'], places: ['Ravine', 'Gorge', 'Hollow', 'Terrace', 'Clearing'], room: [3, 6], roomDamp: [0.4, 0.65], aspect: ['north', 'east', 'west', 'south'] },
+  { key: 'beech', about: 'Beech on limestone: a tall, bright hall of grey trunks on shallow, base-rich rendzina, with yew in the shade and orchids on the floor. Warm in summer, with drying spells on the thin soil.', name: 'Beech forest on limestone', latin: 'Carici-Fagetum', elev: [450, 1000], lat: [46.0, 48.0], precip: [850, 1300], ph: [6.4, 7.6], soilName: 'rendzina over limestone', rich: [0.55, 0.72], moist: [0.4, 0.58], wind: [0.25, 0.45], ndep: [12, 22], deer: [1.0, 1.6], season: [180, 210],
+    trees: ['beech', 'maple', 'fir', 'yew'], places: ['Terrace', 'Gorge', 'Scree', 'Hollow', 'Old orchard'], room: [3.5, 7], roomDamp: [0.35, 0.6], aspect: ['south', 'east', 'west', 'north'] },
+  { key: 'oak', about: 'Sessile oak on warm, sunny slopes of the southern Alpine valleys, with Scots pine and birch: dry, light and open, on shallow acid soil over porphyry. Hot summers, mild winters, little rain.', name: 'Warm sessile oak forest', latin: 'Quercetum petraeae', elev: [300, 800], lat: [45.6, 47.0], precip: [650, 950], ph: [4.6, 6.0], soilName: 'shallow brown earth on porphyry', rich: [0.3, 0.48], moist: [0.25, 0.42], wind: [0.25, 0.45], ndep: [12, 22], deer: [1.0, 1.5], season: [205, 235],
+    trees: ['oak', 'pine', 'birch', 'rowan'], places: ['Ridge', 'Terrace', 'Old orchard', 'Clearing', 'Charcoal pit'], room: [2.2, 4.5], roomDamp: [0.25, 0.5], aspect: ['south', 'south', 'west', 'east'] },
+  { key: 'pine', about: 'The dry pine forests of the inner-alpine valleys, such as the Vinschgau: very little rain, intense sun, and Scots pine on poor carbonate soil with heather and grass. Fire and drought have shaped them.', name: 'Inner-alpine Scots pine forest on a dry slope', latin: 'Erico-Pinetum sylvestris', elev: [700, 1400], lat: [46.4, 47.0], precip: [480, 750], ph: [6.8, 7.8], soilName: 'rendzina and raw soil on dolomite and moraine', rich: [0.15, 0.3], moist: [0.15, 0.32], wind: [0.4, 0.65], ndep: [5, 10], deer: [0.6, 1.0], season: [170, 200],
+    trees: ['pine', 'larch', 'birch', 'oak'], places: ['Scree', 'Ridge', 'Talus', 'Terrace', 'Gorge'], room: [3, 6], roomDamp: [0.15, 0.4], aspect: ['south', 'south', 'west', 'east'] },
+  { key: 'alder', about: 'Grey and black alder with willow and aspen along a river: flooded in spring, rich in nitrogen (alder fixes it from the air with Frankia), and fast-growing. Loud with water and birds.', name: 'Alder and willow forest on a riverbank', latin: 'Alnetum incanae', elev: [250, 1100], lat: [45.6, 48.0], precip: [800, 1500], ph: [5.6, 7.4], soilName: 'gley and fresh alluvium, flooded in spring', rich: [0.62, 0.82], moist: [0.8, 0.95], wind: [0.2, 0.4], ndep: [15, 28], deer: [1.0, 1.4], season: [190, 225],
+    trees: ['alder', 'willow', 'aspen', 'birch', 'maple'], places: ['Riverbank', 'Gravel bar', 'Backwater', 'Bog', 'Meadow edge'], room: [2, 4], roomDamp: [0.5, 0.75], aspect: ['flat'] },
+  { key: 'bog', about: 'Downy birch and pine around a raised bog: wet, acid peat with sphagnum, poor in nutrients, cool. Trees grow slowly and stay small; the fungi here are specialists.', name: 'Birch and pine on the edge of a raised bog', latin: 'Vaccinio uliginosi-Betuletum', elev: [650, 1250], lat: [46.4, 48.0], precip: [1000, 1600], ph: [3.2, 4.2], soilName: 'peat, wet and acid', rich: [0.12, 0.26], moist: [0.82, 0.95], wind: [0.3, 0.5], ndep: [6, 14], deer: [0.5, 0.9], season: [150, 180],
+    trees: ['birch', 'pine', 'spruce', 'alder'], places: ['Bog', 'Moor', 'Hollow', 'Meadow edge'], room: [2.5, 5], roomDamp: [0.45, 0.7], aspect: ['flat'] },
+];
+const ASPECT_DT = { south: 0.9, west: 0.3, east: -0.2, north: -0.9, flat: 0 };
+const BASE_T = MONTH_T.reduce((a, b) => a + b, 0) / 12, BASE_ELEV = 260; // the valley-floor climate the month table describes
+function makeSite(code) {
+  const r = makeRng(hashStr(code + 'site')), S = r.pick(SITES), rr = (a) => r.range(a[0], a[1]);
+  const elev = Math.round(rr(S.elev) / 10) * 10, aspect = r.pick(S.aspect), lat = Math.round(rr(S.lat) * 10) / 10;
+  const meanT = BASE_T - 0.0055 * (elev - BASE_ELEV) + ASPECT_DT[aspect];
+  const precip = Math.round(rr(S.precip) / 10) * 10, ph = Math.round(rr(S.ph) * 10) / 10, ndep = Math.round(rr(S.ndep)), deer = rr(S.deer), season = Math.round(rr(S.season));
+  const moist = rr(S.moist), wind = rr(S.wind), rich = rr(S.rich);
+  // the forest's temperament, set from the place: the values the Ecosystem sliders start from
+  const preset = {
+    growth: clamp(season / 170, 0.55, 1.35), chatter: clamp(0.6 + 0.7 * moist, 0.6, 1.4), bloom: clamp(0.5 + 0.9 * moist * (precip / 1200), 0.4, 1.6), mutation: 1,
+    moisture: moist, wind, warmth: 0, nitrogen: clamp((ndep - 5) / 25, 0, 1), seeds: S.key === 'subalpine' || S.key === 'bog' ? 0.8 : 1, spores: clamp(0.7 + precip / 3000, 0.8, 1.3), grazing: deer,
+  };
+  return { key: S.key, about: S.about, name: S.name, latin: S.latin, elev, aspect, lat, meanT: Math.round(meanT * 10) / 10, precip, ph, soilName: S.soilName, ndep, season, deer: Math.round(deer * 100) / 100, rich, moist, wind, preset, trees: S.trees, place: r.pick(S.places), room: [rr(S.room), rr(S.roomDamp)] };
+}
 const PLACES = ['Moor', 'Hollow', 'Ridge', 'Scree', 'Bog', 'Gorge', 'Terrace', 'Clearing', 'Ravine', 'Meadow edge', 'Firn line', 'Talus', 'Riverbank', 'Cirque', 'Old orchard', 'Charcoal pit', 'Larch meadow', 'Glacier foreland', 'Burnt slope'];
 const FAMILIES = ['bark', 'rain', 'creek', 'wind', 'glass', 'choir', 'insects', 'stone', 'bowed', 'cave'];
 const FAMILY_NAMES = { bark: 'knocked bark', rain: 'rain on needles', creek: 'meltwater creek', wind: 'wind in reeds', glass: 'ice and glass', choir: 'distant voices', insects: 'stridulation', stone: 'struck stones', bowed: 'bowed branch', cave: 'cave drips' };
@@ -384,15 +422,19 @@ function makeSeed(code) {
   const tun = makeTuning(r);
   const root = r.range(38, 96);
   const fams = r.shuffle(FAMILIES.slice()).slice(0, 2);
-  const climate = { moist: r.range(0.35, 0.8), wind: r.range(0.1, 0.65), raininess: r.range(0.2, 1), warm: r.range(-3, 3) };
-  const rev = { size: r.range(0.55, 2.4), rt: r.range(1.4, 9), damp: r.range(0.2, 0.85), pre: r.range(0.008, 0.06) };
+  const site = makeSite(code);
+  const climate0 = { moist: r.range(0.35, 0.8), wind: r.range(0.1, 0.65), raininess: r.range(0.2, 1), warm: r.range(-3, 3) }; void climate0; // draws kept so every seed's tuning and voices stay as they were
+  const climate = { moist: site.moist, wind: site.wind, raininess: clamp(site.precip / 1500, 0.25, 1.3), warm: site.meanT - BASE_T };
+  const rev0 = { size: r.range(0.55, 2.4), rt: r.range(1.4, 9), damp: r.range(0.2, 0.85), pre: r.range(0.008, 0.06) };
+  const rev = { size: clamp(site.room[0] / 3.5, 0.55, 2.4), rt: site.room[0], damp: site.room[1], pre: rev0.pre };
   const partialKeys = r.shuffle(Object.keys(PARTIAL_SETS)).slice(0, r.int(1, 2));
   const grainTrees = r.range(0.1, 0.55);
   const nTrees = r.int(5, 9);
   const hue0 = r.range(0, 360);
   // the trees of this place: a main species and its companions
-  const main = r.pick(TREE_KEYS);
-  const treeSpecies = [main, ...r.shuffle(TREE_KEYS.filter(k => k !== main)).slice(0, r.int(2, 3))];
+  const main0 = r.pick(TREE_KEYS), comp0 = r.shuffle(TREE_KEYS.filter(k => k !== main0)).slice(0, r.int(2, 3)); void comp0;
+  // the trees of this place come from its forest community: the first is the main species
+  const main = site.trees[0], treeSpecies = site.trees.slice(0, Math.min(site.trees.length, 3 + (comp0.length > 2 ? 1 : 0)));
   // the species pool: who may arrive on the wind, and when
   const gen = FUNGI.map(f => FUNGUS[f[0]]);
   const defs = [
@@ -403,10 +445,11 @@ function makeSeed(code) {
   ];
   const species = defs.map((d, i) => makeSpecies(r, tun, (hue0 + i * 47 * r.range(0.8, 1.2)) % 360, d));
   // the ground: a wet seep, a stony ridge, a base acidity and fertility
-  const soil = { seed: hashStr(code + 's'), seep: [r.range(0, 6.28), r.range(-8, 8), r.range(0.4, 1)], ridge: [r.range(0, 6.28), r.range(-10, 10), r.range(0.3, 0.9)], baseAcid: r.range(0.3, 0.6), baseRich: r.range(0.3, 0.55) };
+  const soil = { seed: hashStr(code + 's'), seep: [r.range(0, 6.28), r.range(-8, 8), r.range(0.4, 1) * (0.5 + site.moist)], ridge: [r.range(0, 6.28), r.range(-10, 10), r.range(0.3, 0.9)], acid0: r.range(0.3, 0.6), baseAcid: clamp((7.6 - site.ph) / 4.4, 0.05, 0.95), rich0: r.range(0.3, 0.55), baseRich: site.rich };
   const patches = []; const np = r.int(8, 14);
   for (let i = 0; i < np; i++) { const a = r.range(0, Math.PI * 2), d = Math.sqrt(r()) * (PLOT_R - 2); patches.push({ x: Math.sin(a) * d, y: Math.cos(a) * d, a: r.range(0.6, 2), org: r.chance(0.5) }); }
-  const name = `${TREE_SPECIES[main].short} ${r.pick(PLACES)}`;
+  const place0 = r.pick(PLACES); void place0;
+  const name = `${TREE_SPECIES[main].short} ${site.place}`;
   const matParams = { fams, mix: r.range(0.25, 0.75), seed: hashStr(code + 'm'), bright: r.range(0.2, 1) };
   // the resident songbirds of this forest: each has its own phrase shape
   const birds = []; for (let i = 0; i < 3; i++) birds.push({ f0: r.range(2000, 4600), ratio: Math.pow(2, r.range(-0.6, 0.5)), n: [r.int(3, 6), r.int(7, 14)], isi: r.range(0.05, 0.15), bd: r.range(0.025, 0.07), mi: r.range(0, 1.2), mr: r.pick([1, 2, 3, 0.5]), phrases: r.int(1, 3) });
@@ -416,7 +459,7 @@ function makeSeed(code) {
   const vr = makeRng(hashStr(code + 'sv')); for (const sp of species) voiceSpecies(sp, vr, sound);
   // the night insects of this place: crickets keep time with the temperature (Dolbear 1897)
   const cricket = { f: makeRng(hashStr(code + 'c')).range(3800, 5400) };
-  return { treeSpecies, soil, birds, owl, cacher, code, name, tun, root, climate, rev, partialKeys, grainTrees, nTrees, species, patches, matParams, kinHue: r.range(15, 60), rngSeed: hashStr(code + 'w'), sound, cricket };
+  return { site, treeSpecies, soil, birds, owl, cacher, code, name, tun, root, climate, rev, partialKeys, grainTrees, nTrees, species, patches, matParams, kinHue: r.range(15, 60), rngSeed: hashStr(code + 'w'), sound, cricket };
 }
 
 // ------------------------------------------------------------ materials (procedural field recordings)
@@ -906,7 +949,7 @@ class World {
   updateSky(dt) {
     const c = this.seed.climate, r = this.r, P = this.p;
     this.clockH += dt / 3600; while (this.clockH >= 24) { this.clockH -= 24; if (!this.fixedMonth) { this.doy = this.doy % 365 + 1; this.month = Math.min(11, Math.floor((this.doy - 1) / 30.42)); } }
-    const sun = sunTimes(this.doy, this.dst); this.sun = sun;
+    const sun = sunTimes(this.doy, this.dst, (this.seed.site && this.seed.site.lat) || LAT); this.sun = sun;
     const h = this.clockH; let L = 0;
     if (h > sun.rise - 0.6 && h < sun.set + 0.6) { const x = (h - sun.rise) / sun.len; L = x <= 0 || x >= 1 ? 0 : Math.pow(Math.sin(Math.PI * x), 0.7); const tw = Math.min(h - (sun.rise - 0.6), sun.set + 0.6 - h) / 0.6; L = Math.max(L, clamp(tw, 0, 1) * 0.06); }
     this.light = clamp(L, 0, 1) * (this.rainT > 0 ? 0.45 : 1) * (this.stormT > 0 ? 0.7 : 1) * (1 - 0.4 * this.carry);
@@ -2178,7 +2221,7 @@ class World {
   // ---------------------------------------------------------- newcomers, local forms and varieties
   arrivalsStep(dt) {
     this.arrT -= dt; if (this.arrT > 0) return; this.arrT = 120;
-    const cands = ARRIVALS.filter(A => !this.arrived[A.key] && A.cond(this)); if (!cands.length) return;
+    const cands = ARRIVALS.filter(A => !this.arrived[A.key] && !(A.kind === 'tree' && this.seed.treeSpecies.includes(A.key)) && A.cond(this)); if (!cands.length) return;
     // a richer, older forest offers more niches and draws more newcomers
     const rich = clamp(this.speciesCount() / 16 + this.stage / 12, 0.15, 1.3);
     const A = this.r.pick(cands), drive = A.kind === 'tree' ? this.pp('seeds', 1) : this.pp('spores', 1);
@@ -2502,4 +2545,4 @@ function segX(ax, ay, bx, by, cx, cy, dx, dy) {
   return u >= 0 && u <= 1 && v >= 0 && v <= 1;
 }
 
-if (typeof module !== 'undefined') module.exports = { ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };
+if (typeof module !== 'undefined') module.exports = { SITES, makeSite, ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };

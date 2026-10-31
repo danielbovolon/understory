@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.6.0
+- A phone layout. On phones (and small landscape screens) the map fills the whole screen and everything floats on it as line icons without boxes:
+  - left: the eight tools (ear, hand, wound, basket, seedling, spores, scissors, ground);
+  - right: Ecosystem, Space, Layers, Forests and Archive, then follow head, roots and zoom;
+  - top: the logo, the forest's name (tap it for the full description of the place and its sound), its clock and stage, the field guide and settings;
+  - bottom: Seed, play and pause, a large red record button, the recording time and the level meter;
+  - bottom left: underfoot and the last five things that happened, newest on top.
+- Each section opens in a narrow drawer on the right, about a fifth of the screen, with knobs instead of sliders (drag up or down; double-tap returns to the place's value). Happenings and listening positions are icons too.
+- Layers open from the bottom: swipe up from the bottom edge or tap the mixer icon. Vertical faders, no more than a quarter of the screen high, sit straight on the map; swipe down to close.
+- "New seed" is now "Seed".
+
+## 5.5.0
+- Every seed is a real place. A seed now belongs to one of eight forest communities of the Alps and their foreland: subalpine larch and stone pine forest, high-montane spruce forest, montane fir and beech forest, beech forest on limestone, warm sessile oak forest, inner-alpine Scots pine forest, alder and willow forest on a riverbank, birch and pine at the edge of a raised bog.
+- Each place draws its elevation, exposure, latitude, annual rain, soil and pH, nitrogen deposition, deer density and growing season from the ranges measured in such forests. From these follow the temperature (about 0.55 °C colder per 100 m, warmer on south slopes), day length at its latitude, rain and snow, soil acidity and fertility, the starting tree species of that community, and the room the forest sounds in.
+- The Ecosystem sliders start from the place's real conditions with every new seed. "Back to this place" (or a double-click on one slider) returns to them. The place is described in the Ecosystem panel, in the header and as the first entry of the field guide.
+- Header: the level meter sits beside the recording time; the Headphones / Speakers choice has moved into Settings (H still switches).
+
 ## 5.4.0
 - Roots. Every tree grows the root system of its species: taproots (silver fir, oak, Scots pine, stone pine), heart roots (beech, larch, birch, alder, maple, rowan, yew), the flat plate of Norway spruce, and the far-running shallow laterals of aspen and willow. Alder roots carry nitrogen-fixing nodules.
 - Roots matter: hyphae bond with a tree where its roots reach, not at the trunk; deep roots reach water that shallow ones cannot, so spruce suffers first in drought and is thrown first by storms; only deep-rooted trees lift water at night for their neighbours.

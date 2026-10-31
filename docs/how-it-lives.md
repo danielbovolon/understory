@@ -2,6 +2,26 @@
 
 Understory is built from what is known about mycorrhizal fungi and forests. Where the science is disputed, the system lets the behaviour emerge instead of hard-coding it. Every figure that is scaled for listening is marked as scaled.
 
+## Places
+Every seed is a real kind of forest of the Alps and their foreland. Its conditions are drawn from the ranges measured in that community (Ellenberg & Leuschner 2010; Mayer 1992; Ozenda 1985; HISTALP climate normals; EMEP deposition maps):
+
+| Place | Elevation | Rain a year | Soil, pH | Starting trees |
+|---|---|---|---|---|
+| Subalpine larch and stone pine forest (Larici-Pinetum cembrae) | 1850–2250 m | 900–1400 mm | podzol, 3.8–5.0 | stone pine, larch, spruce, rowan |
+| High-montane spruce forest (Homogyno-Piceetum) | 1350–1850 m | 1000–1700 mm | podzol, 3.4–4.6 | spruce, larch, fir, rowan |
+| Montane fir and beech forest (Abieti-Fagetum) | 900–1400 m | 1200–2000 mm | brown earth, 4.8–6.4 | fir, beech, spruce, maple |
+| Beech forest on limestone (Carici-Fagetum) | 450–1000 m | 850–1300 mm | rendzina, 6.4–7.6 | beech, maple, fir, yew |
+| Warm sessile oak forest (Quercetum petraeae) | 300–800 m | 650–950 mm | shallow brown earth, 4.6–6.0 | oak, Scots pine, birch, rowan |
+| Inner-alpine Scots pine forest (Erico-Pinetum) | 700–1400 m | 480–750 mm | rendzina, 6.8–7.8 | Scots pine, larch, birch, oak |
+| Alder and willow forest on a riverbank (Alnetum incanae) | 250–1100 m | 800–1500 mm | gley and alluvium, 5.6–7.4 | alder, willow, aspen, birch, maple |
+| Birch and pine at a raised bog (Vaccinio-Betuletum) | 650–1250 m | 1000–1600 mm | peat, 3.2–4.2 | birch, Scots pine, spruce, alder |
+
+- **Temperature** follows the valley-floor normals, about 0.55 °C colder per 100 m of elevation, about 1 °C warmer on a south slope and colder on a north slope. So the subalpine forest has hard winters and a short season, and snow lies long.
+- **Day length** follows the place's latitude.
+- **Soil** acidity follows its pH, fertility its soil type; rain sets how often it rains and how wet the ground is.
+- **Ecosystem sliders** start from the place: moisture, wind exposure, nitrogen deposition above background, deer (grazing), hyphal growth (the length of the growing season), fruiting and electrical activity (moisture and rain).
+- **The room** follows the forest's structure: dense spruce and alder damp the sound and decay quickly, a tall beech hall rings long, open subalpine and pine stands are bright, with the echo of rock.
+
 ## Two clocks
 - **The sky runs on the real clock.** A forest opens at your real local time, on today's date, under a sun computed for an Alpine valley (46.5° N).
   - This covers sunrise and sunset, day length through the year, daily and seasonal temperature, rain, wind, and the night.

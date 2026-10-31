@@ -33,15 +33,14 @@
     </div>
     <div class="transport">
       <button class="btn grow" id="grow" aria-pressed="false" title="Start or pause the forest (Space)">Grow</button>
-      <button class="btn" id="newSeed" title="Plant a completely new forest: new tuning, materials, species, climate and room (N)">New seed</button>
+      <button class="btn" id="newSeed" title="Plant a new forest in a new place: its own elevation, climate, soil, trees, fauna, tuning and room (N)">Seed</button>
       <button class="btn rec" id="rec" aria-pressed="false" title="Record the stereo master into the archive (R)"><i></i><span id="recTxt">Record</span></button>
       <span class="rtime" id="rtime">00:00.0</span>
+      <canvas id="meter" width="220" height="52" aria-label="Output level"></canvas>
     </div>
     <div class="outbox">
-      <canvas id="meter" width="220" height="52" aria-label="Output level"></canvas>
       <button class="btn small" id="guideBtn" aria-haspopup="dialog" aria-expanded="false" title="Field guide: what lives here, the map legend and the sound concept (F)">Field guide</button>
-      <button class="btn small" id="setBtn" aria-haspopup="dialog" aria-expanded="false" title="Settings: appearance, sharing">Settings</button>
-      <button class="btn small" id="modeBtn" title="Headphones: binaural 3D with interaural delay and head shadow. Speakers: stereo panning with distance and depth (H)">Headphones 3D</button>
+      <button class="btn small" id="setBtn" aria-haspopup="dialog" aria-expanded="false" title="Settings: listening, appearance, sharing">Settings</button>
     </div>
   </header>
 
@@ -79,8 +78,10 @@
     <aside class="side">
       <section class="panel">
         <h2>Ecosystem</h2>
-        <p class="sub">The sky runs on your real clock. The forest grows on its own; these set its temperament.</p>
+        <p class="sub">The sky runs on your real clock. Every seed is a real kind of place, and the sliders start from its measured conditions.</p>
+        <p class="sitenote" id="siteNote"></p>
         <div class="sliders" id="ecoS"></div>
+        <div class="row"><button class="btn small" id="siteReset" title="Set every Ecosystem slider back to the real conditions of this place. Double-click a slider to reset only that one.">Back to this place</button></div>
         <p class="note" id="timeNote">Real time: one forest day lasts a day.</p>
         <div class="seasonrow"><label for="season">Season</label>
           <select id="season" title="The sky follows your real clock and date. Choose a season to hear another time of year: day length, temperature, snow, birds, leaf fall and fruiting change.">
@@ -181,6 +182,14 @@
       <button class="btn small sheetx" id="setClose" aria-label="Close settings">Close</button>
     </header>
     <div class="setbody">
+      <section class="setrow">
+        <h3>Listening</h3>
+        <p class="sub">Headphones: binaural 3D, with the delay and shadow of your head between the ears. Speakers: stereo panning with distance and depth. Key H switches.</p>
+        <div class="seg" role="radiogroup" aria-label="Listening">
+          <button class="chip" role="radio" data-mode-set="0" aria-pressed="true">Headphones 3D</button>
+          <button class="chip" role="radio" data-mode-set="1" aria-pressed="false">Speakers stereo</button>
+        </div>
+      </section>
       <section class="setrow">
         <h3>Appearance</h3>
         <p class="sub">Night soil or daylight paper. Auto follows your device.</p>
