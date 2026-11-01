@@ -370,8 +370,12 @@ function makeVoicebook(seed) {
   const ev = (o = {}) => ({ g: pickG(o.avoid), set: r.pick(sets), interval: r.pick([2, 3, 4, 5, 7, -2, -3, 9]), oct: r.pick(o.octs || [-1, 0, 0, 1]), dec: decay * r.range(0.7, 1.4), bright: clamp(bright + r.range(-0.15, 0.15), 0.05, 1), spread: r.range(0.06, 0.2) });
   const bond = ev(), fuse = ev({ avoid: [bond.g] }), clash = ev({ avoid: [bond.g, fuse.g], octs: [0, 1] }), trade = ev({ octs: [0, 1] }), graft = ev({ octs: [-1, -1, 0] });
   clash.interval = r.pick([1, 6, 11]); // strangers meet in dissonance
+  // the score: a pulse, a metre, a progression in the forest's own tuning, and a form of passages
+  const bpm = ({ subalpine: 44, bog: 48, spruce: 50, pine: 54, firbeech: 56, beech: 60, alder: 64, oak: 66 }[site.key] || 56) * r.range(0.92, 1.08);
+  const prog = r.pick([[0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 6, 5, 4], [0, 2, 3, 4], [0, 3, 0, 4], [0, 5, 0, 3], [0, 1, 0, 4]]);
+  const score = { bpm, meter: r.pick([3, 4, 4, 5]), prog, chordBars: r.pick([2, 4, 4]), form: r.pick([[0.4, 0.7, 1, 0.65, 0.3], [0.5, 0.8, 0.55, 1, 0.35], [0.35, 0.6, 0.85, 1, 0.5, 0.25]]), sectionBars: r.pick([8, 12, 16]) };
   return {
-    sets, bright, decay, cold, wet, hard,
+    score, sets, bright, decay, cold, wet, hard,
     bond, bondAlt: [pickG(), pickG()], fuse, clash, trade, graft,
     carbon: wpick(r, { blow: 1 + wet + (snd.worlds.includes('breath') ? 1 : 0), drone: 1, pluck: 0.6 + (snd.worlds.includes('string') ? 1 : 0), chirp: 0.6, bell: 0.4 + cold }),
     water: wpick(r, { drops: 1.2, gurgle: 0.6 + wet, ticks: 0.6, glass: 0.3 + cold }),
@@ -928,7 +932,29 @@ class World {
   treeById(id) { return this.trees.find(t => t.id === id); }
   addLitter(x, y, a) { const l = this.litter.find(l => Math.hypot(l.x - x, l.y - y) < 1.5); if (l) l.a = Math.min(3, l.a + a); else if (this.litter.length < 120) this.litter.push({ x, y, a: Math.min(3, a) }); }
   addPatch(x, y, a, org) { const p = this.patches.find(p => Math.hypot(p.x - x, p.y - y) < 1.5); if (p) p.a = Math.min(3, p.a + a); else if (this.patches.length < 80) this.patches.push({ x, y, a, a0: a, org, found: false }); }
-  freq(deg, oct) { return this.seed.root * this.rootMul * ratioOf(this.seed.tun, deg) * Math.pow(2, oct || 0); }
+  freq(deg, oct) { return this.seed.root * this.rootMul * ratioOf(this.seed.tun, this.snapDeg(deg)) * Math.pow(2, oct || 0); }
+  // ---------------------------------------------------------- the score
+  // A slow pulse and metre, a chord progression built from the forest's own tuning (every other degree stacked),
+  // and a form: passages that build, peak, release and rest. Pitches gravitate to the current chord; network
+  // events fall on the pulse; the passage sets how much the network speaks.
+  scoreStep(dt) {
+    const S = this.vb.score, sc = this.sc || (this.sc = { beat: 0, intensity: 0.5 });
+    sc.beat += dt * S.bpm / 60;
+    const bar = Math.floor(sc.beat / S.meter), L = this.seed.tun.ratios.length;
+    const root = S.prog[Math.floor(bar / S.chordBars) % S.prog.length];
+    sc.chord = [root % L, (root + 2) % L, (root + 4) % L];
+    const sec = Math.floor(bar / S.sectionBars) % S.form.length, target = S.form[sec];
+    sc.intensity += (target - sc.intensity) * (1 - Math.exp(-dt / 20));
+    if (sc.sec !== sec) { sc.sec = sec; if (this.r.chance(0.25) && this.t > 300) this.log(target > 0.8 ? 'The network swells into a fuller passage.' : target < 0.4 ? 'The network quiets into a resting passage.' : 'A new passage begins in the network.', 'drift'); }
+  }
+  snapDeg(deg) {
+    const c = this.sc && this.sc.chord; if (!c) return deg; const L = this.seed.tun.ratios.length, pc = ((Math.round(deg) % L) + L) % L;
+    let best = 0, bd = 99; for (const x of c) { let d = x - pc; if (d > L / 2) d -= L; if (d < -L / 2) d += L; if (Math.abs(d) < Math.abs(bd)) { bd = d; best = d; } }
+    return Math.round(deg) + best;
+  }
+  // seconds until the next pulse subdivision
+  toGrid(sub = 2) { const S = this.vb.score, sc = this.sc; if (!sc) return 0; const step = 1 / sub, ph = sc.beat / step; return (Math.ceil(ph + 1e-6) - ph) * step * 60 / S.bpm; }
+  beatHz() { return this.vb.score.bpm / 60; }
   scaleRatios(n, center) { const out = []; for (let i = 0; i < n; i++) out.push(ratioOf(this.seed.tun, (center || 0) + i) / ratioOf(this.seed.tun, center || 0)); return out; }
   meanSize() { return this.trees.length ? this.trees.reduce((a, t) => a + t.size, 0) / this.trees.length : 0; }
   // breadth-first path between two nodes through the hyphal graph
@@ -960,8 +986,9 @@ class World {
   ch(layer, key) { const c = this.char && this.char[layer]; return c ? clamp(+c[key] || 0, -1, 1) : 0; }
   dshift(layer) { return Math.round(this.ch(layer, 'reg') * this.seed.tun.ratios.length * 0.6); }
   season() { return SEASON_OF[this.month]; }
-  ping(x, y, z, node, sp, amt, budget = 6, g) {
+  ping(x, y, z, node, sp, amt, budget = 6, g, now) {
     if (!this.canSpawn(this.budget.ping, budget)) return;
+    if (!now) { if (!this.r.chance(0.45 + 0.55 * ((this.sc && this.sc.intensity) || 0.5))) return; const w = this.toGrid(2); if (w > 0.02) { this.later(w, () => this.ping(x, y, z, node, sp, amt, budget, g, true)); return; } }
     const f = this.freq(node.deg + sp.degOff + this.dshift('signals'), sp.reg - 1);
     // a well-fed colony rings fuller and harder; an old one rings longer
     const en = g ? clamp(g.energy / 2, 0, 1) : 0.5, nu = g ? clamp(g.nut / 1.5, 0, 1) : 0.3, old = g ? clamp((this.t - g.born) / 4000, 0, 1) : 0;
@@ -990,11 +1017,13 @@ class World {
     else if (k === K.GRAIN) { q.lp = Math.min(p.lp === undefined ? 0.5 : p.lp, 0.15 + 0.85 * c); q.dens = (p.dens || 10) * (0.45 + 0.55 * c); q.size = (p.size || 0.1) * (1 + 0.8 * soft); }
     else if (k === K.NOISE) { q.lp = (p.lp === undefined ? 0.5 : p.lp) * (0.5 + 0.5 * c); if (q.crk) q.crk *= 0.25 + 0.75 * c; }
     else if (k === K.BLOW) { q.breath = (p.breath === undefined ? 0.5 : p.breath) * (0.5 + 0.5 * c); q.bright = (p.bright === undefined ? 0.5 : p.bright) * (0.6 + 0.4 * c); q.flut = (p.flut || 0) * (0.4 + 0.6 * c); }
+    const inten = (this.sc && this.sc.intensity) || 0.5; if (q.gain !== undefined) q.gain *= 0.75 + 0.35 * inten;
     if (p.layer === LAYER.SIGNALS && (k === K.MODAL || k === K.PLUCK || k === K.CHIRP || k === K.DRONE)) q.gain = (q.gain === undefined ? 0.3 : q.gain) * (0.72 + 0.28 * c);
     return q;
   }
   // play one of the forest's gestures for an event: fA is the first voice (the fungus), fB the second (the tree)
   gesture(E, x, y, z, fA, fB, o = {}) {
+    if (!o.now) { const w = this.toGrid(2); if (w > 0.02) { this.later(w, () => this.gesture(E, x, y, z, fA, fB, Object.assign({}, o, { now: true }))); return; } }
     const V = this.vb, g0 = o.g || E.g, g = this.crisp > 0.5 ? g0 : ({ rattle: 'pulse', grains: 'dyad', whistle: 'swell' }[g0] || g0), gain = o.gain || 0.3, L = o.layer === undefined ? LAYER.SIGNALS : o.layer, set = PING_SETS[E.set] || PING_SETS.wood, dec = E.dec, br = E.bright, max = o.max || 6;
     const S = (k, p, t = 0) => { const go = () => this.fx(k, Object.assign({ x, y, z, layer: L, send: 0.6, prio: 1 }, p), max); if (t > 0) this.later(t, go); else go(); };
     const md = (f, g2, d = 1) => ({ f, r: set, d: set.map((_, i) => 0.5 * dec * d / (1 + i * 1.2)), a: [1, 0.5 + 0.3 * br, 0.25 + 0.3 * br, 0.12 + 0.2 * br], hard: 0.3 + 0.6 * br, gain: g2 });
@@ -1042,6 +1071,7 @@ class World {
     this.nature(dt);
     this.rootsStep(dt);
     this.crispStep(dt);
+    this.scoreStep(dt);
     this.critterStep(dt);
     this.calls = this.calls.filter(c => (c.t -= dt) > 0);
     this.stageCheck();
@@ -1442,7 +1472,7 @@ class World {
       const sig = { e: e.id, dir: e.a === node.id ? 1 : -1, s: 0, len: e.len, speed: eg.sp.sigSpeed * (alarm ? 1.6 : 1) * Math.pow(2, this.ch('signals', 'pace') * 0.9), n, alarm, g: eg.id, hops: hops + 1, voice: null, x: node.x, y: node.y };
       this.signals.push(sig); if (alarm) this.mark('alarm');
       if (this.canSpawn(this.budget.sig, 7)) {
-        const tt = e.len / sig.speed; const isi = clamp(tt / n, 0.04, 0.7);
+        const tt = e.len / sig.speed, s16 = 15 / this.vb.score.bpm; const isi = clamp(Math.max(1, Math.round(clamp(tt / n, 0.04, 0.7) / s16)) * s16, 0.04, 0.9);
         const f0 = this.freq(node.deg + eg.sp.degOff + this.dshift('signals'), eg.sp.reg) * (alarm ? 1.5 : 1);
         const SG = this.vb.sig; const id = this.audio.spawn(K.CHIRP, { x: node.x, y: node.y, z: -0.3, f0, f1: f0 * Math.pow(2, eg.sp.glide * SG.glide), mr: alarm ? eg.sp.mr : (eg.sp.mr + SG.mr) / 2, mi: eg.sp.mi * SG.mi * (alarm ? 1.4 : 1), n, isi, bd: eg.sp.bd * SG.bd, gain: alarm ? 0.6 : 0.45, layer: LAYER.SIGNALS, send: 0.55, prio: 1 });
         if (id) { sig.voice = id; this.budget.sig.add(id); }
@@ -1795,7 +1825,7 @@ class World {
         const tip = near[i]; let tv = this.v.ticks[i];
         if (!tip) { if (tv) { A.rel(tv.id, 1); this.v.ticks[i] = null; } continue; }
         const g = this.genets.get(tip.g); if (!g) continue;
-        const rate = (1 + g.sp.speed * this.p.growth * 30 * clamp(this.moist, 0.2, 1.2) * this.growthT()) * Math.pow(2, this.ch('growth', 'density') * 1.2);
+        const rate0 = (1 + g.sp.speed * this.p.growth * 30 * clamp(this.moist, 0.2, 1.2) * this.growthT()) * Math.pow(2, this.ch('growth', 'density') * 1.2), bh = this.beatHz() * 2, rate = Math.max(bh / 2, Math.round(rate0 / bh) * bh);
         const tf = g.sp.tickF * Math.pow(2, this.ch('growth', 'tone') * 0.8);
         if (!tv || !A.alive(tv.id)) {
           const id = A.spawn(K.TICK, { x: tip.x, y: tip.y, z: -0.25, rate, f: tf, q: g.sp.tickQ, jit: 0.35, burst: g.sp.burst, gain: 0.65, att: 2, rel: 2, layer: LAYER.GROWTH, send: 0.45, prio: 1 });
@@ -2445,7 +2475,7 @@ class World {
     this.t += dt;
     this.updateSky(dt); this.updateLight(); this.updateCover(dt);
     this.germinate(); this.seedRain(dt); this.coarseSpores(dt); this.arrivalsStep(dt); this.pouchStep(dt);
-    this.treesStep(dt); this.rootsStep(dt, true); this.trade(dt); this.coarseGrow(dt); this.prune(dt); this.coarseHappen(dt);
+    this.treesStep(dt); this.rootsStep(dt, true); this.scoreStep(dt); this.trade(dt); this.coarseGrow(dt); this.prune(dt); this.coarseHappen(dt);
     this.soundDrift(dt);
     for (let i = this.deposits.length - 1; i >= 0; i--) { const d = this.deposits[i]; d.t -= dt; if (d.t <= 0) { this.deposits.splice(i, 1); this.germinateDeposit(d); } }
     for (let i = this.snags.length - 1; i >= 0; i--) { const g = this.snags[i]; g.t += dt; if (g.t > g.life) { this.addLitter(g.x, g.y, 0.8 * g.size); this.snags.splice(i, 1); } }

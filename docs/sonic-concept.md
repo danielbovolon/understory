@@ -74,6 +74,14 @@ The listener stands in the forest. **Binaural rendering** (headphones) is built 
 
 The environment changes the acoustics as it does in nature. **Snow cover** absorbs highs and shortens reverberation. **Fog** with its temperature inversion bends sound back to the ground, so distant sources carry further and brighter. **Under the soil** everything above ground is heavily low-passed and the hyphal layer comes close. **In the canopy** birds and wind are near and the ground recedes. On speakers, the same model renders as constant-power stereo panning.
 
+## Composition
+
+Underneath the events runs a score, so the forest unfolds as a piece rather than a scatter of sounds.
+
+- **Pulse and metre** — Every place has a slow pulse: around 44 beats a minute at the treeline, 50 in spruce, 56–60 in beech and fir, up to 66 in warm oak and riverside forests. The metre is three, four or five. Spike trains, pings, the meeting of roots and fungi, trades and grafts fall on the eighth notes of that pulse; growing tips pulse at multiples of it.
+- **Harmony** — A chord progression is built from the forest's own tuning by stacking every other degree, whatever the tuning: just intonation, a harmonic series, an unusual equal temperament, Bohlen–Pierce or a gamelan scale. Each chord lasts two or four bars. Every pitched voice gravitates to the nearest tone of the current chord, so the trees' drones glide when the harmony moves and the network answers in the same chord.
+- **Form** — Passages of 8, 12 or 16 bars follow an arc: build, peak, release, rest. The passage sets how often the network speaks and how present it is, so there are full stretches and quiet ones, and the forest breathes on a scale of minutes. Over hours, the slow drift of the tonal centre carries the whole piece into related keys.
+
 ## Every forest its own voicebook
 
 Beyond its tuning and sound worlds, every forest draws a **voicebook**: for each kind of event it decides which gesture sounds, in which material and register. The gestures are:

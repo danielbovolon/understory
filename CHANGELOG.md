@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.0.0
+- One layout on every screen. The map fills the window on desktop too; larger screens get a roomy drawer with all knobs in a grid (no scrolling), a larger mixer and larger text.
+- Forests and Archive open as pages of their own, from icons between Seed and the field guide.
+- Happenings have their own section (cloud icon) instead of sitting in Ecosystem.
+- The notes (what you are doing, underfoot, what is happening) moved to the top right, under the icons; the mixer no longer covers anything. The mixer is smaller and redesigned as a console strip: recessed tracks with scale marks, the level in the layer's colour, and caps with a coloured index line.
+- The compass sits beside the title. The play button stays centred when a drawer opens. Drawers no longer slide sideways. Buttons and panels have rounded corners.
+- Nature-true visuals: mycelium in its real colours (mostly white and cream; yellow Suillus and Rhizopogon cords, lilac Laccaria, brown Thelephora, black Cenococcum and Armillaria), single hyphae hair-fine and only cords thicker, faint mycelial mats around each colony, pale fine root tips, no additive glow.
+- Composition: a score under every forest. A slow pulse and metre set by the place, a chord progression built from the forest's own tuning, and passages that build, peak, release and rest. Pitches gravitate to the current chord; network events fall on the pulse; the passage sets how much the network speaks.
+- Phones: a smaller voice pool (36) so the audio thread never runs short, and playback straight to the speakers by default. The screen-off media-player route, which made some phones crackle, is now an opt-in in Settings.
+
 ## 5.9.0
 - Softer mycelium and mushrooms. By default the network sounds tonal and calm: sparse droplets instead of fast ticking, gentler spike trains, softer and lower strikes, spores as quiet breaths, a low-passed soil and thinner grain clouds. The crisp textures return only in moments (rain arriving, storms, a flush of mushrooms, touching the network, and now and then on their own), fading in and out over seconds.
 - A new seed now also resets where and how you listen: back on the ground, no drifting, riding or walking, roots view off, the camera back to its starting view.

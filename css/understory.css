@@ -447,7 +447,7 @@ body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; heigh
 .m .m-notes .hint .bar { margin-top: 2px; }
 .m .m-notes .hint .hintsub, .m .m-notes .hint #hintGrow { display: none; }
 .m .m-notes .hint p#hintText { color: var(--bone); }
-@media (orientation: landscape) { .m .m-mixer { left: 100px; right: 100px; } .m .m-notes { left: calc(max(12px, env(safe-area-inset-left, 0px)) + 96px); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(30vw, 360px) !important; max-height: calc(100svh - var(--top) - 16px); } .m .m-opts { left: 110px; top: calc(max(6px, env(safe-area-inset-top, 0px)) + 82px); } body.m #mui { --dw: max(17vw, 140px); --top: calc(max(6px, env(safe-area-inset-top, 0px)) + 116px); } .m .m-tools .tools { display: grid; grid-template-columns: repeat(2, auto); } .m .m-sec, .m .m-view { grid-template-columns: repeat(2, auto); } .m .m-rail { gap: 4px; } .m .m-tools .tools .tool, .m .m-rail .btn, .m .m-ic { padding: 5px; } .m .m-mixer { height: min(32svh, 200px); } }
+@media (orientation: landscape) and (max-height: 560px) { .m .m-mixer { left: 100px; right: 100px; } .m .m-notes { left: calc(max(12px, env(safe-area-inset-left, 0px)) + 96px); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(30vw, 360px) !important; max-height: calc(100svh - var(--top) - 16px); } .m .m-opts { left: 110px; top: calc(max(6px, env(safe-area-inset-top, 0px)) + 82px); } body.m #mui { --dw: max(17vw, 140px); --top: calc(max(6px, env(safe-area-inset-top, 0px)) + 116px); } .m .m-tools .tools { display: grid; grid-template-columns: repeat(2, auto); } .m .m-sec, .m .m-view { grid-template-columns: repeat(2, auto); } .m .m-rail { gap: 4px; } .m .m-tools .tools .tool, .m .m-rail .btn, .m .m-ic { padding: 5px; } .m .m-mixer { height: min(32svh, 200px); } }
 
 .m .m-doing { font-size: 9px; letter-spacing: 0.04em; color: var(--hypha); text-shadow: var(--tsh); }
 .m .m-topi #newSeed { order: -1; }
@@ -468,3 +468,78 @@ body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; heigh
 .m .m-drawer .btn.hap .lb b, .m .m-drawer .btn.opt .lb b { display: block; font-size: 7.5px; letter-spacing: 0.06em; line-height: 1.2; font-weight: 500; }
 .m .m-drawer .btn.hap .lb small, .m .m-drawer .btn.opt .lb small { display: none; }
 .m .m-drawer .btn.hap .lb i { position: absolute; left: 20%; right: auto; bottom: 0; height: 2px; width: calc(var(--p, 0) * 60%); background: var(--spore); }
+
+/* ================================================================ 6.0: one layout everywhere */
+/* rounded controls */
+.btn, .tool, .seedcode, .toolopts, .toolopts select, .seasonrow select, .panel, .take, .forest, .player, .sitenote, .glegend, .gentry, .forest img, .forest .noimg, .layer .shape, .sheetin, .take .tn:focus { border-radius: 9px; }
+.btn.small { border-radius: 8px; }
+.m .m-drawer { overflow-x: hidden; touch-action: pan-y; overscroll-behavior: contain; }
+body.m, body.m #mui { overscroll-behavior: none; }
+.m.m-open .m-trans { left: 50%; }
+body.m #mui { --rail: calc(max(8px, env(safe-area-inset-top, 0px)) + 300px); }
+.m .m-rail { top: var(--rail); }
+/* notes: top right, under the icons */
+.m .m-notes { top: calc(max(8px, env(safe-area-inset-top, 0px)) + 52px); right: max(10px, env(safe-area-inset-right, 0px)); left: auto; bottom: auto; width: min(50vw, 400px); max-height: calc(var(--rail) - max(8px, env(safe-area-inset-top, 0px)) - 62px); }
+.m.m-open .m-notes { width: min(50vw, 400px); right: calc(var(--dw) + 46px); }
+.m.m-mix .m-notes { opacity: 1; }
+.m.m-info .m-notes { opacity: 0; }
+/* tool options sit just above play */
+.m .m-opts { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 58px); }
+.m.m-mix .m-opts { opacity: 0; pointer-events: none; }
+/* the page for forests and the archive */
+.pagein { width: min(860px, 100%); }
+.pagebody { overflow-y: auto; overscroll-behavior: contain; padding-bottom: 14px; }
+.pagebody .panel { border: 0; background: transparent; padding: 4px 0; }
+.pagebody .panel > h2 { display: none; }
+.pagebody .forests { max-height: none; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.pagebody .lib { max-height: none; }
+.m .m-topi .btn[data-icon="forests"], .m .m-topi .btn[data-icon="archive"] { order: 0; }
+.m .m-topi #newSeed { order: -1; }
+/* the mixer: a compact console strip, clear of the icons at both sides */
+.m .m-mixer { left: 60px; right: 60px; bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 62px); height: min(19svh, 160px); }
+.m .m-mixer .panel { gap: 2px; justify-content: center; }
+.m .m-mixer .sliders, .m .m-mixer #layerS { gap: 2px; }
+.m .m-mixer #changeS { padding-right: 8px; margin-right: 6px; border-right: 1px solid color-mix(in srgb, var(--bone) 18%, transparent); }
+.m .m-mixer .sl { width: 36px; gap: 6px; }
+.m .m-mixer .sl label { font-size: 7.5px; letter-spacing: 0.08em; }
+.m .m-mixer .layers .sl label::before { width: 5px; height: 5px; }
+.m .fader::before { width: 4px; margin-left: -2px; border-radius: 2px; background: color-mix(in srgb, var(--soil) 55%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bone) 22%, transparent); }
+.m .fader::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 14px; margin-left: -7px; background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--bone) 30%, transparent) 0 1px, transparent 1px 25%); -webkit-mask: linear-gradient(to right, #000 0 3px, transparent 3px 11px, #000 11px); mask: linear-gradient(to right, #000 0 3px, transparent 3px 11px, #000 11px); pointer-events: none; }
+.m .fader .ff { width: 4px; margin-left: -2px; border-radius: 2px; opacity: 0.9; }
+.m .fader .fh { width: 24px; height: 13px; margin: 0 0 -6.5px -12px; border-radius: 4px; background: linear-gradient(to bottom, color-mix(in srgb, var(--bone) 95%, #fff), color-mix(in srgb, var(--bone) 75%, var(--soil))); box-shadow: 0 1px 3px rgb(0 0 0 / 0.5), 0 0 0 1px color-mix(in srgb, var(--soil) 50%, transparent); }
+.m .fader .fh::after { content: ""; position: absolute; left: 3px; right: 3px; top: 50%; height: 1.5px; margin-top: -0.75px; background: var(--lc, var(--hypha)); border-radius: 1px; }
+.m .m-mixer .row .btn { padding: 4px; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .m .m-notes { top: max(8px, env(safe-area-inset-top, 0px)); left: 50% !important; right: auto; bottom: auto !important; transform: translateX(-50%); width: min(34vw, 380px) !important; max-height: 44svh; }
+  body.m #mui { --rail: var(--top); }
+  .m .m-mixer { left: 110px; right: 110px; height: min(30svh, 140px); }
+}
+/* larger screens: a roomy drawer with knobs in a grid, no scrolling; bigger mixer and notes */
+.m-wide #mui { --dw: 320px; --top: 150px; --rail: 340px; }
+.m-wide .m .brand .wordmark, .m.m-wide .brand .wordmark { width: 150px; }
+.m.m-wide .m-name { font-size: 20px; }
+.m.m-wide .m-hud { font-size: 11px; }
+.m.m-wide .m-recrow { top: 104px; }
+.m.m-wide .ic { width: 25px; height: 25px; }
+.m.m-wide .m-drawer { padding: 0 14px 14px; background: color-mix(in srgb, var(--soil) 35%, transparent); border-radius: 14px 0 0 14px; }
+.m.m-wide .m-drawer > header span { font-size: 17px; }
+.m.m-wide .m-drawer .sliders { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 6px; }
+.m.m-wide .m-drawer .knob { width: 44px; height: 44px; }
+.m.m-wide .m-drawer .sl label { font-size: 8.5px; }
+.m.m-wide .m-drawer .sl output { font-size: 9px; }
+.m.m-wide .m-drawer .grid9, .m.m-wide .m-drawer .grid6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.m.m-wide .m-drawer .btn.hap .lb b, .m.m-wide .m-drawer .btn.opt .lb b { font-size: 9px; }
+.m.m-wide .m-drawer .sitenote { display: block; font-size: 10px; }
+.m.m-wide .m-drawer .gaits { flex-direction: row; }
+.m.m-wide .m-notes { width: 420px; font-size: 10.5px; }
+.m.m-wide .m-notes .log p { font-size: 10.5px; }
+.m.m-wide .m-notes .underfoot { font-size: 10px; }
+.m.m-wide .m-doing { font-size: 10.5px; }
+.m.m-wide .m-mixer { height: 230px; left: 120px; right: 120px; }
+.m.m-wide .m-mixer .sl { width: 58px; }
+.m.m-wide .m-mixer .sl label { font-size: 9px; }
+.m.m-wide .m .fader, .m.m-wide .fader { width: 40px; }
+.m.m-wide .m-mixer .nudges { width: 64px; }
+.m.m-wide .m-mixer .nudge .knob { width: 36px; height: 36px; }
+.setcheck { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 10.5px; }
+.setcheck input { width: 16px; height: 16px; accent-color: var(--hypha); }

@@ -478,16 +478,19 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     if (!m || typeof m !== 'object') return;
     switch (m.t) {
       case 'spawn': {
-        let v = this.voices.find(v => !v.on);
+        // phones get a smaller pool, so the audio thread never runs out of time
+        const lim = this.maxv || MAXV; let on = 0; for (const c of this.voices) if (c.on) on++;
+        let v = on < lim ? this.voices.find(v => !v.on) : null;
         if (!v) {
           // steal lowest priority / oldest voice, never one of higher priority
           let best = null, bs = Infinity;
-          for (const c of this.voices) { const sc = c.prio * 1e6 - c.age / SR + (c.gate ? 0 : -1e5); if (sc < bs) { bs = sc; best = c; } }
+          for (const c of this.voices) { if (!c.on) continue; const sc = c.prio * 1e6 - c.age / SR + (c.gate ? 0 : -1e5); if (sc < bs) { bs = sc; best = c; } }
           if (best && best.prio <= num(m.p && m.p.prio, 1)) { this.map.delete(best.id); this.freed.push(best.id); v = best; }
         }
         if (!v) { this.freed.push(m.id); return; }
         v.start(m.id, m.k | 0, m.p || {}); this.map.set(m.id, v); break;
       }
+      case 'maxv': { this.maxv = clamp(num(m.n, MAXV) | 0, 8, MAXV); break; }
       case 'set': { const v = this.map.get(m.id); if (v) v.set(m.p || {}, false); break; }
       case 'rel': { const v = this.map.get(m.id); if (v) v.release(m.r); break; }
       case 'pos': {

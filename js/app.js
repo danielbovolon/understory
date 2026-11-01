@@ -41,7 +41,10 @@ const audio = {
     this.out = this.ctx.createGain(); this.node.connect(this.out);
     // on phones, play through a media element: the system then treats the forest like music and keeps it playing with the screen off
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
-    if (matchMedia('(pointer: coarse)').matches && this.ctx.createMediaStreamDestination) {
+    // the media-element route lets phones keep playing with the screen off, but on many phones it resamples and crackles,
+    // so it is opt-in (Settings); by default the forest plays straight to the speakers
+    let bg = false; try { bg = localStorage.getItem('understory.bg') === '1'; } catch (e) { }
+    if (bg && matchMedia('(pointer: coarse)').matches && this.ctx.createMediaStreamDestination) {
       try {
         this.mdest = this.ctx.createMediaStreamDestination(); this.out.connect(this.mdest);
         this.el = document.createElement('audio'); this.el.setAttribute('playsinline', ''); this.el.srcObject = this.mdest.stream; document.body.appendChild(this.el);
@@ -51,6 +54,7 @@ const audio = {
     if (!this.viaElement) this.out.connect(this.ctx.destination);
     this.node.port.onmessage = (e) => this.onMsg(e.data);
     this.post({ t: 'seedrng', s: (Math.random() * 2 ** 31) | 0 });
+    if (matchMedia('(pointer: coarse)').matches) this.post({ t: 'maxv', n: 36 });
     this.started = true;
   },
   onMsg(m) {
@@ -318,7 +322,20 @@ function resize() {
   cv.width = Math.round(scene.w * scene.dpr); cv.height = Math.round(scene.h * scene.dpr);
 }
 function hsl(h, s, l, a = 1) { return `hsla(${h.toFixed(0)},${s}%,${l}%,${a})`; }
-function gcol(g, a = 1, boost = 0) { const [h, s, l] = seasonTint(g ? g.sp.hue : 150, 70, PAL.dark ? 64 + boost * 12 : 32 + boost * 6); return hsl(h, Math.min(95, s), Math.min(92, l), a); }
+// Mycelium as it looks in the soil: mostly white and cream, with the real exceptions: the yellow cords of Suillus and
+// Rhizopogon, the lilac of Laccaria amethystina, the brown of Thelephora and Paxillus, the black of Cenococcum mantles
+// and Armillaria's bootlace rhizomorphs. Each individual differs a little in tone.
+const MYC = {
+  Suillus: [46, 55, 70], Rhizopogon: [44, 45, 74], Laccaria: [285, 24, 74], Cortinarius: [38, 28, 78], Thelephora: [26, 36, 50], Paxillus: [36, 45, 62],
+  Cenococcum: [25, 12, 30], Armillaria: [20, 34, 34], Hypholoma: [52, 40, 72], Cantharellus: [45, 40, 80], Piloderma: [52, 70, 66], Tomentella: [28, 30, 52],
+  Gomphidius: [20, 25, 70], Tuber: [32, 20, 74], Morchella: [40, 22, 78], Fomes: [30, 28, 56], Fomitopsis: [28, 30, 60],
+};
+function mycHSL(g) { const genus = g && g.sp ? g.sp.genus : ''; const b = MYC[genus] || [46, 14, 86]; const j = g && g.id ? ((g.id * 37) % 13) - 6 : 0; return [b[0] + j, b[1], b[2] + (j % 3)]; }
+function gcol(g, a = 1, boost = 0) {
+  const [h, s0, l0] = mycHSL(g);
+  const l = PAL.dark ? Math.min(94, l0 + boost * 6) : Math.max(14, l0 - 46 + boost * 4), s = PAL.dark ? s0 : Math.min(70, s0 + 18);
+  return hsl(h, s, l, a);
+}
 function kinCol(t, a = 1) { const c = treeHSL(t); return PAL.dark ? hsl(c[0], c[1], c[2] + 10, a) : hsl(c[0], Math.min(80, c[1] + 8), Math.max(20, c[2] - 10), a); }
 // tree colour from species, season and the state of its leaves
 function treeHSL(t) {
@@ -381,11 +398,12 @@ function draw(now) {
   }
   drawRoots(g, w, now);
   // hyphae
-  g.globalCompositeOperation = add; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.globalCompositeOperation = 'source-over'; g.lineCap = 'round'; g.lineJoin = 'round';
   for (const e of w.edges.values()) {
     const gn = w.genets.get(e.g); const mid = e.pts[(e.pts.length / 2) | 0]; const pm = cam.proj(mid[0], mid[1], -0.05); if (!pm) continue;
     const young = Math.min(1, (w.t - e.born) / 3);
-    g.lineWidth = Math.max(0.5, (0.025 + 0.05 * Math.min(3, e.D)) * pm[2]);
+    // single hyphae are finer than a hair; only cords (rhizomorphs) that carry a lot thicken into visible strands
+    g.lineWidth = Math.max(0.4, (0.01 + 0.03 * Math.min(3, e.D)) * pm[2]);
     g.strokeStyle = gcol(gn, Math.min(1, (0.22 + 0.25 * Math.min(1, e.D) + 0.5 * e.act) * young * (PAL.dark ? 1 : 1.7)) * (1 - 0.45 * soilMix), e.act);
     polyline(g, e.pts, -0.05); g.stroke();
     if (gn && gn.glow > 0.05 && PAL.dark) { g.strokeStyle = `hsla(105,95%,62%,${0.35 * gn.glow})`; g.lineWidth += 3; g.stroke(); }
@@ -519,7 +537,7 @@ function drawRoots(g, w, now) {
     for (const r of a.roots) {
       let first = true; g.beginPath(); let pw = 0;
       for (const q of r.pts) { const p = P(q); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); pw = p[2]; }
-      g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha * (r.order === 3 ? 0.7 : 1)})`;
+      g.strokeStyle = r.order === 3 ? (PAL.dark ? `rgba(226,210,182,${alpha * 0.85})` : `rgba(150,120,85,${alpha * 0.85})`) : `rgba(${base[0]},${base[1]},${base[2]},${alpha})`;
       g.lineWidth = Math.max(r.order === 3 ? 0.5 : 0.8, r.w * (0.025 + 0.05 * t.size) * (1 + 0.9 * sv) * pw * (r.order === 0 ? 1 : 0.8)); g.stroke();
     }
     if (a.nodules && sv > 0.05) { g.fillStyle = PAL.dark ? `rgba(235,214,170,${0.8 * sv})` : `rgba(150,110,60,${0.8 * sv})`; for (const r of a.roots) if (r.order === 1) for (const q of r.pts.slice(1, 4)) { const p = P(q); if (p) { g.beginPath(); g.arc(p[0], p[1], Math.max(1.2, 0.04 * p[2]), 0, TAU); g.fill(); } } }
@@ -691,7 +709,8 @@ function drawColonies(g, w) {
   for (const gn of w.genets.values()) {
     const p = cam.proj(gn.ox, gn.oy, 0); if (!p) continue;
     const r = Math.max(1.5, 0.17 * p[2]);
-    g.strokeStyle = gcol(gn, 0.28); g.lineWidth = 1; g.beginPath(); g.ellipse(p[0], p[1], r, r * flat, 0, 0, TAU); g.stroke();
+    { const R = Math.max(6, 0.9 * p[2] * Math.min(2.4, 0.6 + gn.len * 0.02 || 1)), gr = g.createRadialGradient(p[0], p[1], 0, p[0], p[1], R); gr.addColorStop(0, gcol(gn, PAL.dark ? 0.16 : 0.2)); gr.addColorStop(1, gcol(gn, 0)); g.fillStyle = gr; g.beginPath(); g.ellipse(p[0], p[1], R, R * flat, 0, 0, TAU); g.fill(); }
+    g.strokeStyle = gcol(gn, 0.22); g.lineWidth = 1; g.beginPath(); g.ellipse(p[0], p[1], r, r * flat, 0, 0, TAU); g.stroke();
     const L = FUNGUS_LOOK[gn.sp.genus];
     if (L && L.shape === 'sclerotia') drawMushroomAt(g, p[0], p[1], Math.max(2.5, 0.3 * p[2]), L, gn, 0);
     if (gn.pins > 0.15) {
@@ -867,7 +886,7 @@ function seasonParticles(g, w, now) {
   }
 }
 function drawCompass(g) {
-  const dw = MUI.on && MUI.section ? $('mDrawer').offsetWidth : 0, x = scene.w - 34 - dw, y = MUI.on ? 92 : 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
+  let x = scene.w - 34, y = 28; if (MUI.on) { const wm = document.querySelector('#mBrand .wordmark'), cr = scene.cv.getBoundingClientRect(); if (wm) { const r = wm.getBoundingClientRect(); x = r.right - cr.left + 22; y = r.top - cr.top + r.height * 0.55; } } const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
   const a = Math.atan2(pN[0] - p0[0], -(pN[1] - p0[1]));
   g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = PAL.dim; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, 12, 0, TAU); g.stroke();
   g.fillStyle = PAL.spore; g.beginPath(); g.moveTo(0, -11); g.lineTo(3.5, 0); g.lineTo(-3.5, 0); g.closePath(); g.fill();
@@ -1015,6 +1034,8 @@ function initInput() {
     if (k === 'v') { toggleRoots(); return; }
     if (k === 'escape' && !$('guideSheet').hidden) { toggleGuide(false); return; }
     if (k === 'escape' && !$('setSheet').hidden) { toggleSettings(false); return; }
+    if (k === 'escape' && $('mPage') && !$('mPage').hidden) { openPage(null); return; }
+    if (k === 'escape' && MUI.section) { openSection(null); return; }
     if (k >= '1' && k <= '8') { setTool(TOOLS[+k - 1][0]); return; }
     if (k === 'g') { setWalk(state.walkMode ? null : 'rhythm'); return; }
     if ('wasdqe'.includes(k) && k.length === 1) { keys.add(k); e.preventDefault(); }
@@ -1168,6 +1189,8 @@ function initSettings() {
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { let m = 'auto'; try { m = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { } if (m === 'auto') applyTheme('auto'); });
   for (const b of document.querySelectorAll('[data-theme-set]')) b.onclick = () => { const m = b.dataset.themeSet; try { localStorage.setItem(THEME_KEY, m); } catch (e) { } applyTheme(m); };
   $('setBtn').onclick = () => toggleSettings(); $('setClose').onclick = () => toggleSettings(false);
+  try { $('bgPlay').checked = localStorage.getItem('understory.bg') === '1'; } catch (e) { }
+  $('bgPlay').onchange = () => { try { localStorage.setItem('understory.bg', $('bgPlay').checked ? '1' : '0'); } catch (e) { } };
   $('setSheet').addEventListener('click', (e) => { if (e.target === $('setSheet')) toggleSettings(false); });
   const appUrl = () => (window.top === window && /^https?:$/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname)) ? location.origin + location.pathname : APP_URL;
   const share = async (url, title, text) => {
@@ -1809,6 +1832,7 @@ const ICON = {
   centre: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/>',
   calm: '<path d="M3 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  happen: '<path d="M7 13a4 4 0 0 1 .5-8A5.5 5.5 0 0 1 18 6a3.5 3.5 0 0 1 0 7z"/><path d="m13 13-2 4h3l-2 4"/>',
   sowsound: '<path d="M4 12h2l2-5 3 10 3-8 2 3h4"/>',
   reset: '<path d="M4 12a8 8 0 1 0 3-6.3"/><path d="M4 4v4h4"/>',
 };
@@ -1827,13 +1851,17 @@ function setBtnText(b, t) { const lb = b.querySelector('.lb'); if (lb) lb.textCo
 // The map fills the screen. Tools on the left, sections on the right, playing and recording at the bottom,
 // what is happening in the bottom-left corner. Every section opens in a narrow drawer on the right, with knobs;
 // the layer mixer rises from the bottom edge with vertical faders, straight over the map.
-const MOBILE_Q = '(max-width: 760px), (max-height: 520px) and (pointer: coarse)';
+// one layout for every screen: the map fills it; larger screens get roomier drawers, pages and mixer
+const MOBILE_Q = 'all';
+const WIDE_Q = '(min-width: 900px) and (min-height: 560px)';
 const MUI = { on: false, homes: new Map(), section: null };
-const SECTIONS = [['eco', 'Ecosystem'], ['space', 'Space'], ['forests', 'Forests'], ['archive', 'Archive']];
+const SECTIONS = [['eco', 'Ecosystem'], ['happen', 'Happenings'], ['space', 'Space']];
+const PAGES = [['forests', 'Forests'], ['archive', 'Archive']];
 function panelFor(key) {
   const ps = [...document.querySelectorAll('.side > .panel, #mDrawer > .panel, #mMixer > .panel')];
-  const name = { eco: 'Ecosystem', space: 'Space', mixer: 'Layers', forests: 'Forests', archive: 'Archive' }[key];
-  return ps.find(p => { const h = p.querySelector('h2'); return h && h.textContent.trim() === name; });
+  const name = { eco: 'Ecosystem', space: 'Space', mixer: 'Layers', forests: 'Forests', archive: 'Archive', happen: 'Happenings' }[key];
+  const ps2 = [...ps, ...document.querySelectorAll('#mPageBody > .panel')];
+  return ps2.find(p => { const h = p.querySelector('h2'); return h && h.textContent.trim() === name; });
 }
 function park(node, target, before) { if (!node) return; if (!MUI.homes.has(node)) MUI.homes.set(node, { parent: node.parentNode, next: node.nextSibling }); if (before) target.insertBefore(node, before); else target.appendChild(node); }
 function unparkAll() { for (const [node, h] of [...MUI.homes].reverse()) { if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(node, h.next); else h.parent.appendChild(node); } MUI.homes.clear(); }
@@ -1860,6 +1888,14 @@ function initMobile() {
     <div class="m-trans" id="mTrans"></div>
     <div class="m-edge" id="mEdge" aria-hidden="true"></div>`;
   document.body.insertBefore(m, document.querySelector('.sheet'));
+  // forests and the archive open as pages of their own
+  const pg = document.createElement('div'); pg.className = 'sheet'; pg.id = 'mPage'; pg.hidden = true; pg.setAttribute('role', 'dialog'); pg.setAttribute('aria-modal', 'true');
+  pg.innerHTML = `<div class="sheetin pagein"><header class="sheethead"><div><h2 id="mPageT"></h2></div><button class="btn small sheetx" id="mPageX" aria-label="Close">Close</button></header><div class="pagebody" id="mPageBody"></div></div>`;
+  document.body.appendChild(pg);
+  $('mPageX').onclick = () => openPage(null); pg.addEventListener('click', (e) => { if (e.target === pg) openPage(null); });
+  for (const [k, l] of PAGES) { const b = document.createElement('button'); b.className = 'btn'; b.id = 'mpage-' + k; b.dataset.icon = k; b.innerHTML = icon(k) + `<span class="lb">${l}</span>`; b.setAttribute('aria-label', l); b.title = l; b.onclick = () => openPage(k); MUI['pb_' + k] = b; }
+  // happenings get a section of their own
+  const hp = document.createElement('section'); hp.className = 'panel happen'; hp.innerHTML = '<h2>Happenings</h2>'; MUI.happenPanel = hp;
   // short names under the mixer's faders
   for (const lab of document.querySelectorAll('#layerS .sl label, #changeS .sl label')) { const full = lab.textContent; const short = full.split(/ &| and/)[0].replace('Birds', 'Fauna'); lab.innerHTML = `<span class="lf"></span><span class="ls"></span>`; lab.querySelector('.lf').textContent = full; lab.querySelector('.ls').textContent = short; }
   for (const [k, l] of SECTIONS) { const b = document.createElement('button'); b.className = 'm-ic'; b.id = 'msec-' + k; b.innerHTML = icon(k) + `<span class="lb">${l}</span>`; b.setAttribute('aria-label', l); b.setAttribute('aria-pressed', 'false'); b.onclick = () => k === 'mixer' ? toggleMixer() : openSection(MUI.section === k ? null : k); $('mSec').appendChild(b); }
@@ -1877,6 +1913,7 @@ function initMobile() {
   let my = null; $('mMixer').addEventListener('pointerdown', (e) => { if (!e.target.closest('.fader')) my = e.clientY; });
   $('mMixer').addEventListener('pointerup', (e) => { if (my !== null && e.clientY - my > 40) toggleMixer(false); my = null; });
   window.addEventListener('resize', () => fitNotes());
+  const wq = matchMedia(WIDE_Q); const wide = () => { document.body.classList.toggle('m-wide', wq.matches); resize(); fitNotes(); }; wq.addEventListener('change', wide); wide();
   const mq = matchMedia(MOBILE_Q); const apply = () => setMobile(mq.matches); mq.addEventListener('change', apply); apply();
 }
 function setMobile(on) {
@@ -1884,16 +1921,26 @@ function setMobile(on) {
   if (on) {
     park($('stage'), $('mui'), $('mui').firstChild);
     park(document.querySelector('.brand'), $('mBrand'));
-    for (const id of ['newSeed', 'guideBtn', 'setBtn']) park($(id), $('mTopR'));
+    park($('newSeed'), $('mTopR')); $('mTopR').appendChild(MUI.pb_forests); $('mTopR').appendChild(MUI.pb_archive); for (const id of ['guideBtn', 'setBtn']) park($(id), $('mTopR'));
     park($('toolopts'), $('mOpts')); park($('tools'), $('mTools'));
     for (const id of ['followBtn', 'rootsBtn', 'zoomIn', 'zoomOut']) park($(id), $('mView'));
     for (const id of ['grow']) park($(id), $('mTrans')); $('mTools').appendChild(MUI.mixBtn);
     for (const id of ['rec', 'rtime', 'meter']) park($(id), $('mRec'));
     park($('hint'), $('mNotes')); $('mNotes').appendChild(MUI.doing); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
-    for (const k of ['eco', 'space', 'forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
+    for (const k of ['eco', 'space']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
+    // the happenings leave the ecosystem panel for a section of their own
+    const hap = $('happen'); if (hap) { const sub = hap.previousElementSibling, h3 = sub && sub.previousElementSibling; MUI.happenPanel.dataset.sec = 'happen'; $('mDrawer').appendChild(MUI.happenPanel); if (h3 && h3.tagName === 'H3') park(h3, MUI.happenPanel); if (sub && sub.classList.contains('sub')) park(sub, MUI.happenPanel); park(hap, MUI.happenPanel); }
+    for (const k of ['forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mPageBody')); } }
     const lp = panelFor('mixer'); if (lp) { park(lp, $('mMixer')); const row = lp.querySelector('.row'); if (row) row.insertBefore(MUI.shapeBtn, row.firstChild); }
-  } else { openSection(null); toggleMixer(false); MUI.shapeBtn.remove(); MUI.mixBtn.remove(); MUI.doing.remove(); unparkAll(); }
+  } else { openSection(null); toggleMixer(false); openPage(null); MUI.shapeBtn.remove(); MUI.mixBtn.remove(); MUI.doing.remove(); MUI.pb_forests.remove(); MUI.pb_archive.remove(); MUI.happenPanel.remove(); unparkAll(); }
   resize(); updateMobileText(); fitNotes();
+}
+function openPage(k) {
+  const pg = $('mPage'); if (!pg) return; pg.hidden = !k;
+  for (const p of $('mPageBody').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
+  for (const [s] of PAGES) MUI['pb_' + s] && MUI['pb_' + s].setAttribute('aria-pressed', String(s === k));
+  const t = PAGES.find(s => s[0] === k); $('mPageT').textContent = t ? t[1] : '';
+  if (k) { openSection(null); toggleMixer(false); if (k === 'forests') renderForests(); }
 }
 function openSection(k) {
   MUI.section = k; $('mDrawer').hidden = !k; setTimeout(setDoing, 0); document.body.classList.toggle('m-open', !!k);
@@ -1942,7 +1989,7 @@ function setDoing() {
   if (!$('mMixer').hidden) t = document.body.classList.contains('m-shape') ? 'Shaping each layer: two knobs per layer · double-tap resets' : 'Layer levels: drag a fader · swipe down to close';
   if (state.soil && !MUI.section && $('mMixer').hidden) t = 'Roots view: roots and fungal partners below ground · ' + t.split(': ').slice(1).join(': ');
   if (state.recording) t = '● Recording · ' + t;
-  if (MUI.doing.textContent !== t) MUI.doing.textContent = t;
+  if (MUI.doing.textContent !== t) { MUI.doing.textContent = t; fitNotes(); }
 }
 function updateMobileText() {
   setDoing();
