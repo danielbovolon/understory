@@ -902,7 +902,7 @@ function buildTools() {
   });
 }
 function setTool(id) {
-  state.tool = id; $('stage').dataset.tool = id;
+  state.tool = id; $('stage').dataset.tool = id; if (typeof setDoing === 'function') setTimeout(setDoing, 0);
   for (const [t] of TOOLS) $('tool-' + t).setAttribute('aria-pressed', String(t === id));
   const t = TOOLS.find(x => x[0] === id); if (t) logHelp(t[2]);
   buildToolOpts();
@@ -1876,6 +1876,7 @@ function initMobile() {
   const mx = document.createElement('button'); mx.className = 'm-ic'; mx.id = 'msec-mixer'; mx.innerHTML = icon('mixer') + '<span class="lb">Layers</span>'; mx.setAttribute('aria-label', 'Layers'); mx.setAttribute('aria-pressed', 'false'); mx.onclick = () => toggleMixer(); MUI.mixBtn = mx;
   // in the mixer: shape each layer's character (the nudges) instead of its level
   const shp = document.createElement('button'); shp.className = 'btn'; shp.id = 'mShape'; shp.dataset.icon = 'shape'; shp.innerHTML = icon('shape') + '<span class="lb">Shape the layers</span>'; shp.setAttribute('aria-label', 'Shape the layers'); shp.setAttribute('aria-pressed', 'false'); shp.onclick = () => toggleShape(); MUI.shapeBtn = shp;
+  MUI.doing = document.createElement('div'); MUI.doing.className = 'm-doing'; MUI.doing.id = 'mDoing'; MUI.doing.setAttribute('aria-live', 'polite');
   $('mDrawerX').onclick = () => openSection(null);
   $('mName').onclick = () => { const a = $('mAbout'); a.hidden = !a.hidden; $('mName').setAttribute('aria-expanded', String(!a.hidden)); document.body.classList.toggle('m-info', !a.hidden); if (!a.hidden) renderAbout(); };
   // swipe up from the bottom edge opens the mixer; swipe down on it closes it
@@ -1892,26 +1893,26 @@ function setMobile(on) {
   if (on) {
     park($('stage'), $('mui'), $('mui').firstChild);
     park(document.querySelector('.brand'), $('mBrand'));
-    for (const id of ['guideBtn', 'setBtn']) park($(id), $('mTopR'));
+    for (const id of ['newSeed', 'guideBtn', 'setBtn']) park($(id), $('mTopR'));
     park($('toolopts'), $('mOpts')); park($('tools'), $('mTools'));
     for (const id of ['followBtn', 'rootsBtn', 'zoomIn', 'zoomOut']) park($(id), $('mView'));
-    for (const id of ['newSeed', 'grow']) park($(id), $('mTrans')); $('mTrans').appendChild(MUI.mixBtn);
+    for (const id of ['grow']) park($(id), $('mTrans')); $('mTrans').appendChild(MUI.mixBtn);
     for (const id of ['rec', 'rtime', 'meter']) park($(id), $('mRec'));
-    park($('hint'), $('mNotes')); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
+    park($('hint'), $('mNotes')); $('mNotes').appendChild(MUI.doing); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
     for (const k of ['eco', 'space', 'forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
     const lp = panelFor('mixer'); if (lp) { park(lp, $('mMixer')); const row = lp.querySelector('.row'); if (row) row.insertBefore(MUI.shapeBtn, row.firstChild); }
-  } else { openSection(null); toggleMixer(false); MUI.shapeBtn.remove(); MUI.mixBtn.remove(); unparkAll(); }
+  } else { openSection(null); toggleMixer(false); MUI.shapeBtn.remove(); MUI.mixBtn.remove(); MUI.doing.remove(); unparkAll(); }
   resize(); updateMobileText(); fitNotes();
 }
 function openSection(k) {
-  MUI.section = k; $('mDrawer').hidden = !k; document.body.classList.toggle('m-open', !!k);
+  MUI.section = k; $('mDrawer').hidden = !k; setTimeout(setDoing, 0); document.body.classList.toggle('m-open', !!k);
   for (const p of $('mDrawer').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
   for (const [s] of SECTIONS) $('msec-' + s).setAttribute('aria-pressed', String(s === k));
   const t = SECTIONS.find(s => s[0] === k); $('mDrawerT').innerHTML = t ? icon(t[0]) + `<b>${t[1]}</b>` : '';
   if (k) toggleMixer(false);
 }
 function toggleMixer(on) {
-  const el = $('mMixer'); if (!el) return; on = on === undefined ? el.hidden : on; el.hidden = !on; document.body.classList.toggle('m-mix', on); if (!on && document.body.classList.contains('m-shape')) toggleShape(false);
+  const el = $('mMixer'); if (!el) return; on = on === undefined ? el.hidden : on; el.hidden = !on; setTimeout(setDoing, 0); document.body.classList.toggle('m-mix', on); if (!on && document.body.classList.contains('m-shape')) toggleShape(false);
   $('msec-mixer') && $('msec-mixer').setAttribute('aria-pressed', String(on)); if (on) openSection(null);
 }
 function renderAbout() {
@@ -1930,8 +1931,30 @@ function fitNotes() {
   if (!MUI.on) return; const box = $('mNotes'); if (!box) return;
   const ps = [...$('log').children]; for (const p of ps) p.style.display = '';
   for (let i = 0; i < ps.length - 1 && box.scrollHeight > box.clientHeight + 1; i++) ps[i].style.display = 'none';
+  $('underfoot').style.display = ''; if (box.scrollHeight > box.clientHeight + 1) $('underfoot').style.display = 'none';
+}
+const DOING = {
+  listen: 'Listening: drag to turn · tap the ground to walk there · pinch to zoom',
+  touch: 'Touch: tap a tree or a hypha to send a signal through the network',
+  wound: 'Wound: tap a tree; it raises the alarm and its neighbours harden',
+  gather: 'Gather: tap a tree in seed (gold marks) or a ripe mushroom',
+  plant: 'Plant: choose a seed above, then tap the ground',
+  sow: 'Sow: choose spores above, then tap the ground',
+  cut: 'Cut: draw a line across hyphae · tap a tree to fell it',
+  shape: 'Shape: choose a ground above, then paint with your finger',
+};
+function setDoing() {
+  if (!MUI.on || !MUI.doing) return;
+  let t = DOING[state.tool] || '';
+  if (!state.running) t = 'Paused: press play to let the forest grow';
+  if (MUI.section) t = 'Drag a knob up or down · double-tap it to return to this place';
+  if (!$('mMixer').hidden) t = document.body.classList.contains('m-shape') ? 'Shaping each layer: two knobs per layer · double-tap resets' : 'Layer levels: drag a fader · swipe down to close';
+  if (state.soil && !MUI.section && $('mMixer').hidden) t = 'Roots view: roots and fungal partners below ground · ' + t.split(': ').slice(1).join(': ');
+  if (state.recording) t = '● Recording · ' + t;
+  if (MUI.doing.textContent !== t) MUI.doing.textContent = t;
 }
 function updateMobileText() {
+  setDoing();
   if (!MUI.on || !world || !state.seed) return;
   $('mName').textContent = state.forestName || state.seed.name;
   const w = world, st = STAGES[w.stage];
@@ -1956,11 +1979,7 @@ function attachControls(row, inp, o) {
   let fd = null;
   if (o.fader) {
     fd = document.createElement('div'); fd.className = 'fader'; fd.setAttribute('aria-hidden', 'true');
-    // the track is drawn as a hypha: a fine wandering line with a few short side branches, its own for every fader
-    const rh = seeded(hashStr(o.id || 'f')), xs = []; for (let i = 0; i <= 10; i++) xs.push(10 + (i % 10 ? (rh() - 0.5) * 3.2 : 0));
-    let d = `M${xs[0].toFixed(1)} 100`; for (let i = 1; i <= 10; i++) { const y = 100 - i * 10; d += ` S${(xs[i] + (rh() - 0.5) * 2).toFixed(1)} ${(y + 5).toFixed(1)} ${xs[i].toFixed(1)} ${y}`; }
-    let br = ''; for (const y of [78, 52, 27]) { const sgn = rh() < 0.5 ? -1 : 1, x0 = xs[Math.round((100 - y) / 10)]; br += `M${x0.toFixed(1)} ${y} q${(sgn * 3).toFixed(1)} -3 ${(sgn * 6).toFixed(1)} -8 `; }
-    fd.innerHTML = `<svg class="ft" viewBox="0 0 20 100" preserveAspectRatio="none"><path d="${d}"/><path class="fb" d="${br}"/></svg><svg class="ff" viewBox="0 0 20 100" preserveAspectRatio="none"><path d="${d}"/><path class="fb" d="${br}"/></svg><i class="fh"></i>`;
+    fd.innerHTML = '<i class="ff"></i><i class="fh"></i>';
     let fdrag = false, ftap = 0;
     const at = (e) => { const r = fd.getBoundingClientRect(); setFrac(1 - (e.clientY - r.top) / r.height); };
     fd.addEventListener('pointerdown', (e) => { e.preventDefault(); try { fd.setPointerCapture(e.pointerId); } catch (_) { } const now = performance.now(); if (now - ftap < 320) { dbl(); ftap = 0; return; } ftap = now; fdrag = true; at(e); });

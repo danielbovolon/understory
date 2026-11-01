@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.8.2
+- Phone: the Seed icon sits at the top right, beside the field guide and settings.
+- Phone: the mixer faders are plain again: a thin track, a coloured level and a flat handle.
+- Phone: a short line above the underfoot says what you are doing and how: the tool and its gesture, the open drawer or mixer, the roots view, recording, or paused.
+- Phone: tool options (seeds, spores, ground kinds) sit below the record row instead of over it; on a landscape screen the notes sit beside the tools.
+
 ## 5.8.1
 - Phone: record, recording time and level meter sit on the left, under the forest's name and clock.
 - Phone: the notes never cut a line in half any more. When space runs short, the oldest notes give way whole; the opening "Bare soil" text and log entries are kept compact.
