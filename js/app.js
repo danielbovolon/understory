@@ -127,6 +127,8 @@ async function loadSeed(code) {
   await swapOut();
   state.seed = seed; state.forestId = 'f' + Date.now(); state.forestName = seed.name; state.kept = false;
   applySite(seed);
+  state.height = 'ground'; listener.z = HEIGHTS.ground; state.drift = false; state.ride = false; state.rideObj = null; if (state.walkMode) setWalk(null);
+  if (state.soil) toggleRoots(false); cam.dist = 36; cam.pitch = 0.92; cam.yaw = 0; listener.yaw = 0; if (typeof updateOptionButtons === 'function') updateOptionButtons();
   // every forest starts as bare soil at the real time of day
   world = new World(seed, audio, { log: logLine, params: P, char: P.char, now: new Date(), month: seasonMonth() });
   world.matB = state.matB;
@@ -430,17 +432,6 @@ function draw(now) {
   for (const c of w.calls) { const p = cam.proj(c.x, c.y, c.z); if (!p) continue; const a = Math.min(1, c.t); const r = Math.max(4, 0.35 * p[2]) * (1.6 - c.t * 0.4); g.strokeStyle = PAL.bone; g.globalAlpha = a * 0.5; g.lineWidth = 1; g.beginPath(); g.arc(p[0], p[1], r, -2.4, -0.7); g.stroke(); g.beginPath(); g.arc(p[0], p[1], r * 1.6, -2.3, -0.8); g.stroke(); g.globalAlpha = 1; }
   drawNatureMotes(g, w, now);
   seasonParticles(g, w, now);
-  // wind motes
-  const wx = Math.sin(w.windDir) * w.windStr * 3, wy = Math.cos(w.windDir) * w.windStr * 3;
-  if (scene.motes.length < 46) for (let i = 0; i < 46; i++) scene.motes.push({ x: listener.x + (Math.random() - 0.5) * 40, y: listener.y + (Math.random() - 0.5) * 40, z: 1 + Math.random() * 6 });
-  g.strokeStyle = PAL.bone; g.lineWidth = 1;
-  for (const m of scene.motes) {
-    const dt = 1 / 60; m.x += wx * dt; m.y += wy * dt;
-    if (Math.hypot(m.x - listener.x, m.y - listener.y) > 22) { const a = Math.random() * TAU; m.x = listener.x - Math.sin(w.windDir) * 18 + Math.sin(a) * 10; m.y = listener.y - Math.cos(w.windDir) * 18 + Math.cos(a) * 10; }
-    const p = cam.proj(m.x, m.y, m.z), q = cam.proj(m.x - wx * 0.25, m.y - wy * 0.25, m.z); if (!p || !q) continue;
-    g.globalAlpha = 0.08 + w.windStr * 0.12; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke();
-  }
-  g.globalAlpha = 1;
   // rain streaks
   if (w.rainT > 0 && w.snowing) {
     g.fillStyle = PAL.dark ? 'rgba(235,240,250,0.7)' : 'rgba(150,160,180,0.7)';
@@ -876,7 +867,7 @@ function seasonParticles(g, w, now) {
   }
 }
 function drawCompass(g) {
-  const x = scene.w - 34, y = MUI.on ? scene.h - 40 - (MUI.safeB || 0) : 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
+  const dw = MUI.on && MUI.section ? $('mDrawer').offsetWidth : 0, x = scene.w - 34 - dw, y = MUI.on ? 92 : 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
   const a = Math.atan2(pN[0] - p0[0], -(pN[1] - p0[1]));
   g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = PAL.dim; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, 12, 0, TAU); g.stroke();
   g.fillStyle = PAL.spore; g.beginPath(); g.moveTo(0, -11); g.lineTo(3.5, 0); g.lineTo(-3.5, 0); g.closePath(); g.fill();
@@ -1896,7 +1887,7 @@ function setMobile(on) {
     for (const id of ['newSeed', 'guideBtn', 'setBtn']) park($(id), $('mTopR'));
     park($('toolopts'), $('mOpts')); park($('tools'), $('mTools'));
     for (const id of ['followBtn', 'rootsBtn', 'zoomIn', 'zoomOut']) park($(id), $('mView'));
-    for (const id of ['grow']) park($(id), $('mTrans')); $('mTrans').appendChild(MUI.mixBtn);
+    for (const id of ['grow']) park($(id), $('mTrans')); $('mTools').appendChild(MUI.mixBtn);
     for (const id of ['rec', 'rtime', 'meter']) park($(id), $('mRec'));
     park($('hint'), $('mNotes')); $('mNotes').appendChild(MUI.doing); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
     for (const k of ['eco', 'space', 'forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }

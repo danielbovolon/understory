@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.9.0
+- Softer mycelium and mushrooms. By default the network sounds tonal and calm: sparse droplets instead of fast ticking, gentler spike trains, softer and lower strikes, spores as quiet breaths, a low-passed soil and thinner grain clouds. The crisp textures return only in moments (rain arriving, storms, a flush of mushrooms, touching the network, and now and then on their own), fading in and out over seconds.
+- A new seed now also resets where and how you listen: back on the ground, no drifting, riding or walking, roots view off, the camera back to its starting view.
+- Phone: Happenings (rain, deer, windstorm, dry spell, nutcrackers or jays, squirrel, boar, bark beetles, fog) and Where you listen (drift, ride along, under the soil, into the canopy, back to centre, calm) plus Walk now come first in their drawers, each with its name.
+- Phone: the mixer button sits at the bottom of the tool column on the left; the compass sits under the settings, top right, and steps aside when a drawer opens; in landscape the mixer leaves the side icons free.
+- The constantly drifting wind motes are gone. Snow still falls when it actually snows.
+
 ## 5.8.2
 - Phone: the Seed icon sits at the top right, beside the field guide and settings.
 - Phone: the mixer faders are plain again: a thin track, a coloured level and a flat handle.

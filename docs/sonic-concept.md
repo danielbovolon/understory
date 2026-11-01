@@ -98,6 +98,12 @@ The events that use them:
 
 The place colours the draw. Cold, high and rocky places lean to glass, ice and stone, with brighter, longer tails. Wet, low places lean to membrane, bark and breath, with damped tails, because water and wet wood absorb high frequencies. Limestone rings harder than peat. Fifteen resonator families are available (wood, marimba, glass, bell, string, membrane, stone, bamboo, bark, hollow, plate, shell, ice and their blends), so two forests rarely share a palette.
 
+## Soft by default, crisp in moments
+
+The mycelium and the mushrooms are the most constant voices in the forest, so most of the time they speak softly. Growing tips sound as sparse, tonal droplets instead of fast clicks. Spike trains use a gentler frequency modulation and longer bursts. Struck sounds are softer and lower; spores drift as quiet breaths; the soil's crackle and the mushrooms' grain clouds are low-passed and thinned. Rattles, grain clouds and whistles give way to pulses, dyads and swells.
+
+The crisp, detailed textures return in **moments**: when rain arrives, after a storm, when a flush of mushrooms comes up, when you touch the network, and now and then on their own for a minute or so. They fade in and out over several seconds, so the forest breathes between calm and close attention, as a real one does after rain.
+
 ## Settings from the place
 
 With every new seed, every setting of the sound engine starts from the conditions of its place. Only the master volume and the choice of headphones or speakers stay as you set them.

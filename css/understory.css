@@ -447,7 +447,24 @@ body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; heigh
 .m .m-notes .hint .bar { margin-top: 2px; }
 .m .m-notes .hint .hintsub, .m .m-notes .hint #hintGrow { display: none; }
 .m .m-notes .hint p#hintText { color: var(--bone); }
-@media (orientation: landscape) { .m .m-notes { left: calc(max(12px, env(safe-area-inset-left, 0px)) + 96px); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(30vw, 360px) !important; max-height: calc(100svh - var(--top) - 16px); } .m .m-opts { left: 110px; top: calc(max(6px, env(safe-area-inset-top, 0px)) + 82px); } body.m #mui { --dw: max(17vw, 140px); --top: calc(max(6px, env(safe-area-inset-top, 0px)) + 116px); } .m .m-tools .tools { display: grid; grid-template-columns: repeat(2, auto); } .m .m-sec, .m .m-view { grid-template-columns: repeat(2, auto); } .m .m-rail { gap: 4px; } .m .m-tools .tools .tool, .m .m-rail .btn, .m .m-ic { padding: 5px; } .m .m-mixer { height: min(32svh, 200px); } }
+@media (orientation: landscape) { .m .m-mixer { left: 100px; right: 100px; } .m .m-notes { left: calc(max(12px, env(safe-area-inset-left, 0px)) + 96px); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(30vw, 360px) !important; max-height: calc(100svh - var(--top) - 16px); } .m .m-opts { left: 110px; top: calc(max(6px, env(safe-area-inset-top, 0px)) + 82px); } body.m #mui { --dw: max(17vw, 140px); --top: calc(max(6px, env(safe-area-inset-top, 0px)) + 116px); } .m .m-tools .tools { display: grid; grid-template-columns: repeat(2, auto); } .m .m-sec, .m .m-view { grid-template-columns: repeat(2, auto); } .m .m-rail { gap: 4px; } .m .m-tools .tools .tool, .m .m-rail .btn, .m .m-ic { padding: 5px; } .m .m-mixer { height: min(32svh, 200px); } }
 
 .m .m-doing { font-size: 9px; letter-spacing: 0.04em; color: var(--hypha); text-shadow: var(--tsh); }
 .m .m-topi #newSeed { order: -1; }
+
+/* phone: the mixer button closes the tool column */
+.m .m-tools #msec-mixer { margin-top: 10px; border-top: 0; }
+.m .m-tools #msec-mixer::before { content: ""; position: absolute; left: 25%; right: 25%; top: -5px; height: 1px; background: color-mix(in srgb, var(--bone) 25%, transparent); }
+.m .m-tools #msec-mixer { position: relative; }
+/* phone drawers: the happenings and listening positions come first, with their names */
+.m .m-drawer .panel[data-sec="eco"], .m .m-drawer .panel[data-sec="space"] { display: flex; flex-direction: column; }
+.m .m-drawer .panel[data-sec="eco"] > h3:has(+ .sub + #happen), .m .m-drawer .panel[data-sec="eco"] > #happen { order: -2; }
+.m .m-drawer .panel[data-sec="eco"] > h3:has(+ .sub + #happen) { margin-top: 0; }
+.m .m-drawer .panel[data-sec="space"] > h3:first-of-type, .m .m-drawer .panel[data-sec="space"] > .grid6, .m .m-drawer .panel[data-sec="space"] > h3:nth-of-type(2), .m .m-drawer .panel[data-sec="space"] > .gaits { order: -2; }
+.m .m-drawer .panel[data-sec="space"] > h3:first-of-type { margin-top: 0; }
+.m .m-drawer .grid9, .m .m-drawer .grid6 { grid-template-columns: 1fr; gap: 4px; }
+.m .m-drawer .btn.hap, .m .m-drawer .btn.opt { position: relative; display: grid; justify-items: center; gap: 2px; padding: 4px 0 6px; }
+.m .m-drawer .btn.hap .lb, .m .m-drawer .btn.opt .lb { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; text-align: center; }
+.m .m-drawer .btn.hap .lb b, .m .m-drawer .btn.opt .lb b { display: block; font-size: 7.5px; letter-spacing: 0.06em; line-height: 1.2; font-weight: 500; }
+.m .m-drawer .btn.hap .lb small, .m .m-drawer .btn.opt .lb small { display: none; }
+.m .m-drawer .btn.hap .lb i { position: absolute; left: 20%; right: auto; bottom: 0; height: 2px; width: calc(var(--p, 0) * 60%); background: var(--spore); }
