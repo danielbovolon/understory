@@ -301,7 +301,7 @@ input[type=range]:focus-visible { outline: 2px solid var(--hypha); outline-offse
 #mui, .knob, .fader { display: none; }
 body.m { overflow: hidden; height: 100svh; overscroll-behavior: none; }
 body.m .app { display: none; }
-body.m #mui { display: block; position: fixed; inset: 0; z-index: 1; color: var(--bone); --sh: drop-shadow(0 0 2px var(--soil)) drop-shadow(0 0 6px color-mix(in srgb, var(--soil) 70%, transparent)); --tsh: 0 0 3px var(--soil), 0 0 8px var(--soil), 0 0 14px color-mix(in srgb, var(--soil) 80%, transparent); --dw: max(19vw, 80px); --top: calc(max(8px, env(safe-area-inset-top, 0px)) + 110px); }
+body.m #mui { display: block; position: fixed; inset: 0; z-index: 1; color: var(--bone); --sh: drop-shadow(0 0 2px var(--soil)) drop-shadow(0 0 6px color-mix(in srgb, var(--soil) 70%, transparent)); --tsh: 0 0 3px var(--soil), 0 0 8px var(--soil), 0 0 14px color-mix(in srgb, var(--soil) 80%, transparent); --dw: max(19vw, 80px); --top: calc(max(8px, env(safe-area-inset-top, 0px)) + 128px); }
 body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; height: 100%; min-height: 0; }
 .m .ic { display: block; width: 24px; height: 24px; }
 .m [data-icon] .lb, .m .m-ic .lb { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -315,7 +315,7 @@ body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; heigh
 .m .m-top { position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); left: max(10px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
 .m .m-top > * { pointer-events: auto; }
 .m .m-id { display: grid; justify-items: start; filter: var(--sh); }
-.m .brand .wordmark { width: 112px; margin: -4px 0 -6px -4px; }
+.m .brand .wordmark { width: 112px; margin: -4px 0 1px -4px; }
 .m .m-name { border: 0; background: transparent; padding: 0; font: 400 16px/1.15 var(--f-display); letter-spacing: 0.03em; color: var(--bone); text-align: left; text-shadow: var(--tsh); max-width: 60vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .m .m-hud { font-size: 10px; color: var(--bone); opacity: 0.85; text-shadow: var(--tsh); font-variant-numeric: tabular-nums; }
 .m .m-topr { display: flex; gap: 2px; }
@@ -444,7 +444,7 @@ body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; heigh
 @keyframes recPulse { 50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--soil) 60%, transparent), 0 0 16px rgb(178 58 46 / 0.8); } }
 .m .m-topr { display: grid; justify-items: end; gap: 2px; }
 .m .m-topi { display: flex; gap: 2px; }
-.m .m-recrow { display: flex; align-items: center; gap: 7px; padding-right: 6px; }
+.m .m-recrow { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: calc(max(8px, env(safe-area-inset-top, 0px)) + 78px); display: flex; align-items: center; gap: 8px; }
 .m .m-recrow .rtime { min-width: 0; font-size: 9.5px; color: var(--bone); text-shadow: var(--tsh); }
 .m .m-recrow #meter { width: 40px; height: 16px; filter: var(--sh); }
 /* bottom-left: underfoot, then what is happening, newest on top */
@@ -454,9 +454,11 @@ body.m .stage { position: absolute; inset: 0; border: 0; border-radius: 0; heigh
 .m .m-notes .underfoot { color: var(--bone); opacity: 0.85; font-size: 8.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .m .m-notes .log { display: flex; flex-direction: column-reverse; gap: 2px; }
 .m .m-notes .log p { padding: 0 0 0 6px; font-size: 9px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.m .m-notes .log p.logstage { font-size: 11px; }
+.m .m-notes .log p.logstage { font: 400 10px/1.35 var(--f-ui); }
 .m .m-notes .hint { pointer-events: auto; gap: 2px; }
-.m .m-notes .hint h2 { font-size: 15px; text-shadow: var(--tsh); }
+.m .m-notes .hint h2 { font-size: 13px; text-shadow: var(--tsh); }
+.m .m-notes .hint p#hintText { font-size: 9px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.m .m-notes .hint .bar { margin-top: 2px; }
 .m .m-notes .hint .hintsub, .m .m-notes .hint #hintGrow { display: none; }
 .m .m-notes .hint p#hintText { color: var(--bone); }
-@media (orientation: landscape) { .m .m-notes { bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(30vw, 360px) !important; max-height: calc(100svh - var(--top) - 4 * 38px - 24px); } body.m #mui { --dw: max(17vw, 140px); --top: calc(max(6px, env(safe-area-inset-top, 0px)) + 64px); } .m .m-tools .tools { display: grid; grid-template-columns: repeat(2, auto); } .m .m-sec, .m .m-view { grid-template-columns: repeat(2, auto); } .m .m-rail { gap: 4px; } .m .m-tools .tools .tool, .m .m-rail .btn, .m .m-ic { padding: 5px; } .m .m-mixer { height: min(32svh, 200px); } }
+@media (orientation: landscape) { .m .m-notes { bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(30vw, 360px) !important; max-height: calc(100svh - var(--top) - 4 * 38px - 24px); } body.m #mui { --dw: max(17vw, 140px); --top: calc(max(6px, env(safe-area-inset-top, 0px)) + 116px); } .m .m-tools .tools { display: grid; grid-template-columns: repeat(2, auto); } .m .m-sec, .m .m-view { grid-template-columns: repeat(2, auto); } .m .m-rail { gap: 4px; } .m .m-tools .tools .tool, .m .m-rail .btn, .m .m-ic { padding: 5px; } .m .m-mixer { height: min(32svh, 200px); } }

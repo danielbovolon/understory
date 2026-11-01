@@ -205,9 +205,10 @@ function showHint(title, text, btn, progress) {
   $('hintGrow').textContent = btn || ''; $('hintGrow').hidden = !btn;
   let bar = $('hint').querySelector('.bar'); if (progress !== undefined) { if (!bar) { bar = document.createElement('div'); bar.className = 'bar'; bar.innerHTML = '<i></i>'; $('hintText').after(bar); } bar.style.setProperty('--p', progress); } else if (bar) bar.remove();
   $('hint').hidden = false; $('feed').classList.add('hinting');
+  if (typeof fitNotes === 'function') fitNotes();
 }
 function setHintProgress(p) { const bar = $('hint').querySelector('.bar'); if (bar) bar.style.setProperty('--p', p); }
-function hideHint() { $('hint').hidden = true; $('feed').classList.remove('hinting'); }
+function hideHint() { $('hint').hidden = true; $('feed').classList.remove('hinting'); if (typeof fitNotes === 'function') fitNotes(); }
 
 async function setRunning(on) {
   if (on) {
@@ -239,6 +240,7 @@ function logLine(text, cat) {
   if (cat === 'stage') p.className = "logstage";
   while (box.children.length > 5) box.removeChild(box.firstChild);
   [...box.children].forEach((c, i, a) => { c.style.opacity = String(0.35 + 0.65 * (i + 1) / a.length); });
+  if (typeof fitNotes === 'function') fitNotes();
 }
 function setStatus(t) { $('status').textContent = t || ''; }
 function fmtClock(h) { const hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
@@ -264,7 +266,7 @@ function updateHud() {
   const here = w.placeInfo(listener.x, listener.y);
   let u = `<b>Underfoot</b>: ${here.text} · ${here.suits}${state.walkMode ? ` · <b>${state.gait === 'run' ? 'running' : state.gait === 'walk' ? 'walking' : 'ambling'}</b>` : ''}`;
   if (scene.hover && (state.tool === 'plant' || state.tool === 'sow' || state.tool === 'shape')) { const hv = w.placeInfo(scene.hover[0], scene.hover[1]); u += `<br><b>Here</b>: ${hv.text} · ${hv.suits}`; }
-  if (u !== updateHud.lastU) { $('underfoot').innerHTML = u; updateHud.lastU = u; }
+  if (u !== updateHud.lastU) { $('underfoot').innerHTML = u; updateHud.lastU = u; if (typeof fitNotes === 'function') fitNotes(); }
 }
 function drawMeter() {
   const c = $('meter'), g = c.getContext('2d'); const W = c.width, H = c.height; g.clearRect(0, 0, W, H);
@@ -292,12 +294,14 @@ const cam = {
     this.f = Math.min(w, h * 1.25) * 0.95; this.cx = w / 2; this.cy = h * 0.5;
   },
   proj(x, y, z) {
+    if (!this.F) return null;
     const vx = x - this.px, vy = y - this.py, vz = z - this.pz; const F = this.F, R = this.R, U = this.U;
     const zc = vx * F[0] + vy * F[1] + vz * F[2]; if (zc < 0.5) return null;
     const s = this.f / zc;
     return [this.cx + (vx * R[0] + vy * R[1]) * s, this.cy - (vx * U[0] + vy * U[1] + vz * U[2]) * s, s, zc];
   },
   ground(sx, sy) {
+    if (!this.F) return null; // not drawn yet
     const a = (sx - this.cx) / this.f, b = -(sy - this.cy) / this.f; const F = this.F, R = this.R, U = this.U;
     const dx = F[0] + R[0] * a + U[0] * b, dy = F[1] + R[1] * a + U[1] * b, dz = F[2] + U[2] * b;
     if (dz > -1e-4) return null; const t = -this.pz / dz; return [this.px + dx * t, this.py + dy * t];
@@ -1853,7 +1857,8 @@ function initMobile() {
   for (const [id, n] of [['driftBtn', 'drift'], ['rideBtn', 'ride'], ['underBtn', 'under'], ['canopyBtn', 'canopy'], ['centreBtn', 'centre'], ['calmBtn', 'calm'], ['sowBtn', 'sowsound'], ['resetShape', 'reset'], ['pPlay', 'play'], ['siteReset', 'reset']]) iconize($(id), n);
   // the overlay that holds the phone layout
   const m = document.createElement('div'); m.id = 'mui'; m.innerHTML = `
-    <div class="m-top"><div class="m-id"><div id="mBrand"></div><button class="m-name" id="mName" aria-expanded="false" title="About this forest"></button><div class="m-hud" id="mHud"></div></div><div class="m-topr"><div class="m-topi" id="mTopR"></div><div class="m-recrow" id="mRec"></div></div></div>
+    <div class="m-top"><div class="m-id"><div id="mBrand"></div><button class="m-name" id="mName" aria-expanded="false" title="About this forest"></button><div class="m-hud" id="mHud"></div></div><div class="m-topr"><div class="m-topi" id="mTopR"></div></div></div>
+    <div class="m-recrow" id="mRec"></div>
     <div class="m-about" id="mAbout" hidden></div>
     <div class="m-opts" id="mOpts"></div>
     <div class="m-tools" id="mTools"></div>
@@ -1879,6 +1884,7 @@ function initMobile() {
   window.addEventListener('pointerup', (e) => { if (sy !== null && sy - e.clientY > 40) toggleMixer(true); sy = null; });
   let my = null; $('mMixer').addEventListener('pointerdown', (e) => { if (!e.target.closest('.fader')) my = e.clientY; });
   $('mMixer').addEventListener('pointerup', (e) => { if (my !== null && e.clientY - my > 40) toggleMixer(false); my = null; });
+  window.addEventListener('resize', () => fitNotes());
   const mq = matchMedia(MOBILE_Q); const apply = () => setMobile(mq.matches); mq.addEventListener('change', apply); apply();
 }
 function setMobile(on) {
@@ -1890,12 +1896,12 @@ function setMobile(on) {
     park($('toolopts'), $('mOpts')); park($('tools'), $('mTools'));
     for (const id of ['followBtn', 'rootsBtn', 'zoomIn', 'zoomOut']) park($(id), $('mView'));
     for (const id of ['newSeed', 'grow']) park($(id), $('mTrans')); $('mTrans').appendChild(MUI.mixBtn);
-    for (const id of ['rtime', 'meter', 'rec']) park($(id), $('mRec'));
+    for (const id of ['rec', 'rtime', 'meter']) park($(id), $('mRec'));
     park($('hint'), $('mNotes')); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
     for (const k of ['eco', 'space', 'forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
     const lp = panelFor('mixer'); if (lp) { park(lp, $('mMixer')); const row = lp.querySelector('.row'); if (row) row.insertBefore(MUI.shapeBtn, row.firstChild); }
   } else { openSection(null); toggleMixer(false); MUI.shapeBtn.remove(); MUI.mixBtn.remove(); unparkAll(); }
-  resize(); updateMobileText();
+  resize(); updateMobileText(); fitNotes();
 }
 function openSection(k) {
   MUI.section = k; $('mDrawer').hidden = !k; document.body.classList.toggle('m-open', !!k);
@@ -1919,6 +1925,11 @@ function toggleShape(on) {
   MUI.shapeBtn.setAttribute('aria-pressed', String(on));
   for (const nd of $('mMixer').querySelectorAll('.nudges')) nd.hidden = !on;
   for (const t of $('mMixer').querySelectorAll('.shape')) t.setAttribute('aria-expanded', String(on));
+}
+function fitNotes() {
+  if (!MUI.on) return; const box = $('mNotes'); if (!box) return;
+  const ps = [...$('log').children]; for (const p of ps) p.style.display = '';
+  for (let i = 0; i < ps.length - 1 && box.scrollHeight > box.clientHeight + 1; i++) ps[i].style.display = 'none';
 }
 function updateMobileText() {
   if (!MUI.on || !world || !state.seed) return;

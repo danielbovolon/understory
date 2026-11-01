@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.8.1
+- Phone: record, recording time and level meter sit on the left, under the forest's name and clock.
+- Phone: the notes never cut a line in half any more. When space runs short, the oldest notes give way whole; the opening "Bare soil" text and log entries are kept compact.
+- Phone: the logo no longer touches the forest's name.
+- Fixed an error when the map was touched before its first frame was drawn (the camera was not set up yet).
+- Checked on a phone-sized screen in portrait and landscape: all eight tools, the four drawers, the mixer and layer shaping, record on and off with the take landing in the archive, roots view, zoom buttons, pinch zoom, follow head, the forest info, the field guide and its tabs, settings (theme and listening mode), a new seed, and turning a knob.
+
 ## 5.8.0
 - Every forest its own voicebook: for each kind of event (roots meeting a fungus, fusion, clash, trade, root grafts, sugar, water, drought clicks, spike trains, spores, fruit) a forest draws its own gesture (knock, plucked pair, swell, glissando, bell, whistle, rattle, dyad, grains, pulse), material and register. Each fungal genus meets roots in one of three ways. Strangers meet in dissonance, fusions in consonance.
 - Seven more resonator families (stone, bamboo, bark, hollow, plate, shell, ice), chosen by the place: cold and rocky places ring of glass, ice and stone; wet places of membrane, bark and breath, with damped tails.
