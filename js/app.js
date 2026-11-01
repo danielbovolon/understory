@@ -95,7 +95,13 @@ const SITE_KEYS = ['growth', 'chatter', 'bloom', 'mutation', 'moisture', 'wind',
 function applySite(seed) {
   const pr = seed && seed.site && seed.site.preset; if (!pr) return;
   for (const k of SITE_KEYS) if (typeof pr[k] === 'number') P[k] = pr[k];
+  // every setting of the sound engine follows the place too (the master volume and the listening mode are yours)
+  for (const k of ['time', 'spin', 'depth', 'wet', 'room', 'change']) if (typeof pr[k] === 'number') P[k] = pr[k];
+  if (Array.isArray(pr.layers)) pr.layers.forEach((v, i) => { P.layers[i] = v; });
+  if (pr.char) for (const l in P.char) for (const k in P.char[l]) P.char[l][k] = pr.char[l] && typeof pr.char[l][k] === 'number' ? pr.char[l][k] : 0;
+  if (typeof timeNote === 'function') timeNote();
   if (typeof refreshSliders === 'function' && UI.sliders.length) refreshSliders();
+  if (typeof audio !== 'undefined' && audio.node) sendGlobals();
 }
 function siteDefault(k, d) { const pr = state.seed && state.seed.site && state.seed.site.preset; return pr && typeof pr[k] === 'number' ? pr[k] : d; }
 function siteText(site, long) {
@@ -336,6 +342,7 @@ function draw(now) {
   g.setTransform(scene.dpr, 0, 0, scene.dpr, 0, 0);
   g.fillStyle = PAL.soil; g.fillRect(0, 0, scene.w, scene.h);
   cam.update(scene.w, scene.h);
+  drawSurround(g, w, now);
   const add = PAL.dark ? 'lighter' : 'source-over';
   // ground disc
   groundCircle(g, 0, 0, PLOT_R + 0.6, 0, 96);
@@ -536,6 +543,62 @@ function drawRoots(g, w, now) {
     if (t.grafts && t.grafts.length) for (const id of t.grafts) { if (id < t.id) continue; const o = w.treeById(id); if (!o) continue; const m = cam.proj((t.x + o.x) / 2, (t.y + o.y) / 2, -0.25 * depth), pa = cam.proj(t.x, t.y, -0.12), pb = cam.proj(o.x, o.y, -0.12); if (!m || !pa || !pb) continue;
       g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha})`; g.lineWidth = Math.max(1, 0.06 * m[2]); g.beginPath(); g.moveTo(pa[0], pa[1]); g.quadraticCurveTo(m[0], m[1] + 6, pb[0], pb[1]); g.stroke(); glowDot(g, m[0], m[1] + 3, Math.max(1.5, 0.06 * m[2]), PAL.spore, sv > 0.3); }
   }
+}
+// ---------------------------------------------------------------- the land around the forest
+// The disc is a clearing in a wider landscape: ground running out to a horizon, terrain contours, the surrounding
+// forest of the same place thinning with distance, and a sky that follows the hour.
+const surround = { code: null, trees: [], stars: [] };
+function drawSurround(g, w, now) {
+  const seed = state.seed; if (!seed) return;
+  if (surround.code !== seed.code) {
+    const r = seeded(hashStr(seed.code + 'land')), sp = seed.treeSpecies || ['spruce'];
+    surround.trees = []; for (let i = 0; i < 260; i++) { const a = r() * TAU, d = PLOT_R + 4 + Math.pow(r(), 0.7) * PLOT_R * 3.2, k = sp[Math.floor(Math.pow(r(), 1.6) * sp.length)]; surround.trees.push({ x: Math.sin(a) * d, y: Math.cos(a) * d, k, s: 0.6 + r() * 0.9, d }); }
+    surround.stars = []; for (let i = 0; i < 140; i++) surround.stars.push([r(), r(), 0.4 + r() * 1.2, r() * TAU]);
+    surround.code = seed.code;
+  }
+  const dark = PAL.dark, L = w.light, night = 1 - L;
+  // horizon: where the ground far ahead meets the sky
+  const F = cam.F, fl = Math.hypot(F[0], F[1]) || 1, far = cam.proj(cam.px + F[0] / fl * 4000, cam.py + F[1] / fl * 4000, 0);
+  const hy = far ? Math.max(-40, Math.min(scene.h, far[1])) : -40;
+  if (hy > 0) {
+    const sky = g.createLinearGradient(0, 0, 0, hy);
+    if (dark) { sky.addColorStop(0, `rgb(${Math.round(6 + 34 * L)},${Math.round(10 + 44 * L)},${Math.round(20 + 52 * L)})`); sky.addColorStop(1, `rgb(${Math.round(20 + 40 * L)},${Math.round(26 + 44 * L)},${Math.round(30 + 40 * L)})`); }
+    else { sky.addColorStop(0, `rgb(${Math.round(196 + 30 * L)},${Math.round(206 + 26 * L)},${Math.round(214 + 22 * L)})`); sky.addColorStop(1, `rgb(${Math.round(214 + 20 * L)},${Math.round(220 + 16 * L)},${Math.round(212 + 12 * L)})`); }
+    g.fillStyle = sky; g.fillRect(0, 0, scene.w, hy);
+    if (dark && night > 0.3 && !(w.rainT > 0) && w.carry < 0.3) { g.fillStyle = PAL.bone; for (const [u, v, rr, ph] of surround.stars) { const y = v * hy * 0.92; g.globalAlpha = (night - 0.3) * 0.7 * (0.5 + 0.5 * Math.sin(now / 1400 + ph)) * (1 - y / hy); g.beginPath(); g.arc(u * scene.w, y, rr, 0, TAU); g.fill(); } g.globalAlpha = 1; }
+  }
+  // the ground beyond the clearing, darkening into the distance
+  const p0 = cam.proj(0, 0, 0);
+  if (p0) {
+    const y0 = Math.max(0, hy), gr = g.createRadialGradient(p0[0], p0[1], PLOT_R * 0.8 * p0[2], p0[0], p0[1], PLOT_R * 4.5 * p0[2]);
+    if (dark) { gr.addColorStop(0, 'rgba(30,38,28,0.9)'); gr.addColorStop(1, 'rgba(14,18,14,0.95)'); } else { gr.addColorStop(0, 'rgba(214,220,204,0.95)'); gr.addColorStop(1, 'rgba(226,230,220,0.95)'); }
+    g.fillStyle = gr; g.fillRect(0, y0, scene.w, scene.h - y0);
+  }
+  // terrain contours: the slope of the place, faint and wandering
+  g.lineWidth = 1; g.strokeStyle = PAL.geo;
+  for (let k = 1; k <= 9; k++) {
+    const R0 = PLOT_R + 1.5 + k * 3.4; let first = true; g.beginPath();
+    for (let i = 0; i <= 140; i++) { const a = i / 140 * TAU, R = R0 + Math.sin(a * 3 + k * 1.7) * 1.4 + Math.sin(a * 7 + k) * 0.6; const q = cam.proj(Math.sin(a) * R, Math.cos(a) * R, 0); if (!q) { first = true; continue; } if (first) { g.moveTo(q[0], q[1]); first = false; } else g.lineTo(q[0], q[1]); }
+    g.globalAlpha = (dark ? 0.09 : 0.14) * (1 - k / 11); g.stroke();
+  }
+  g.globalAlpha = 1;
+  // the surrounding forest: the same species, thinning and fading into the distance
+  const vis = [];
+  for (const t of surround.trees) { const q = cam.proj(t.x, t.y, 0); if (q && q[0] > -60 && q[0] < scene.w + 60 && q[1] > -80 && q[1] < scene.h + 40) vis.push([q[3], t, q]); }
+  vis.sort((a, b) => b[0] - a[0]);
+  for (const [, t, q] of vis) {
+    const T = TREE_SPECIES[t.k] || TREE_SPECIES.spruce, c = treeHSL({ sp: t.k, leaf: T.leaf !== 'ever' && w.season() === 'winter' ? 0 : 1, sen: w.season() === 'autumn' && T.leaf !== 'ever' ? 0.6 : 0 }), h = (1.6 + 2.2 * t.s), top = cam.proj(t.x, t.y, h); if (!top) continue;
+    const fade = Math.max(0, 1 - (t.d - PLOT_R) / (PLOT_R * 3.4)) * (1 - 0.6 * w.carry);
+    const col = dark ? `hsla(${c[0]},${Math.round(c[1] * 0.5)}%,${Math.round(c[2] * 0.55 + 4)}%,${0.55 * fade})` : `hsla(${c[0]},${Math.round(c[1] * 0.4)}%,${Math.round(Math.min(78, c[2] + 26))}%,${0.6 * fade})`;
+    const rc = (0.22 + 0.3 * t.s) * q[2]; if (rc > 22 || rc < 0.8) continue;
+    g.strokeStyle = col; g.lineWidth = Math.max(0.6, rc * 0.12); g.beginPath(); g.moveTo(q[0], q[1]); g.lineTo(top[0], top[1]); g.stroke();
+    g.fillStyle = col; g.beginPath();
+    if (T.conifer) { g.moveTo(top[0], top[1] - rc * 0.4); g.lineTo(top[0] + rc * 0.7, q[1] - rc * 0.3); g.lineTo(top[0] - rc * 0.7, q[1] - rc * 0.3); }
+    else g.arc(top[0], top[1] + rc * 0.4, rc, 0, TAU);
+    g.fill();
+  }
+  // haze where land meets sky
+  if (hy > 0) { const hz = g.createLinearGradient(0, hy - 40, 0, hy + 60); const hc = dark ? '24,30,30' : '232,236,228'; hz.addColorStop(0, `rgba(${hc},0)`); hz.addColorStop(0.5, `rgba(${hc},${0.5 + 0.3 * w.carry})`); hz.addColorStop(1, `rgba(${hc},0)`); g.fillStyle = hz; g.fillRect(0, hy - 40, scene.w, 100); }
 }
 function drawTree(g, t, w) {
   const h = 0.3 + t.size * 3.6, rc = 0.2 + t.size * 1.15;
@@ -809,7 +872,7 @@ function seasonParticles(g, w, now) {
   }
 }
 function drawCompass(g) {
-  const land = scene.w > scene.h, x = MUI.on && land ? scene.w - 150 : scene.w - 34, y = MUI.on && !land ? Math.min(scene.h * 0.2, 112) : 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
+  const x = scene.w - 34, y = MUI.on ? scene.h - 40 - (MUI.safeB || 0) : 28; const pN = cam.proj(cam.tx, cam.ty + 5, 0), p0 = cam.proj(cam.tx, cam.ty, 0); if (!pN || !p0) return;
   const a = Math.atan2(pN[0] - p0[0], -(pN[1] - p0[1]));
   g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = PAL.dim; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, 12, 0, TAU); g.stroke();
   g.fillStyle = PAL.spore; g.beginPath(); g.moveTo(0, -11); g.lineTo(3.5, 0); g.lineTo(-3.5, 0); g.closePath(); g.fill();
@@ -982,7 +1045,7 @@ function slider(box, o) {
   const inp = row.querySelector('input'), out = row.querySelector('output');
   const show = () => { const v = +inp.value; out.textContent = o.fmt ? o.fmt(v) : v.toFixed(2); inp.style.setProperty('--p', ((v - o.min) / (o.max - o.min) * 100) + '%'); };
   inp.addEventListener('input', () => { o.set(+inp.value); show(); });
-  inp.addEventListener('dblclick', () => { const d = SITE_KEYS.includes(o.id) ? siteDefault(o.id, o.def) : o.def; if (d !== undefined) { inp.value = d; o.set(d); show(); } });
+  inp.addEventListener('dblclick', () => { const lm = /^layer(\d)$/.exec(o.id || ''), pr0 = state.seed && state.seed.site && state.seed.site.preset; const d = lm && pr0 && pr0.layers ? pr0.layers[+lm[1]] : (SITE_KEYS.includes(o.id) || ['time', 'spin', 'depth', 'wet', 'room', 'change'].includes(o.id)) ? siteDefault(o.id, o.def) : o.def; if (d !== undefined) { inp.value = d; o.set(d); show(); } });
   const ctl = attachControls(row, inp, o); const show0 = show; const showAll = () => { show0(); ctl(); };
   inp.addEventListener('input', ctl);
   showAll(); box.appendChild(row); UI.sliders.push({ inp, show: showAll, o });
@@ -1033,7 +1096,7 @@ function buildLayers(box) {
     const wrap = document.createElement('div'); wrap.className = 'layer'; box.appendChild(wrap);
     const row = slider(wrap, { fader: true, id: 'layer' + i, label: L.name, min: 0, max: 1.5, def: i === 4 ? 0.8 : i === 5 ? 0.9 : 1, fmt: pct, help: `Level of ${L.name.toLowerCase()}`, color: `var(--${L.color})`, get: () => P.layers[i], set: (v) => { P.layers[i] = v; sendGlobals(); } });
     const tog = document.createElement('button'); tog.className = 'shape'; tog.textContent = '⋯'; tog.title = `Shape ${L.name.toLowerCase()}`; tog.setAttribute('aria-expanded', 'false'); row.appendChild(tog);
-    const nd = document.createElement('div'); nd.className = 'nudges'; nd.hidden = true; wrap.appendChild(nd);
+    const nd = document.createElement('div'); nd.className = 'nudges'; nd.hidden = true; nd.dataset.name = L.name.split(/ &/)[0].replace('Birds', 'Fauna'); wrap.appendChild(nd);
     tog.onclick = () => { nd.hidden = !nd.hidden; tog.setAttribute('aria-expanded', String(!nd.hidden)); };
     for (const [k, label, lo, hi] of L.nudges) {
       const r = document.createElement('div'); r.className = 'nudge'; const id = `nd-${L.key}-${k}`;
@@ -1044,8 +1107,9 @@ function buildLayers(box) {
       const o = { get: () => P.char[L.key][k], set: (v) => { P.char[L.key][k] = v; } };
       inp.value = o.get(); show();
       inp.addEventListener('input', () => { o.set(+inp.value); show(); });
-      inp.addEventListener('dblclick', () => { inp.value = 0; o.set(0); show(); });
-      UI.sliders.push({ inp, show, o }); nd.appendChild(r);
+      inp.addEventListener('dblclick', () => { const pr = state.seed && state.seed.site && state.seed.site.preset, v = pr && pr.char && pr.char[L.key] && typeof pr.char[L.key][k] === 'number' ? pr.char[L.key][k] : 0; inp.value = v; o.set(v); show(); inp.dispatchEvent(new Event('input')); });
+      const kc = attachControls(r, inp, { min: -1, max: 1 }); inp.addEventListener('input', kc); kc();
+      UI.sliders.push({ inp, show: () => { show(); kc(); }, o }); nd.appendChild(r);
     }
   });
 }
@@ -1085,6 +1149,7 @@ function initGuide() {
   $('gtabLiving').onclick = () => { guide.tab = 'living'; renderGuide(true); };
   $('gtabLegend').onclick = () => { guide.tab = 'legend'; guide.sel = null; renderGuide(true); };
   $('gtabSound').onclick = () => { guide.tab = 'sound'; guide.sel = null; renderGuide(true); };
+  $('gtabAbout').onclick = () => { guide.tab = 'about'; guide.sel = null; renderGuide(true); };
   $('guideBtn').onclick = () => toggleGuide();
   $('guideClose').onclick = () => toggleGuide(false);
   // a tap on the blurred forest around the sheet closes it
@@ -1211,7 +1276,8 @@ function guideItems(w) {
 function renderGuide(force) {
   const box = $('guideList'); if (!box || !world) return;
   if ($('guideSheet').hidden) return;
-  $('gtabLiving').setAttribute('aria-pressed', String(guide.tab === 'living')); $('gtabLegend').setAttribute('aria-pressed', String(guide.tab === 'legend')); $('gtabSound').setAttribute('aria-pressed', String(guide.tab === 'sound'));
+  $('gtabLiving').setAttribute('aria-pressed', String(guide.tab === 'living')); $('gtabLegend').setAttribute('aria-pressed', String(guide.tab === 'legend')); $('gtabSound').setAttribute('aria-pressed', String(guide.tab === 'sound')); $('gtabAbout').setAttribute('aria-pressed', String(guide.tab === 'about'));
+  if (guide.tab === 'about') { if (force || guide.mode !== 'about') { const n = document.querySelector('.panel.notes'); box.innerHTML = `<div class="concept gwide">${n ? [...n.querySelectorAll('p')].map(p => `<p>${p.innerHTML}</p>`).join('') : ''}</div>`; guide.mode = 'about'; guide.sig = ''; } return; }
   if (guide.tab === 'sound') {
     if (force || guide.mode !== 'sound') { box.innerHTML = `<div class="concept gwide">${SOUND_CONCEPT}</div>`; guide.mode = 'sound'; guide.sig = ''; }
     return;
@@ -1768,7 +1834,7 @@ function setBtnText(b, t) { const lb = b.querySelector('.lb'); if (lb) lb.textCo
 // the layer mixer rises from the bottom edge with vertical faders, straight over the map.
 const MOBILE_Q = '(max-width: 760px), (max-height: 520px) and (pointer: coarse)';
 const MUI = { on: false, homes: new Map(), section: null };
-const SECTIONS = [['eco', 'Ecosystem'], ['space', 'Space'], ['mixer', 'Layers'], ['forests', 'Forests'], ['archive', 'Archive']];
+const SECTIONS = [['eco', 'Ecosystem'], ['space', 'Space'], ['forests', 'Forests'], ['archive', 'Archive']];
 function panelFor(key) {
   const ps = [...document.querySelectorAll('.side > .panel, #mDrawer > .panel, #mMixer > .panel')];
   const name = { eco: 'Ecosystem', space: 'Space', mixer: 'Layers', forests: 'Forests', archive: 'Archive' }[key];
@@ -1787,7 +1853,7 @@ function initMobile() {
   for (const [id, n] of [['driftBtn', 'drift'], ['rideBtn', 'ride'], ['underBtn', 'under'], ['canopyBtn', 'canopy'], ['centreBtn', 'centre'], ['calmBtn', 'calm'], ['sowBtn', 'sowsound'], ['resetShape', 'reset'], ['pPlay', 'play'], ['siteReset', 'reset']]) iconize($(id), n);
   // the overlay that holds the phone layout
   const m = document.createElement('div'); m.id = 'mui'; m.innerHTML = `
-    <div class="m-top"><div class="m-id"><div id="mBrand"></div><button class="m-name" id="mName" aria-expanded="false" title="About this forest"></button><div class="m-hud" id="mHud"></div></div><div class="m-topr" id="mTopR"></div></div>
+    <div class="m-top"><div class="m-id"><div id="mBrand"></div><button class="m-name" id="mName" aria-expanded="false" title="About this forest"></button><div class="m-hud" id="mHud"></div></div><div class="m-topr"><div class="m-topi" id="mTopR"></div><div class="m-recrow" id="mRec"></div></div></div>
     <div class="m-about" id="mAbout" hidden></div>
     <div class="m-opts" id="mOpts"></div>
     <div class="m-tools" id="mTools"></div>
@@ -1801,8 +1867,12 @@ function initMobile() {
   // short names under the mixer's faders
   for (const lab of document.querySelectorAll('#layerS .sl label, #changeS .sl label')) { const full = lab.textContent; const short = full.split(/ &| and/)[0].replace('Birds', 'Fauna'); lab.innerHTML = `<span class="lf"></span><span class="ls"></span>`; lab.querySelector('.lf').textContent = full; lab.querySelector('.ls').textContent = short; }
   for (const [k, l] of SECTIONS) { const b = document.createElement('button'); b.className = 'm-ic'; b.id = 'msec-' + k; b.innerHTML = icon(k) + `<span class="lb">${l}</span>`; b.setAttribute('aria-label', l); b.setAttribute('aria-pressed', 'false'); b.onclick = () => k === 'mixer' ? toggleMixer() : openSection(MUI.section === k ? null : k); $('mSec').appendChild(b); }
+  // the mixer opens from the bottom, so its button sits at the bottom, beside play
+  const mx = document.createElement('button'); mx.className = 'm-ic'; mx.id = 'msec-mixer'; mx.innerHTML = icon('mixer') + '<span class="lb">Layers</span>'; mx.setAttribute('aria-label', 'Layers'); mx.setAttribute('aria-pressed', 'false'); mx.onclick = () => toggleMixer(); MUI.mixBtn = mx;
+  // in the mixer: shape each layer's character (the nudges) instead of its level
+  const shp = document.createElement('button'); shp.className = 'btn'; shp.id = 'mShape'; shp.dataset.icon = 'shape'; shp.innerHTML = icon('shape') + '<span class="lb">Shape the layers</span>'; shp.setAttribute('aria-label', 'Shape the layers'); shp.setAttribute('aria-pressed', 'false'); shp.onclick = () => toggleShape(); MUI.shapeBtn = shp;
   $('mDrawerX').onclick = () => openSection(null);
-  $('mName').onclick = () => { const a = $('mAbout'); a.hidden = !a.hidden; $('mName').setAttribute('aria-expanded', String(!a.hidden)); if (!a.hidden) { a.innerHTML = ''; for (const t of [state.seed && state.seed.site ? siteText(state.seed.site, true) : '', $('seedMeta').textContent]) if (t) { const p = document.createElement('p'); p.textContent = t; a.appendChild(p); } } };
+  $('mName').onclick = () => { const a = $('mAbout'); a.hidden = !a.hidden; $('mName').setAttribute('aria-expanded', String(!a.hidden)); document.body.classList.toggle('m-info', !a.hidden); if (!a.hidden) renderAbout(); };
   // swipe up from the bottom edge opens the mixer; swipe down on it closes it
   let sy = null;
   $('mEdge').addEventListener('pointerdown', (e) => { sy = e.clientY; });
@@ -1819,28 +1889,42 @@ function setMobile(on) {
     for (const id of ['guideBtn', 'setBtn']) park($(id), $('mTopR'));
     park($('toolopts'), $('mOpts')); park($('tools'), $('mTools'));
     for (const id of ['followBtn', 'rootsBtn', 'zoomIn', 'zoomOut']) park($(id), $('mView'));
-    for (const id of ['newSeed', 'grow', 'rec', 'rtime', 'meter']) park($(id), $('mTrans'));
+    for (const id of ['newSeed', 'grow']) park($(id), $('mTrans')); $('mTrans').appendChild(MUI.mixBtn);
+    for (const id of ['rtime', 'meter', 'rec']) park($(id), $('mRec'));
     park($('hint'), $('mNotes')); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
     for (const k of ['eco', 'space', 'forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
-    const lp = panelFor('mixer'); if (lp) park(lp, $('mMixer'));
-  } else { openSection(null); toggleMixer(false); unparkAll(); }
+    const lp = panelFor('mixer'); if (lp) { park(lp, $('mMixer')); const row = lp.querySelector('.row'); if (row) row.insertBefore(MUI.shapeBtn, row.firstChild); }
+  } else { openSection(null); toggleMixer(false); MUI.shapeBtn.remove(); MUI.mixBtn.remove(); unparkAll(); }
   resize(); updateMobileText();
 }
 function openSection(k) {
   MUI.section = k; $('mDrawer').hidden = !k; document.body.classList.toggle('m-open', !!k);
   for (const p of $('mDrawer').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
-  for (const [s] of SECTIONS) if (s !== 'mixer') $('msec-' + s).setAttribute('aria-pressed', String(s === k));
+  for (const [s] of SECTIONS) $('msec-' + s).setAttribute('aria-pressed', String(s === k));
   const t = SECTIONS.find(s => s[0] === k); $('mDrawerT').innerHTML = t ? icon(t[0]) + `<b>${t[1]}</b>` : '';
   if (k) toggleMixer(false);
 }
 function toggleMixer(on) {
-  const el = $('mMixer'); if (!el) return; on = on === undefined ? el.hidden : on; el.hidden = !on; document.body.classList.toggle('m-mix', on);
+  const el = $('mMixer'); if (!el) return; on = on === undefined ? el.hidden : on; el.hidden = !on; document.body.classList.toggle('m-mix', on); if (!on && document.body.classList.contains('m-shape')) toggleShape(false);
   $('msec-mixer') && $('msec-mixer').setAttribute('aria-pressed', String(on)); if (on) openSection(null);
+}
+function renderAbout() {
+  const a = $('mAbout'); a.innerHTML = '';
+  const code = document.createElement('button'); code.className = 'm-code'; code.textContent = `Seed ${state.seed.code} · copy`; code.onclick = async () => { try { await navigator.clipboard.writeText(state.seed.code); code.textContent = `Seed ${state.seed.code} · copied`; } catch (e) { } }; a.appendChild(code);
+  for (const t of [state.seed && state.seed.site ? siteText(state.seed.site, true) : '', $('seedMeta').textContent]) if (t) { const p = document.createElement('p'); p.textContent = t; a.appendChild(p); }
+  const h = document.createElement('div'); h.className = 'm-stats'; h.innerHTML = $('hud').innerHTML; a.appendChild(h);
+}
+function toggleShape(on) {
+  on = on === undefined ? !document.body.classList.contains('m-shape') : on; document.body.classList.toggle('m-shape', on);
+  MUI.shapeBtn.setAttribute('aria-pressed', String(on));
+  for (const nd of $('mMixer').querySelectorAll('.nudges')) nd.hidden = !on;
+  for (const t of $('mMixer').querySelectorAll('.shape')) t.setAttribute('aria-expanded', String(on));
 }
 function updateMobileText() {
   if (!MUI.on || !world || !state.seed) return;
   $('mName').textContent = state.forestName || state.seed.name;
   const w = world, st = STAGES[w.stage];
+  if (!$('mAbout').hidden) { const h = $('mAbout').querySelector('.m-stats'); if (h && h.innerHTML !== $('hud').innerHTML) h.innerHTML = $('hud').innerHTML; }
   const t = `${fmtClock(w.clockH)} · ${w.temp.toFixed(0)} °C${w.rainT > 0 ? (w.snowing ? ' · snow' : ' · rain') : ''} · ${st[0]}`;
   if ($('mHud').textContent !== t) $('mHud').textContent = t;
 }
@@ -1860,7 +1944,12 @@ function attachControls(row, inp, o) {
   row.appendChild(k);
   let fd = null;
   if (o.fader) {
-    fd = document.createElement('div'); fd.className = 'fader'; fd.setAttribute('aria-hidden', 'true'); fd.innerHTML = '<i class="ff"></i><i class="fh"></i>';
+    fd = document.createElement('div'); fd.className = 'fader'; fd.setAttribute('aria-hidden', 'true');
+    // the track is drawn as a hypha: a fine wandering line with a few short side branches, its own for every fader
+    const rh = seeded(hashStr(o.id || 'f')), xs = []; for (let i = 0; i <= 10; i++) xs.push(10 + (i % 10 ? (rh() - 0.5) * 3.2 : 0));
+    let d = `M${xs[0].toFixed(1)} 100`; for (let i = 1; i <= 10; i++) { const y = 100 - i * 10; d += ` S${(xs[i] + (rh() - 0.5) * 2).toFixed(1)} ${(y + 5).toFixed(1)} ${xs[i].toFixed(1)} ${y}`; }
+    let br = ''; for (const y of [78, 52, 27]) { const sgn = rh() < 0.5 ? -1 : 1, x0 = xs[Math.round((100 - y) / 10)]; br += `M${x0.toFixed(1)} ${y} q${(sgn * 3).toFixed(1)} -3 ${(sgn * 6).toFixed(1)} -8 `; }
+    fd.innerHTML = `<svg class="ft" viewBox="0 0 20 100" preserveAspectRatio="none"><path d="${d}"/><path class="fb" d="${br}"/></svg><svg class="ff" viewBox="0 0 20 100" preserveAspectRatio="none"><path d="${d}"/><path class="fb" d="${br}"/></svg><i class="fh"></i>`;
     let fdrag = false, ftap = 0;
     const at = (e) => { const r = fd.getBoundingClientRect(); setFrac(1 - (e.clientY - r.top) / r.height); };
     fd.addEventListener('pointerdown', (e) => { e.preventDefault(); try { fd.setPointerCapture(e.pointerId); } catch (_) { } const now = performance.now(); if (now - ftap < 320) { dbl(); ftap = 0; return; } ftap = now; fdrag = true; at(e); });
@@ -1885,7 +1974,7 @@ async function boot() {
   $('rideBtn').onclick = () => { state.ride = !state.ride; state.rideObj = null; state.rideWait = 0; if (state.ride) { state.drift = false; state.walk = null; if (state.walkMode) setWalk(null); } updateOptionButtons(); };
   $('underBtn').onclick = () => setHeight('under'); $('canopyBtn').onclick = () => setHeight('canopy');
   const gb = $('gaits'); for (const [g, l, t] of [['stop', 'Stand', 'Stop walking'], ['slow', 'Amble', 'Walk slowly'], ['walk', 'Walk', 'Walk at an easy pace'], ['run', 'Run', 'Run through the forest'], ['rhythm', 'Rhythm', 'Amble, walk, run now and then, walk again']]) { const b = document.createElement('button'); b.className = 'chip'; b.dataset.g = g; b.textContent = l; b.title = t; b.setAttribute('aria-pressed', String(g === 'stop')); b.onclick = async () => { if (!state.running && g !== 'stop') await setRunning(true); setWalk(g === 'stop' ? null : g); }; gb.appendChild(b); }
-  $('resetShape').onclick = () => { for (const l in P.char) for (const k in P.char[l]) P.char[l][k] = 0; P.change = 0.5; refreshSliders(); logLine('Every layer is back to the forest’s own character.', 'drift'); };
+  $('resetShape').onclick = () => { const pr = state.seed && state.seed.site && state.seed.site.preset; for (const l in P.char) for (const k in P.char[l]) P.char[l][k] = pr && pr.char && pr.char[l] ? pr.char[l][k] || 0 : 0; P.change = pr ? pr.change : 0.5; if (pr && pr.layers) pr.layers.forEach((v, i) => { P.layers[i] = v; }); refreshSliders(); sendGlobals(); logLine('Every layer is back to the forest’s own character.', 'drift'); };
   $('keepBtn').onclick = async () => { state.kept = true; await saveForest(true); setStatus(`${state.forestName} is kept in Forests.`); };
   $('sowBtn').onclick = () => $('sowFile').click(); $('sowFile').onchange = (e) => { const f = e.target.files[0]; if (f) sowFile(f); e.target.value = ''; };
   $('driftBtn').onclick = () => { state.drift = !state.drift; state.walk = null; state.driftT = 0; if (state.drift) { state.ride = false; if (state.walkMode) setWalk(null); } updateOptionButtons(); };

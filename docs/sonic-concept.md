@@ -74,6 +74,42 @@ The listener stands in the forest. **Binaural rendering** (headphones) is built 
 
 The environment changes the acoustics as it does in nature. **Snow cover** absorbs highs and shortens reverberation. **Fog** with its temperature inversion bends sound back to the ground, so distant sources carry further and brighter. **Under the soil** everything above ground is heavily low-passed and the hyphal layer comes close. **In the canopy** birds and wind are near and the ground recedes. On speakers, the same model renders as constant-power stereo panning.
 
+## Every forest its own voicebook
+
+Beyond its tuning and sound worlds, every forest draws a **voicebook**: for each kind of event it decides which gesture sounds, in which material and register. The gestures are:
+
+- **Knock** — Two short struck resonances, the second answering the first.
+- **Plucked pair** — Two plucked strands a tuning interval apart.
+- **Swell** — A breathy tone rising and handing over to a second.
+- **Glissando** — A rapid frequency-modulated slide from one pitch to the other.
+- **Bell** — One long modal tail, with a faint pre-strike.
+- **Whistle** — A narrow band of noise, like air through a knot hole.
+- **Rattle** — A dense burst of resonant ticks.
+- **Dyad** — Two sustained partials sounding together and fading.
+- **Grains** — A short cloud of grains from the forest's own field recording.
+- **Pulse** — A triple strike, the last on the second pitch.
+
+The events that use them:
+
+- **Roots meeting a fungus** — The fungus's pitch and the tree's pitch, joined by the forest's bond gesture. Each fungal genus meets roots in one of three ways, so a Russula sounds its bonds differently from a Suillus in the same forest.
+- **Fusion and clash** — A hypha fusing with its own individual sounds a consonant interval; two strangers meeting and walling off sound a dissonant one (a semitone, tritone or major seventh).
+- **Trade, root grafts, sugar and water** — Each has its own gesture or carrier: sugar may travel as a breathy tone, a sustained partial, a tremolo string, a chirp train or a bell; water at night as drops, a gurgle, ticks or glassy drops.
+- **Drought clicks, signals, spores and fruit** — Clicks take the forest's resonator family and range; spike trains its frequency-modulation colour and glide; spores and fruiting grains its own register and density.
+
+The place colours the draw. Cold, high and rocky places lean to glass, ice and stone, with brighter, longer tails. Wet, low places lean to membrane, bark and breath, with damped tails, because water and wet wood absorb high frequencies. Limestone rings harder than peat. Fifteen resonator families are available (wood, marimba, glass, bell, string, membrane, stone, bamboo, bark, hollow, plate, shell, ice and their blends), so two forests rarely share a palette.
+
+## Settings from the place
+
+With every new seed, every setting of the sound engine starts from the conditions of its place. Only the master volume and the choice of headphones or speakers stay as you set them.
+
+- **Distance** — From the openness of the stand. Wide-spaced treeline, dry-pine and bog stands let sound travel; dense spruce and alder close it in.
+- **Reverb level and room** — From the forest's measured structure: the long tail of a tall beech hall, the short, damped decay of dense conifers.
+- **Change** — From continentality: dry, high, inner-alpine places swing more than wet lowland ones.
+- **Layer levels** — Signals from soil moisture; growth from the length of the growing season; fruit from moisture and rain; weather from wind exposure and rain; fauna from the biodiversity of the community (riparian and warm broadleaf forests richest, the treeline poorest).
+- **Layer character** — Productive stands grow tall and sound lower and darker; cold air is brighter; spike trains run faster in warmth; open stands place animals farther away and widen the weather.
+
+"Back to this place", "Let the forest decide" and a double-click on any control return to these values. A forest you return to keeps the settings you left it with.
+
 ## Density and level
 
 A forest with 64 trees and 128 fungal colonies could produce thousands of events a minute. A **foreground budget** of about 14 simultaneous signal-type sounds, plus per-category quotas and a priority scheme, keeps the texture readable: rare and meaningful events (alarms, animal calls, frost) win over routine ones (ticks, drips). Distant, low-priority events are dropped before near ones. This is a direct implementation of the acoustic niche idea: masking is avoided by scheduling, not by turning everything down.

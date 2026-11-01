@@ -277,7 +277,29 @@ function makeSite(code) {
     growth: clamp(season / 170, 0.55, 1.35), chatter: clamp(0.6 + 0.7 * moist, 0.6, 1.4), bloom: clamp(0.5 + 0.9 * moist * (precip / 1200), 0.4, 1.6), mutation: 1,
     moisture: moist, wind, warmth: 0, nitrogen: clamp((ndep - 5) / 25, 0, 1), seeds: S.key === 'subalpine' || S.key === 'bog' ? 0.8 : 1, spores: clamp(0.7 + precip / 3000, 0.8, 1.3), grazing: deer,
   };
-  return { key: S.key, about: S.about, name: S.name, latin: S.latin, elev, aspect, lat, meanT: Math.round(meanT * 10) / 10, precip, ph, soilName: S.soilName, ndep, season, deer: Math.round(deer * 100) / 100, rich, moist, wind, preset, trees: S.trees, place: r.pick(S.places), room: [rr(S.room), rr(S.roomDamp)] };
+  // and the sound engine, from the same place:
+  // openness: open, wide-spaced stands (treeline, dry pine, bog) let sound travel; dense spruce and alder close it in
+  const open = { subalpine: 0.85, pine: 0.75, bog: 0.7, oak: 0.55, beech: 0.45, firbeech: 0.35, alder: 0.3, spruce: 0.2 }[S.key];
+  // biophony: how much animal life the place carries (riparian and warm broadleaf forests are richest, the treeline poorest)
+  const bio = { alder: 1.15, oak: 1.1, beech: 1.0, firbeech: 0.95, pine: 0.85, bog: 0.8, spruce: 0.75, subalpine: 0.65 }[S.key];
+  const roomS = rr(S.room);
+  Object.assign(preset, {
+    time: 1, spin: 0,
+    depth: clamp(0.7 + 0.8 * open, 0.6, 1.6),                                   // how far sound carries
+    wet: clamp(0.25 + roomS / 14 + 0.15 * (1 - open), 0.25, 0.9),               // reverberant level: tall halls and dense stands ring more
+    room: clamp((roomS - 1.5) / 7, 0.1, 0.95),                                 // size and decay of the room
+    change: clamp(0.35 + 0.35 * (1 - precip / 1800) + 0.15 * (meanT < 4 ? 1 : 0), 0.3, 0.8), // continental, dry and high places swing more
+    layers: [1, clamp(0.75 + 0.45 * moist, 0.8, 1.2), clamp(0.6 + season / 400, 0.8, 1.15), clamp(0.6 + 0.6 * moist * precip / 1300, 0.7, 1.25), clamp(0.55 + 0.25 * wind + precip / 4000, 0.6, 1.05), clamp(0.75 * bio, 0.45, 1.0)],
+    char: {
+      trees: { reg: clamp(-(rich - 0.45) * 1.4, -0.6, 0.6), tone: clamp((6 - meanT) / 10, -0.5, 0.6) },       // productive stands grow tall, darker and lower; cold air is brighter
+      signals: { pace: clamp((meanT - 7) / 12, -0.6, 0.6), reg: clamp((moist - 0.55), -0.4, 0.4) },           // spike trains run faster in warmth; wetter soil, higher
+      growth: { density: clamp((season - 160) / 110, -0.6, 0.6), tone: clamp(-(moist - 0.5) * 0.9, -0.5, 0.5) },
+      fruit: { grain: clamp((precip - 1100) / 1400, -0.5, 0.6), reg: clamp((rich - 0.45), -0.4, 0.4) },
+      weather: { tone: clamp(wind - 0.45, -0.4, 0.5), width: clamp(open - 0.5, -0.5, 0.5) },
+      fauna: { activity: clamp(bio - 0.9, -0.5, 0.4), dist: clamp(open - 0.5, -0.5, 0.5) },
+    },
+  });
+  return { key: S.key, about: S.about, name: S.name, latin: S.latin, elev, aspect, lat, meanT: Math.round(meanT * 10) / 10, precip, ph, soilName: S.soilName, ndep, season, deer: Math.round(deer * 100) / 100, rich, moist, wind, preset, trees: S.trees, place: r.pick(S.places), room: [roomS, rr(S.roomDamp)] };
 }
 const PLACES = ['Moor', 'Hollow', 'Ridge', 'Scree', 'Bog', 'Gorge', 'Terrace', 'Clearing', 'Ravine', 'Meadow edge', 'Firn line', 'Talus', 'Riverbank', 'Cirque', 'Old orchard', 'Charcoal pit', 'Larch meadow', 'Glacier foreland', 'Burnt slope'];
 const FAMILIES = ['bark', 'rain', 'creek', 'wind', 'glass', 'choir', 'insects', 'stone', 'bowed', 'cave'];
@@ -287,6 +309,8 @@ const PARTIAL_SETS = {
   fifths: [1, 1.5, 2, 3], hollow: [1, 2.4, 4.1, 6.3], septimal: [1, 1.75, 2, 3.5],
 };
 const PING_SETS = { wood: [1, 2.57, 4.1, 6.9], glass: [1, 2.32, 4.25, 6.63], marimba: [1, 3.99, 9.0, 15.4], bell: [1, 2.76, 5.4, 8.93], string: [1, 2, 3, 4.01], membrane: [1, 1.59, 2.14, 2.3] };
+// more resonator families, so forests do not share the same few materials
+Object.assign(PING_SETS, { stone: [1, 2.15, 3.62, 5.31], bamboo: [1, 2.53, 4.68, 7.12], bark: [1, 1.83, 2.97, 4.41], hollow: [1, 3.01, 5.02, 7.04], plate: [1, 1.65, 2.35, 2.92], shell: [1, 1.42, 2.81, 3.97], ice: [1, 2.98, 5.65, 9.31] });
 const JI = [1, 16 / 15, 9 / 8, 7 / 6, 6 / 5, 5 / 4, 4 / 3, 7 / 5, 3 / 2, 8 / 5, 5 / 3, 7 / 4, 15 / 8];
 
 // Sound worlds: every seed draws two and blends them. They bias which
@@ -322,6 +346,41 @@ function voiceSpecies(sp, r, sound) {
   sp.tickF = clamp(sp.tickF * worldNum(sound, 'tickMul'), 500, 9500); sp.tickQ = r.range(...A.q); sp.mi = r.range(...A.mi);
   sp.spore = wpick(r, worldMix(sound, 'spore'));
   return sp;
+}
+// ------------------------------------------------------------ the voicebook
+// Every forest gets its own way of sounding each kind of event: which gesture a root meeting its fungus makes,
+// what a fusion, a clash, a trade, a graft, sugar, water, spores, fruit and drought clicks sound like, in which
+// material and register. The place colours the choice: cold, high and rocky places lean to glass, ice and stone
+// and brighter, longer tails; wet, low places to membrane, bark and breath, with damped tails (water and wet wood
+// absorb high frequencies); limestone rings harder than peat.
+const GESTURES = ['knock', 'pluckpair', 'swell', 'gliss', 'bell', 'whistle', 'rattle', 'dyad', 'grains', 'pulse'];
+function makeVoicebook(seed) {
+  const r = makeRng(hashStr((seed.code || 'X') + 'voicebook')), site = seed.site || { key: 'firbeech', moist: 0.6, meanT: 7, ph: 5.5, precip: 1200 };
+  const snd = soundOf(seed);
+  const cold = clamp((6 - site.meanT) / 8, 0, 1), wet = clamp(site.moist, 0, 1), hard = clamp((site.ph - 4) / 3.5, 0, 1);
+  // materials of this place
+  const pool = new Set(); for (const w of snd.worlds) for (const k of WORLDS[w].ping) pool.add(k);
+  if (cold > 0.4) { pool.add('ice'); pool.add('glass'); } if (hard > 0.6) { pool.add('stone'); pool.add('bell'); } if (wet > 0.7) { pool.add('membrane'); pool.add('bark'); }
+  if (site.key === 'pine' || site.key === 'oak') pool.add('bamboo'); if (site.key === 'spruce' || site.key === 'bog') pool.add('hollow'); if (site.key === 'beech' || site.key === 'firbeech') pool.add('plate'); pool.add(r.pick(['shell', 'bark', 'hollow', 'plate', 'stone', 'bamboo']));
+  const sets = r.shuffle([...pool]);
+  const bright = clamp(0.5 + 0.3 * cold - 0.25 * wet + r.range(-0.2, 0.2), 0.1, 0.95), decay = clamp((1 + 0.5 * cold - 0.4 * wet + 0.3 * hard) * r.range(0.75, 1.3), 0.4, 2.2);
+  // gestures: weighted by the place, then each event draws its own
+  const gw = { knock: 1 + hard, pluckpair: 1 + (snd.worlds.includes('string') ? 1.5 : 0), swell: 1 + wet + (snd.worlds.includes('breath') ? 1.5 : 0), gliss: 1, bell: 0.5 + cold + (snd.worlds.includes('metal') || snd.worlds.includes('glass') ? 1.2 : 0), whistle: 0.6 + cold, rattle: 0.8 + (1 - wet), dyad: 1, grains: 0.7 + (snd.worlds.includes('earth') ? 1.2 : 0) + wet * 0.5, pulse: 0.8 };
+  const pickG = (avoid) => { let g; for (let i = 0; i < 6; i++) { g = wpick(r, gw); if (!avoid || !avoid.includes(g)) break; } return g; };
+  const ev = (o = {}) => ({ g: pickG(o.avoid), set: r.pick(sets), interval: r.pick([2, 3, 4, 5, 7, -2, -3, 9]), oct: r.pick(o.octs || [-1, 0, 0, 1]), dec: decay * r.range(0.7, 1.4), bright: clamp(bright + r.range(-0.15, 0.15), 0.05, 1), spread: r.range(0.06, 0.2) });
+  const bond = ev(), fuse = ev({ avoid: [bond.g] }), clash = ev({ avoid: [bond.g, fuse.g], octs: [0, 1] }), trade = ev({ octs: [0, 1] }), graft = ev({ octs: [-1, -1, 0] });
+  clash.interval = r.pick([1, 6, 11]); // strangers meet in dissonance
+  return {
+    sets, bright, decay, cold, wet, hard,
+    bond, bondAlt: [pickG(), pickG()], fuse, clash, trade, graft,
+    carbon: wpick(r, { blow: 1 + wet + (snd.worlds.includes('breath') ? 1 : 0), drone: 1, pluck: 0.6 + (snd.worlds.includes('string') ? 1 : 0), chirp: 0.6, bell: 0.4 + cold }),
+    water: wpick(r, { drops: 1.2, gurgle: 0.6 + wet, ticks: 0.6, glass: 0.3 + cold }),
+    click: { set: r.pick(sets), f: [r.range(1500, 3500), r.range(5000, 9500)], dec: r.range(0.6, 2) },
+    sig: { mr: r.pick([0.5, 1, 1.5, 2, 3, 3.5]), mi: r.range(0.4, 2.2), glide: r.pick([1, 1, -1, 0.5, 2]), bd: r.range(0.6, 1.8) },
+    spore: { f: [r.range(900, 2400), r.range(2600, 6500)], rate: r.range(0.5, 2), q: r.range(0.5, 2.5) },
+    fruit: { size: r.range(0.6, 1.8), dens: r.range(0.6, 1.6), pitch: r.pick([0.5, 0.75, 1, 1, 1.5, 2]) },
+    ping: { set: r.chance(0.5) ? r.pick(sets) : null, dec: r.range(0.75, 1.35) },
+  };
 }
 // a tree's genotype: small offsets that make each individual sound like itself; seedlings inherit them
 function makeDNA(r, parent, amt = 1) {
@@ -538,7 +597,7 @@ const MASTING = ['beech', 'oak', 'spruce', 'fir', 'stonepine'];
 
 class World {
   constructor(seed, audio, opts = {}) {
-    this.seed = seed; this.audio = audio; this.log = opts.log || (() => { }); this.r = makeRng(seed.rngSeed);
+    this.seed = seed; this.audio = audio; this.log = opts.log || (() => { }); this.r = makeRng(seed.rngSeed); this.vb = makeVoicebook(seed);
     this.p = opts.params || { growth: 1, chatter: 1, bloom: 1, mutation: 1, moisture: 0.5, wind: 0.5, change: 0.5 };
     const now = opts.now || new Date();
     const jan = new Date(now.getFullYear(), 0, 1).getTimezoneOffset(), jul = new Date(now.getFullYear(), 6, 1).getTimezoneOffset();
@@ -761,7 +820,7 @@ class World {
         const d = Math.hypot(o.x - t.x, o.y - t.y); if (d > 0.75 * (rootReach(t) + rootReach(o))) continue;
         if (!this.r.chance(span / 5400)) continue;
         t.grafts.push(o.id); (o.grafts || (o.grafts = [])).push(t.id); this.mark('graft');
-        if (!quiet) this.fx(K.MODAL, { x: (t.x + o.x) / 2, y: (t.y + o.y) / 2, z: -0.3, f: this.freq(Math.min(t.deg, o.deg), -1), r: PING_SETS.wood, d: [1.2, 0.7, 0.4, 0.25], a: [1, 0.4, 0.2, 0.1], hard: 0.15, gain: 0.16, layer: LAYER.TREES, send: 0.6, prio: 1 }, 6);
+        if (!quiet) { const E = this.vb.graft, f = this.freq(Math.min(t.deg, o.deg), -1 + E.oct); this.gesture(E, (t.x + o.x) / 2, (t.y + o.y) / 2, -0.3, f, f * Math.pow(2, E.interval / 12), { gain: 0.18, layer: LAYER.TREES }); }
         this.log(`The roots of trees ${t.id} and ${o.id}, two ${TREE_SPECIES[t.sp].short.toLowerCase()}s, have grown into one another and fused: a root graft. They now share sugar and water directly, besides the fungal network.`, 'carbon');
       }
       // grafted neighbours even out their sugar and water, slowly
@@ -906,8 +965,27 @@ class World {
     let id = null; const gen = sp.pingGen || 'modal';
     if (gen === 'pluck' && sp.pluck) id = this.audio.spawn(K.PLUCK, { x, y, z, f: Math.max(60, f), damp: sp.pluck.damp * dec, bright: clamp(sp.pluck.bright + 0.2 * nu, 0.1, 1), pick: sp.pluck.pick, hard, gain: 0.95 * gain, layer: LAYER.SIGNALS, send: 0.65, prio: 1 });
     else if (gen === 'blow' && sp.blow) id = this.audio.spawn(K.BLOW, { x, y, z, f, q: sp.blow.q, r2: sp.blow.r2, tone: sp.blow.tone, breath: 0.85, bright: clamp(0.35 + 0.4 * nu, 0, 1), flut: 0.4, vib: 0.003, att: 0.04, rel: 0.5 * dec, dur: 0.25 + 0.5 * sp.pdec / 2.4, gain: 0.85 * gain, layer: LAYER.SIGNALS, send: 0.7, prio: 1 });
-    else id = this.audio.spawn(K.MODAL, { x, y, z, f, r: sp.ping, d: sp.ping.map((_, i) => sp.pdec * dec / (1 + i * 1.3)), a: [1, 0.55, 0.3, 0.18], hard, gain: 0.6 * gain, layer: LAYER.SIGNALS, send: 0.7, prio: 1 });
+    else { const ps = (this.vb.ping.set && (hashStr(sp.genus) & 1)) ? PING_SETS[this.vb.ping.set] : sp.ping; id = this.audio.spawn(K.MODAL, { x, y, z, f, r: ps, d: ps.map((_, i) => sp.pdec * dec * this.vb.ping.dec / (1 + i * 1.3)), a: [1, 0.55, 0.3, 0.18], hard, gain: 0.6 * gain, layer: LAYER.SIGNALS, send: 0.7, prio: 1 }); }
     if (id) this.budget.ping.add(id);
+  }
+  // play one of the forest's gestures for an event: fA is the first voice (the fungus), fB the second (the tree)
+  gesture(E, x, y, z, fA, fB, o = {}) {
+    const V = this.vb, g = o.g || E.g, gain = o.gain || 0.3, L = o.layer === undefined ? LAYER.SIGNALS : o.layer, set = PING_SETS[E.set] || PING_SETS.wood, dec = E.dec, br = E.bright, max = o.max || 6;
+    const S = (k, p, t = 0) => { const go = () => this.fx(k, Object.assign({ x, y, z, layer: L, send: 0.6, prio: 1 }, p), max); if (t > 0) this.later(t, go); else go(); };
+    const md = (f, g2, d = 1) => ({ f, r: set, d: set.map((_, i) => 0.5 * dec * d / (1 + i * 1.2)), a: [1, 0.5 + 0.3 * br, 0.25 + 0.3 * br, 0.12 + 0.2 * br], hard: 0.3 + 0.6 * br, gain: g2 });
+    switch (g) {
+      case 'knock': S(K.MODAL, md(fA, gain, 0.4)); S(K.MODAL, md(fB, gain * 0.7, 0.6), 0.11); break;
+      case 'pluckpair': S(K.PLUCK, { f: Math.max(60, fA), damp: 1.2 * dec, bright: br, pick: 0.2, hard: 0.5, gain: gain * 1.3 }); S(K.PLUCK, { f: Math.max(60, fB), damp: 1.6 * dec, bright: br * 0.8, pick: 0.35, hard: 0.4, gain: gain * 1.1 }, 0.09); break;
+      case 'swell': S(K.BLOW, { f: fA, q: 10 + 20 * br, r2: 2, tone: 0.5, breath: 0.4, bright: br, flut: 0.15, vib: 0.003, glide: 0.5 * dec, att: 0.25, rel: 0.6 * dec, dur: 0.5, gain: gain * 0.9 }); this.later(0.3, () => this.fx(K.BLOW, { x, y, z, f: fB, q: 12 + 20 * br, r2: 3, tone: 0.6, breath: 0.25, bright: br, flut: 0.1, vib: 0.002, att: 0.2, rel: 0.8 * dec, dur: 0.5, gain: gain * 0.8, layer: L, send: 0.7, prio: 1 }, max)); break;
+      case 'gliss': S(K.CHIRP, { f0: fA, f1: fB, mr: this.vb.sig.mr, mi: 0.6 + br, n: 5, isi: 0.045, bd: 0.03, gain: gain * 0.8 }); break;
+      case 'bell': S(K.MODAL, md(fB, gain * 0.9, 2.2)); S(K.MODAL, md(fA, gain * 0.35, 1.2), 0.03); break;
+      case 'whistle': S(K.NOISE, { bf: fB * 2, bq: 18 + 30 * br, lp: 0.6, srate: 0, sdep: 0, gust: 0, gain: gain * 0.9, att: 0.05, rel: 0.4 * dec, dur: 0.3 }); break;
+      case 'rattle': S(K.TICK, { rate: 18 + 30 * br, f: fB * 3, q: 4 + 8 * br, jit: 0.5, burst: 0.7, gain: gain * 0.9, dur: 0.35 * dec, rel: 0.2 }); break;
+      case 'dyad': S(K.DRONE, { f: fA, r: [1, fB / fA, 2, 2 * fB / fA], a: [1, 0.8, 0.25, 0.15], breath: 0.1, bq: 4, bright: br, det: 3, trate: 0.5, tdep: 0.2, att: 0.15, rel: 0.9 * dec, dur: 0.6, gain: gain * 0.6 }); break;
+      case 'grains': S(K.GRAIN, { slot: 0, dens: 30 * (0.5 + br), size: 0.03, pitch: clamp(fB / this.seed.root / 4, 0.25, 4), gain: gain * 0.7, att: 0.05, rel: 0.4, dur: 0.5 }); break;
+      case 'pulse': for (let k = 0; k < 3; k++) S(K.MODAL, md(k === 2 ? fB : fA, gain * (0.8 - k * 0.15), 0.3), k * 0.07); break;
+      default: S(K.MODAL, md(fA, gain));
+    }
   }
   fx(kind, p, max = 6, set = this.budget.fx) { if (!this.canSpawn(set, max)) return null; const id = this.audio.spawn(kind, p); if (id) set.add(id); return id; }
 
@@ -1096,14 +1174,14 @@ class World {
             const n = (hit.i === 0) ? this.nodes.get(hit.e.a) : (hit.i === hit.e.pts.length - 1) ? this.nodes.get(hit.e.b) : this.splitEdge(hit.e, hit.i);
             if (n && n.id !== tip.from) {
               tip.pts.push([n.x, n.y]); this.finish(tip, n.id); this.tips.splice(ti, 1); this.stats.fused++;
-              this.ping(n.x, n.y, -0.2, n, sp, 0.5, 6, g);
+              if (this.canSpawn(this.budget.ping, 6)) { const E = this.vb.fuse, f = this.freq(n.deg + sp.degOff + this.dshift('signals'), sp.reg - 1 + E.oct); this.gesture(E, n.x, n.y, -0.2, f, f * ratioOf(this.seed.tun, E.interval > 0 ? E.interval : 1) / ratioOf(this.seed.tun, 0), { gain: 0.2 }); }
               if (this.stats.fused === 1 || this.stats.fused % 25 === 0) this.log(`${g.name} fused with itself (anastomosis). Loops make the network resilient to cuts.`, 'fuse');
               continue;
             }
           } else {
             const end = this.addNode(tip.x, tip.y, 'j', g.id); end.deg = tip.deg;
             this.finish(tip, end.id); this.tips.splice(ti, 1);
-            this.fx(K.TICK, { x: tip.x, y: tip.y, z: -0.2, rate: 40, f: sp.tickF * 0.6, q: 4, jit: 0.6, burst: 0.9, gain: 0.25, layer: LAYER.GROWTH, dur: 0.9, rel: 0.3, send: 0.4 });
+            { const E = this.vb.clash, f = this.freq(tip.deg + sp.degOff, sp.reg + E.oct), fb = f * Math.pow(2, E.interval / 12); this.gesture(E, tip.x, tip.y, -0.2, f, fb, { gain: 0.2, layer: LAYER.GROWTH }); }
             this.flashes.push({ x: tip.x, y: tip.y, t: 1.2, c: 'alarm' });
             const other = this.genets.get(hit.e.g);
             if (r.chance(0.2)) this.log(`${g.name} met ${other ? other.name : 'a stranger'} and walled itself off. Genetically different mycelia do not fuse.`, 'clash');
@@ -1141,7 +1219,10 @@ class World {
     const g = this.genets.get(tip.g); if (g) e.D *= g.sp.cord;
   }
   bondSound(tree, g) {
-    this.ping(tree.x, tree.y, 0.4, { deg: tree.deg + this.seed.tun.ratios.length }, g.sp, 0.9, 9, g); this.mark('bond');
+    const V = this.vb, h = hashStr(g.sp.genus) % 3, E = V.bond, gg = h === 0 ? E.g : V.bondAlt[h - 1];
+    const fA = this.freq(tree.deg + g.sp.degOff + this.dshift('signals'), g.sp.reg - 1 + E.oct), fB = this.freq(tree.deg + this.seed.tun.ratios.length, E.oct);
+    if (this.canSpawn(this.budget.ping, 9)) this.gesture(E, tree.x, tree.y, -0.2, fA, fB, { g: gg, gain: 0.32, max: 9 });
+    this.mark('bond');
     const k = 1 + (tree.links.size % 3); tree.amps[k] = Math.min(0.9, tree.amps[k] + 0.12);
     tree.flash = 1;
   }
@@ -1216,8 +1297,8 @@ class World {
   }
   tradeSound(t, g, amt) {
     if (!this.canSpawn(this.budget.click, 4)) return;
-    const id = this.audio.spawn(K.MODAL, { x: t.x, y: t.y, z: -0.3, f: this.freq(t.deg + g.sp.degOff, g.sp.reg + 1), r: [1, 2.01, 3.03, 4.1], d: [0.35, 0.2, 0.12, 0.08], a: [1, 0.3, 0.12, 0.05], hard: 0.15, gain: clamp(0.12 + amt * 25, 0.12, 0.35), layer: LAYER.SIGNALS, send: 0.6, prio: 1 });
-    if (id) this.budget.click.add(id);
+    const E = this.vb.trade, f = this.freq(t.deg + g.sp.degOff, g.sp.reg + 1 + E.oct), f2 = f * Math.pow(2, E.interval / 12);
+    this.gesture(E, t.x, t.y, -0.3, f, f2, { gain: 0.12 + 0.1 * Math.min(1, amt || 0.5), layer: LAYER.SIGNALS, max: 4 });
   }
 
   treesStep(dt) {
@@ -1299,8 +1380,8 @@ class World {
     this.stats.clicks++; this.mark('clicks');
     if (!this.canSpawn(this.budget.click, 4)) return;
     // the real clicks are ultrasonic (20–100 kHz); transposed down by about 10×
-    const f = this.r.range(2000, 9000);
-    const id = this.audio.spawn(K.MODAL, { x: t.x, y: t.y, z: 1 + t.size * 2 * this.r(), f, r: [1, 1.47, 2.09, 2.94], d: [0.012, 0.008, 0.006, 0.004], a: [1, 0.6, 0.4, 0.2], hard: 1, gain: 0.35 + t.drought * 0.3, layer: LAYER.TREES, send: 0.5, prio: 1 });
+    const C = this.vb.click, f = this.r.range(C.f[0], C.f[1]), cs = PING_SETS[C.set] || [1, 1.47, 2.09, 2.94];
+    const id = this.audio.spawn(K.MODAL, { x: t.x, y: t.y, z: 1 + t.size * 2 * this.r(), f, r: cs, d: [0.012, 0.008, 0.006, 0.004].map(v => v * C.dec), a: [1, 0.6, 0.4, 0.2], hard: 1, gain: 0.35 + t.drought * 0.3, layer: LAYER.TREES, send: 0.5, prio: 1 });
     if (id) this.budget.click.add(id);
     if (t.drought > 0.5 && this.r.chance(0.15)) this.log(`Tree ${t.id} is clicking: drought stress, air bubbles in the xylem. Stressed plants click up to about 35 times an hour (Khait 2023).`, 'alarm');
   }
@@ -1336,7 +1417,7 @@ class World {
       if (this.canSpawn(this.budget.sig, 7)) {
         const tt = e.len / sig.speed; const isi = clamp(tt / n, 0.04, 0.7);
         const f0 = this.freq(node.deg + eg.sp.degOff + this.dshift('signals'), eg.sp.reg) * (alarm ? 1.5 : 1);
-        const id = this.audio.spawn(K.CHIRP, { x: node.x, y: node.y, z: -0.3, f0, f1: f0 * Math.pow(2, eg.sp.glide), mr: eg.sp.mr, mi: eg.sp.mi * (alarm ? 1.4 : 1), n, isi, bd: eg.sp.bd, gain: alarm ? 0.6 : 0.45, layer: LAYER.SIGNALS, send: 0.55, prio: 1 });
+        const SG = this.vb.sig; const id = this.audio.spawn(K.CHIRP, { x: node.x, y: node.y, z: -0.3, f0, f1: f0 * Math.pow(2, eg.sp.glide * SG.glide), mr: alarm ? eg.sp.mr : (eg.sp.mr + SG.mr) / 2, mi: eg.sp.mi * SG.mi * (alarm ? 1.4 : 1), n, isi, bd: eg.sp.bd * SG.bd, gain: alarm ? 0.6 : 0.45, layer: LAYER.SIGNALS, send: 0.55, prio: 1 });
         if (id) { sig.voice = id; this.budget.sig.add(id); }
       }
     }
@@ -1414,9 +1495,12 @@ class World {
     this.carbon.push(c);
     if (this.canSpawn(this.budget.carbon, 2)) {
       const T = c.len / c.speed;
-      const snd = soundOf(this.seed), blown = snd.worlds.includes('breath') || snd.worlds.includes('earth');
+      const cv = this.vb.carbon, blown = cv === 'blow';
       const f0 = this.freq(best.t.deg + this.dshift('signals'), 1);
       const id = blown ? this.audio.spawn(K.BLOW, { x: c.x, y: c.y, z: 0.2, f: f0, q: 14, r2: 2, tone: 0.45, breath: 0.5, bright: 0.45, flut: 0.2, vib: 0.004, glide: T * 0.8, gain: 0.34, att: 0.8, rel: 1.2, dur: T, layer: LAYER.SIGNALS, send: 0.5, prio: 2 })
+        : cv === 'pluck' ? this.audio.spawn(K.PLUCK, { x: c.x, y: c.y, z: 0.2, f: f0, damp: 2.4 * this.vb.decay, bright: this.vb.bright, pick: 0.3, hard: 0.3, rate: 3 + 3 * this.vb.bright, gain: 0.3, layer: LAYER.SIGNALS, send: 0.6, prio: 0 })
+        : cv === 'chirp' ? this.audio.spawn(K.CHIRP, { x: c.x, y: c.y, z: 0.2, f0, f1: f0 * 1.5, mr: this.vb.sig.mr, mi: 0.4, n: Math.max(3, Math.round(T * 3)), isi: 0.3, bd: 0.12, gain: 0.22, layer: LAYER.SIGNALS, send: 0.6, prio: 0 })
+        : cv === 'bell' ? this.audio.spawn(K.MODAL, { x: c.x, y: c.y, z: 0.2, f: f0 * 2, r: PING_SETS[this.vb.sets[0]] || PING_SETS.bell, d: [2.4, 1.4, 0.8, 0.5].map(v => v * this.vb.decay), a: [1, 0.5, 0.3, 0.2], hard: 0.2, gain: 0.22, layer: LAYER.SIGNALS, send: 0.7, prio: 0 })
         : this.audio.spawn(K.DRONE, { x: c.x, y: c.y, z: 0.2, f: f0, r: [1, 2, 3, 5], a: [1, 0.3, 0.12, 0.05], breath: 0.15, bq: 3, bright: 0.45, det: 6, trate: 0.4, tdep: 0.2, glide: T * 0.8, gain: 0.4, att: 0.8, rel: 1.2, dur: T, layer: LAYER.SIGNALS, send: 0.5, prio: 2 });
       this.mark('sugar');
       if (id) { this.audio.set(id, { f: this.freq(dst.deg + this.dshift('signals'), 1), glide: T * 0.8 }); c.voice = id; this.budget.carbon.add(id); }
@@ -1439,7 +1523,10 @@ class World {
       this.water.push(c);
       if (this.canSpawn(this.budget.carbon, 3)) {
         const T = c.len / c.speed;
-        const id = this.audio.spawn(K.NOISE, { x: c.x, y: c.y, z: -0.4, bf: 520, bq: 3, lp: 0.25, srate: 0.3, sdep: 0.3, gust: 0.4, drops: 9, df: 700, gain: 0.22, att: 1.5, rel: 1.5, dur: T, layer: LAYER.SIGNALS, send: 0.6, prio: 2 });
+        const wv = this.vb.water;
+        const id = wv === 'gurgle' ? this.audio.spawn(K.BLOW, { x: c.x, y: c.y, z: -0.4, f: this.freq(b.deg, -1), q: 6, r2: 2.4, tone: 0.2, breath: 0.9, bright: 0.25, flut: 0.8, vib: 0.01, glide: T, gain: 0.2, att: 1.5, rel: 1.5, dur: T, layer: LAYER.SIGNALS, send: 0.6, prio: 0 })
+          : wv === 'ticks' ? this.audio.spawn(K.TICK, { x: c.x, y: c.y, z: -0.4, rate: 6, f: this.freq(b.deg, 2), q: 9, jit: 0.7, burst: 0.3, gain: 0.25, att: 1, rel: 1.5, dur: T, layer: LAYER.SIGNALS, send: 0.6, prio: 0 })
+          : this.audio.spawn(K.NOISE, { x: c.x, y: c.y, z: -0.4, bf: wv === 'glass' ? 1400 : 520, bq: wv === 'glass' ? 9 : 3, lp: wv === 'glass' ? 0.5 : 0.25, srate: 0.3, sdep: 0.3, gust: 0.4, drops: 9, df: wv === 'glass' ? 2200 : 700, gain: 0.22, att: 1.5, rel: 1.5, dur: T, layer: LAYER.SIGNALS, send: 0.6, prio: 2 });
         if (id) { c.voice = id; this.budget.carbon.add(id); }
       }
       if (this.r.chance(0.35)) this.log(`Night: tree ${a.id} lifts water from deep soil and lets it out through its fungal partners toward seedling ${b.id}.`, 'water');
@@ -1473,7 +1560,7 @@ class World {
       this.fruits.push(f);
       if (this.canSpawn(this.budget.fruit, 4)) {
         const sp = g.sp;
-        const id = this.audio.spawn(K.GRAIN, { x: n.x, y: n.y, z: 0.15, slot: this.matB && r.chance(0.6) ? 1 : 0, dens: sp.fDens * 0.3 * this.grainD(), size: sp.fSize * this.grainS(), pitch: Math.pow(2, sp.fOct), ps: this.scaleRatios(4, n.deg + sp.degOff + this.dshift('fruit')), pos: r(), pj: 0.08, scan: r.range(-0.03, 0.03), lp: 0.35, rev: sp.fRev, gain: 0.0, att: 6, rel: 6, layer: LAYER.FRUIT, send: 0.6, prio: 2 });
+        const id = this.audio.spawn(K.GRAIN, { x: n.x, y: n.y, z: 0.15, slot: this.matB && r.chance(0.6) ? 1 : 0, dens: sp.fDens * 0.3 * this.grainD() * this.vb.fruit.dens, size: sp.fSize * this.grainS() * this.vb.fruit.size, pitch: Math.pow(2, sp.fOct) * this.vb.fruit.pitch, ps: this.scaleRatios(4, n.deg + sp.degOff + this.dshift('fruit')), pos: r(), pj: 0.08, scan: r.range(-0.03, 0.03), lp: 0.35, rev: sp.fRev, gain: 0.0, att: 6, rel: 6, layer: LAYER.FRUIT, send: 0.6, prio: 2 });
         if (id) { f.voice = id; this.budget.fruit.add(id); }
       }
       this.log(`${g.name} is fruiting at the edge of its colony, ${this.compass(n.x, n.y)}. Fruit bodies form at the advancing margin, which is how fairy rings appear.`, 'fruit');
@@ -1513,10 +1600,10 @@ class World {
     if (!this.canSpawn(this.budget.spore, 8)) return;
     const r = this.r, sp = s.sp;
     const id = sp.spore === 'blow'
-      ? this.audio.spawn(K.BLOW, { x: s.x, y: s.y, z: s.z, f: r.range(1800, 4200), q: r.range(2, 5), r2: 1.5, tone: 0, breath: 0.6, bright: 0.85, flut: 0.9, gain: 0.16, att: 0.4, rel: 1.2, layer: LAYER.FRUIT, send: 0.8, prio: 1 })
+      ? this.audio.spawn(K.BLOW, { x: s.x, y: s.y, z: s.z, f: r.range(this.vb.spore.f[0], this.vb.spore.f[1]), q: r.range(2, 5) * this.vb.spore.q, r2: 1.5, tone: 0, breath: 0.6, bright: 0.85, flut: 0.9, gain: 0.16, att: 0.4, rel: 1.2, layer: LAYER.FRUIT, send: 0.8, prio: 1 })
       : sp.spore === 'grain'
       ? this.audio.spawn(K.GRAIN, { x: s.x, y: s.y, z: s.z, slot: 0, dens: r.range(10, 26) * this.grainD(), size: r.range(0.015, 0.05) * this.grainS(), pitch: Math.pow(2, r.int(1, 3)), ps: this.scaleRatios(3, sp.degOff + this.dshift('fruit')), pj: 0.3, lp: 0.9, gain: 0.26, att: 0.6, rel: 1.5, layer: LAYER.FRUIT, send: 0.8, prio: 1 })
-      : this.audio.spawn(K.TICK, { x: s.x, y: s.y, z: s.z, rate: r.range(3, 9), f: sp.tickF * 1.4, q: sp.tickQ * 1.5, jit: 0.15, burst: 0.1, gain: 0.4, att: 0.4, rel: 1, layer: LAYER.FRUIT, send: 0.8, prio: 1 });
+      : this.audio.spawn(K.TICK, { x: s.x, y: s.y, z: s.z, rate: r.range(3, 9) * this.vb.spore.rate, f: sp.tickF * 1.4, q: sp.tickQ * 1.5 * this.vb.spore.q, jit: 0.15, burst: 0.1, gain: 0.4, att: 0.4, rel: 1, layer: LAYER.FRUIT, send: 0.8, prio: 1 });
     if (id) { s.voice = id; this.budget.spore.add(id); }
   }
   sporeStep(dt) {
@@ -2545,4 +2632,4 @@ function segX(ax, ay, bx, by, cx, cy, dx, dy) {
   return u >= 0 && u <= 1 && v >= 0 && v <= 1;
 }
 
-if (typeof module !== 'undefined') module.exports = { SITES, makeSite, ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };
+if (typeof module !== 'undefined') module.exports = { makeVoicebook, GESTURES, SITES, makeSite, ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };

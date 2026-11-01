@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.8.0
+- Every forest its own voicebook: for each kind of event (roots meeting a fungus, fusion, clash, trade, root grafts, sugar, water, drought clicks, spike trains, spores, fruit) a forest draws its own gesture (knock, plucked pair, swell, glissando, bell, whistle, rattle, dyad, grains, pulse), material and register. Each fungal genus meets roots in one of three ways. Strangers meet in dissonance, fusions in consonance.
+- Seven more resonator families (stone, bamboo, bark, hollow, plate, shell, ice), chosen by the place: cold and rocky places ring of glass, ice and stone; wet places of membrane, bark and breath, with damped tails.
+- With every new seed, every setting of the sound engine starts from the place: distance, reverb level and room, change, the six layer levels and all twelve layer-shaping controls, time and autopan. Only the master volume and headphones/speakers stay yours. Reset buttons and double-click return to the place's values.
+- Sound concept: two new sections, "Every forest its own voicebook" and "Settings from the place".
+
+## 5.7.0
+- Phone: the knobs sit straight on the map, smaller, with no panel behind them. The drawer runs between the top bar and the play row.
+- Phone: record, recording time and level meter moved to the top right, at half the size; the record button is a deeper red.
+- Phone: the underfoot line and the live notes are smaller.
+- Phone: icon order. Left: the eight tools. Right: Ecosystem, Space, Forests, Archive, then follow head, roots and zoom. Bottom: Seed, play and the mixer, which opens from the bottom. The compass sits in the bottom-right corner.
+- Phone: faders are drawn as hyphae, each with its own branching track, a glowing node for a handle and a mycelial colour per layer (rhizomorph ochre, bioluminescent green, pale hyphae, spore gold, mist, bark).
+- Phone: everything the desktop has is reachable again: the layer shaping controls (the shape icon in the mixer turns the faders into two small knobs per layer), copying the seed code and the full forest numbers (tap the forest's name), and How it lives (a new field guide tab, also on desktop).
+- The land around the forest: the clearing now lies in a landscape, with ground running to a horizon, faint terrain contours, the surrounding forest of the same species thinning into the distance, a haze line, and a sky that follows the hour, with stars on clear nights.
+
 ## 5.6.0
 - A phone layout. On phones (and small landscape screens) the map fills the whole screen and everything floats on it as line icons without boxes:
   - left: the eight tools (ear, hand, wound, basket, seedling, spores, scissors, ground);
