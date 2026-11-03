@@ -377,7 +377,35 @@ const MYC = {
   Cenococcum: [25, 12, 30], Armillaria: [20, 34, 34], Hypholoma: [52, 40, 72], Cantharellus: [45, 40, 80], Piloderma: [52, 70, 66], Tomentella: [28, 30, 52],
   Gomphidius: [20, 25, 70], Tuber: [32, 20, 74], Morchella: [40, 22, 78], Fomes: [30, 28, 56], Fomitopsis: [28, 30, 60],
 };
-function mycHSL(g) { const genus = g && g.sp ? g.sp.genus : ''; const b = MYC[genus] || [46, 14, 86]; const j = g && g.id ? ((g.id * 37) % 13) - 6 : 0; return [b[0] + j, b[1], b[2] + (j % 3)]; }
+// every species its own colour: start from the natural tone and push the colours of a set apart until each pair
+// is clearly different, moving hue first, lightness a little, and never far from nature
+function spreadColours(bases, minD = 16, minS = 0) {
+  const P = bases.map(([h, s, l]) => ({ h, s: Math.max(s, minS), l, h0: h, l0: l }));
+  for (let it = 0; it < 240; it++) {
+    let moved = false;
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+      const a = P[i], b = P[j], ra = a.h * Math.PI / 180, rb = b.h * Math.PI / 180;
+      const dx = a.s * Math.cos(ra) - b.s * Math.cos(rb), dy = a.s * Math.sin(ra) - b.s * Math.sin(rb), dl = (a.l - b.l) * 0.9, d = Math.hypot(dx, dy, dl);
+      if (d >= minD) continue; moved = true;
+      const push = (minD - d) * 0.5, dh = ((b.h - a.h + 540) % 360 - 180) || (i % 2 ? 1 : -1), sg = Math.sign(dh), sm = Math.max(10, (a.s + b.s) / 2);
+      const kh = push / sm * 57.3 * 0.7; a.h -= sg * kh; b.h += sg * kh;
+      const sl = Math.sign(a.l - b.l) || (i % 2 ? 1 : -1); a.l += sl * push * 0.3; b.l -= sl * push * 0.3;
+      for (const q of [a, b]) { q.h = q.h0 + clamp(((q.h - q.h0 + 540) % 360) - 180, -90, 90); q.l = clamp(q.l, q.l0 - 16, q.l0 + 16); }
+    }
+    if (!moved) break;
+  }
+  return P.map(q => [(q.h + 360) % 360, q.s, q.l]);
+}
+// fungi: the genera of this forest, each in its own tone (mycelium is mostly pale, so tones are gently tinted)
+const FCOL = { key: '', map: {} };
+// genera without a famous mycelium colour start from a pale tone of their own: cream, buff, pinkish or grey-white
+function mycDefault(k) { let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0; const tones = [[40, 22, 84], [28, 24, 80], [12, 20, 82], [55, 24, 82], [200, 12, 82], [340, 16, 82], [90, 14, 82], [32, 30, 72]]; return tones[h % tones.length]; }
+function fungusColours() {
+  const gen = new Set(); if (world) { for (const sp of world.seed.species || []) gen.add(sp.genus); for (const g of world.genets.values()) gen.add(g.sp.genus); }
+  const list = [...gen].sort(), key = list.join(); if (key === FCOL.key) return FCOL.map;
+  const cols = spreadColours(list.map(k => MYC[k] || mycDefault(k)), 15, 22); FCOL.key = key; FCOL.map = {}; list.forEach((k, i) => FCOL.map[k] = cols[i]); return FCOL.map;
+}
+function mycHSL(g) { const genus = g && g.sp ? g.sp.genus : ''; const b = fungusColours()[genus] || MYC[genus] || [46, 14, 86]; const j = g && g.id ? ((g.id * 37) % 7) - 3 : 0; return [b[0] + j, b[1], b[2] + (j % 2)]; }
 function gcol(g, a = 1, boost = 0) {
   const [h, s0, l0] = mycHSL(g);
   const l = PAL.dark ? Math.min(94, l0 + boost * 6) : Math.max(14, l0 - 46 + boost * 4), s = PAL.dark ? s0 : Math.min(70, s0 + 18);
@@ -385,7 +413,14 @@ function gcol(g, a = 1, boost = 0) {
 }
 function kinCol(t, a = 1) { const c = treeHSL(t); return PAL.dark ? hsl(c[0], c[1], c[2] + 10, a) : hsl(c[0], Math.min(80, c[1] + 8), Math.max(20, c[2] - 10), a); }
 // tree colour from species, season and the state of its leaves
-function treeHSL(t) {
+// trees: each species keeps its own hue through the seasons, spread from its real summer foliage colour
+let TREE_OFF = null;
+function treeOff(sp) {
+  if (!TREE_OFF) { const ks = Object.keys(TREE_SPECIES), b = ks.map(k => TREE_SPECIES[k].col[1]), c = spreadColours(b, 13); TREE_OFF = {}; ks.forEach((k, i) => TREE_OFF[k] = [((c[i][0] - b[i][0] + 540) % 360) - 180, c[i][2] - b[i][2]]); }
+  return TREE_OFF[sp] || [0, 0];
+}
+function treeHSL(t) { const c = treeHSL0(t), o = treeOff(t.sp); return [c[0] + o[0], c[1], c[2] + o[1]]; }
+function treeHSL0(t) {
   const T = TREE_SPECIES[t.sp] || TREE_SPECIES.birch, c = T.col, mix = (a, b, k) => [a[0] + ((b[0] - a[0] + 540) % 360 - 180) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
   if (T.leaf === 'ever') { const se = world.season(); return se === 'winter' ? c[3] : se === 'spring' ? mix(c[0], c[1], 0.4) : se === 'autumn' ? c[2] : c[1]; }
   if (t.leaf < 0.12) return c[3];
@@ -526,8 +561,8 @@ function drawNatureMotes(g, w, now) {
     if (o.kind === 'drop') { const q = cam.proj(o.x, o.y, o.z + 0.4); g.strokeStyle = PAL.dark ? `rgba(170,205,240,${0.7 * life})` : `rgba(40,80,140,${0.7 * life})`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(p[0], p[1]); if (q) g.lineTo(q[0], q[1]); g.stroke(); if (o.z < 0.2) { g.beginPath(); g.arc(p[0], p[1], Math.max(2, 0.1 * p[2]), 0, TAU); g.stroke(); } }
     else if (o.kind === 'seed') { g.save(); g.translate(p[0], p[1]); g.rotate(now / 90); g.fillStyle = PAL.spore; g.globalAlpha = 0.9 * Math.min(1, life * 3); g.beginPath(); g.ellipse(0, 0, Math.max(1.5, 0.08 * p[2]), Math.max(0.8, 0.03 * p[2]), 0, 0, TAU); g.fill(); g.restore(); }
     else if (o.kind === 'snow') { g.fillStyle = PAL.dark ? `rgba(235,240,250,${0.85 * life})` : `rgba(255,255,255,${0.9 * life})`; g.beginPath(); g.arc(p[0], p[1], Math.max(1.5, 0.1 * p[2]), 0, TAU); g.fill(); }
-    else if (o.kind === 'bat') { const s = Math.max(3, 0.22 * p[2]), fl = Math.sin(now / 45 + o.x) * 0.5; g.strokeStyle = PAL.bone; g.globalAlpha = 0.75 * Math.min(1, life * 2); g.lineWidth = 1.3; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * fl); g.quadraticCurveTo(p[0] - s * 0.4, p[1] + s * 0.2, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] + s * 0.2, p[0] + s, p[1] - s * fl); g.stroke(); g.globalAlpha = 1; }
-    else if (o.kind === 'bee') { const j = Math.sin(now / 70 + o.y * 5) * 2, s = Math.max(1.6, 0.07 * p[2]); g.fillStyle = PAL.spore; g.globalAlpha = Math.min(1, life * 3); g.beginPath(); g.arc(p[0] + j, p[1] + Math.cos(now / 55 + o.x) * 2, s, 0, TAU); g.fill(); g.globalAlpha = 1; }
+    else if (o.kind === 'bat') { const s = Math.max(3, 0.22 * p[2]), fl = Math.sin(now / 45 + o.x) * 0.5; g.strokeStyle = PAL.dark ? '#a8968a' : '#4e4038'; g.globalAlpha = 0.75 * Math.min(1, life * 2); g.lineWidth = 1.3; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * fl); g.quadraticCurveTo(p[0] - s * 0.4, p[1] + s * 0.2, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] + s * 0.2, p[0] + s, p[1] - s * fl); g.stroke(); g.globalAlpha = 1; }
+    else if (o.kind === 'bee') { const j = Math.sin(now / 70 + o.y * 5) * 2, s = Math.max(1.6, 0.07 * p[2]); g.fillStyle = PAL.dark ? '#e8b632' : '#a87a10'; g.globalAlpha = Math.min(1, life * 3); g.beginPath(); g.arc(p[0] + j, p[1] + Math.cos(now / 55 + o.x) * 2, s, 0, TAU); g.fill(); g.globalAlpha = 1; }
   }
 }
 // ---------------------------------------------------------------- roots
@@ -567,10 +602,16 @@ function rootArch(t) {
 // how far the soil view is open: the Roots button, or listening from under the soil
 let soilMix = 0;
 function soilView() { return soilMix; }
+// fine roots differ by species: pale cream in birch and beech, red-brown in pine and spruce, orange where alder
+// carries its Frankia nodules, dark in yew, ochre in oak; spread so each species reads as its own
+const ROOT_BASE = { larch: [24, 40, 66], stonepine: [14, 42, 58], spruce: [18, 46, 54], fir: [30, 30, 70], beech: [36, 34, 76], birch: [42, 26, 82], alder: [20, 60, 60], oak: [34, 46, 62], pine: [10, 48, 56], rowan: [28, 30, 72], aspen: [44, 22, 78], maple: [38, 40, 70], yew: [6, 40, 46], willow: [48, 36, 74] };
+let ROOT_COL = null;
+function rootTone(sp) { if (!ROOT_COL) { const ks = Object.keys(ROOT_BASE), c = spreadColours(ks.map(k => ROOT_BASE[k]), 12); ROOT_COL = {}; ks.forEach((k, i) => ROOT_COL[k] = c[i]); } return ROOT_COL[sp] || [32, 36, 70]; }
+function hslRGB(h, s, l) { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))]; }
 function drawRoots(g, w, now) {
   const target = state.soil ? 1 : clamp01((1.6 - listener.z) / 2.3) * 0.8;
   soilMix += (target - soilMix) * 0.08;
-  const sv = soilMix, base = PAL.dark ? [196, 160, 120] : [104, 74, 50];
+  const sv = soilMix;
   const alpha = 0.16 + 0.74 * sv; if (typeof rootReach !== 'function') return;
   g.lineCap = 'round'; g.lineJoin = 'round';
   if (sv > 0.05) { // depth reference: faint rings one and two units down
@@ -579,6 +620,7 @@ function drawRoots(g, w, now) {
     g.setLineDash([]); g.globalAlpha = 1;
   }
   for (const t of w.trees) {
+    const rc = rootTone(t.sp), base = PAL.dark ? hslRGB(rc[0], rc[1], rc[2]) : hslRGB(rc[0], Math.min(70, rc[1] + 8), Math.max(22, rc[2] - 38));
     const a = rootArch(t), reach = rootReach(t), depth = rootDepth(t) * (1.25 + 1.6 * sv);
     const P = (q) => cam.proj(t.x + q[0] * reach, t.y + q[1] * reach, q[2] * depth);
     for (const r of a.roots) {
@@ -892,7 +934,8 @@ function drawCritter(g, c, now) {
   const p = cam.proj(c.x, c.y, c.z); if (!p) return; const s = Math.max(3, 0.25 * p[2]);
   if (c.kind === 'bird') {
     const fl = Math.sin(now / 90 + c.s) * 0.5;
-    g.strokeStyle = PAL.bone; g.lineWidth = 1.4; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * (0.3 + fl)); g.quadraticCurveTo(p[0] - s * 0.4, p[1] - s * 0.1, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] - s * 0.1, p[0] + s, p[1] - s * (0.3 + fl)); g.stroke();
+    // nutcracker: dark chocolate brown flecked white; jay: pinkish fawn with a blue wing patch
+    g.strokeStyle = world && world.seed.cacher === 'nutcrackers' ? (PAL.dark ? '#8a6a52' : '#4a3426') : (PAL.dark ? '#c9a08e' : '#8a6252'); g.lineWidth = 1.6; g.beginPath(); g.moveTo(p[0] - s, p[1] - s * (0.3 + fl)); g.quadraticCurveTo(p[0] - s * 0.4, p[1] - s * 0.1, p[0], p[1]); g.quadraticCurveTo(p[0] + s * 0.4, p[1] - s * 0.1, p[0] + s, p[1] - s * (0.3 + fl)); g.stroke();
     const q = cam.proj(c.x, c.y, 0); if (q) { g.fillStyle = PAL.dim; g.globalAlpha = 0.25; g.beginPath(); g.ellipse(q[0], q[1], s * 0.6, s * 0.25, 0, 0, TAU); g.fill(); g.globalAlpha = 1; }
   } else if (c.kind === 'boar') {
     const b = Math.max(4, 0.42 * p[2]), dir = Math.sign((c.pts[Math.min(c.k + 1, c.pts.length - 1)] || [c.x])[0] - c.x) || 1, bob = Math.sin(now / 160 + c.s) * b * 0.04;

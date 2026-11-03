@@ -13,7 +13,7 @@ Understory adds a layer no microphone can reach: the **mycorrhizal network** und
 The mix is stratified into six layers. Each one has its own spectral region, typical event density and reverberation send, so that they interlock without masking each other: an acoustic niche structure built in deliberately.
 
 - **Trees** — The keynote. Sustained, slowly evolving tones (additive drones, plucked strings, blown pipes) for each tree, plus crown wind. Mostly the low and low-mid register, with a high reverb send that places them in the room.
-- **Signals** — Electrical activity in the mycelium. Short modal impulses (struck bars, plucked threads, small pipes) where a spike train reaches a node, phrased in "words" of a few spikes. The mid and upper-mid register, dry and precise.
+- **Signals** — Electrical activity in the mycelium. Short modal impulses (struck bars, plucked threads, small pipes) where a spike train reaches a node, phrased in short trains of a few spikes. The mid and upper-mid register, dry and precise.
 - **Growth** — Hyphal tips extending. Sparse, very short ticks and grains at the growing edge, close to the ground. A texture, not a melody.
 - **Fruit** — Mushrooms and spores. Granular clouds while a mushroom emerges; spore discharge as tiny ballistic clicks; a faint shimmer above bioluminescent fungi at night.
 - **Weather** — The geophony: wind, rain on needles or on leaves, canopy drip, snow unloading, meltwater, thunder, frost cracks. A broadband layer that also changes how every other layer is heard.
@@ -104,6 +104,10 @@ The events that use them:
 - **Fusion and clash** — A hypha fusing with its own individual sounds a consonant interval; two strangers meeting and walling off sound a dissonant one (a semitone, tritone or major seventh).
 - **Trade, root grafts, sugar and water** — Each has its own gesture or carrier: sugar may travel as a breathy tone, a sustained partial, a tremolo string, a chirp train or a bell; water at night as drops, a gurgle, ticks or glassy drops.
 - **Drought clicks, signals, spores and fruit** — Clicks take the forest's resonator family and range; spike trains its frequency-modulation colour and glide; spores and fruiting grains its own register and density.
+- **Arrivals** — When a spike train reaches a tree's root tips, the fungus's pitch is handed to the tree's in the forest's arrival gesture; a damage signal arrives in a dissonant interval. Sugar and water delivered to a tree end in a soft gesture of their own, low for sugar, higher and wetter for water.
+- **A spore touching down** — A tiny, high tap in the forest's own resonator. A real spore weighs picograms and lands without a sound, so this is a translation, and only about one landing in five sounds, so a spore cloud settles like fine rain.
+- **A mushroom collapsing** — A soft, damp settling as a rotting fruit body falls in.
+- **A snag falling** — A real, audible event: wood fibres creak and crack in a quickening run, and two seconds later the trunk hits the ground with a deep thud and a burst of broken twigs, beside where it stood.
 
 The place colours the draw. Cold, high and rocky places lean to glass, ice and stone, with brighter, longer tails. Wet, low places lean to membrane, bark and breath, with damped tails, because water and wet wood absorb high frequencies. Limestone rings harder than peat. Fifteen resonator families are available (wood, marimba, glass, bell, string, membrane, stone, bamboo, bark, hollow, plate, shell, ice and their blends), so two forests rarely share a palette.
 

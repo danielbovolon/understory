@@ -121,7 +121,7 @@ Khait et al. (2023) recorded airborne ultrasonic clicks (20–100 kHz) from toma
 - A dashed amber ring marks a thirsty tree.
 
 ## Electrical signalling
-- **Spike trains.** Adamatzky recorded trains of electrical spikes in fungal mycelia, grouped them into "words", and estimated a lexicon of up to about 50 words, with most species using 15–20. Whether this is language is open.
+- **Spike trains.** Adamatzky recorded trains of electrical spikes in fungal mycelia whose patterns differ by species. He also grouped them into "words" and proposed a lexicon of up to about 50; a 2024 review (Blatrix et al.) found no support for reading the spikes as a language, and their function is still unknown. Here the trains carry no meaning: they are activity that propagates and makes neighbouring nodes more likely to fire.
 - **After rain.** Fukasawa et al. (2023) measured the ectomycorrhizal *Laccaria bicolor* in the field. Electrical potentials rose and fluctuated after rainfall, sometimes above 100 mV. Signals appeared to pass between nearby fruit bodies in a particular direction, and the activity correlated with precipitation and temperature.
 - **In the system:**
   - Each node integrates its input and fires a train when it crosses a threshold, then rests.
@@ -135,8 +135,8 @@ Khait et al. (2023) recorded airborne ultrasonic clicks (20–100 kHz) from toma
 - Trees that hear them shift toward inharmonic partials, brighten and tremble, then relax over about a minute.
 
 ## Carbon between trees
-- **What was measured.** Simard et al. (1997) measured carbon moving between birch and Douglas fir through shared fungi. Klein et al. (2016) estimated that about 4 % of fine-root carbon was exchanged between neighbouring trees in a Swiss forest.
-- **What is disputed.** A 2023 review (Karst, Jones & Hoeksema) found little peer-reviewed evidence that "mother trees" preferentially feed their kin, and found the evidence that transfer helps seedlings to be thin.
+- **What was measured.** Simard et al. (1997) measured carbon moving between birch and Douglas fir through shared fungi. Klein et al. (2016) labelled tall trees in a Swiss forest and found that carbon exchanged among neighbouring spruce, beech, pine and larch made up about 40% of their fine-root carbon (about 280 kg per hectare per year); it was not found in the receivers' shoots.
+- **What is disputed.** A 2023 review (Karst, Jones & Hoeksema) found little peer-reviewed evidence that "mother trees" preferentially feed their kin, found the evidence that transfer helps seedlings to be thin, and pointed out that most field studies cannot tell transfer through fungi from transfer through roots and soil. Simard and colleagues (2025) and Klein et al. (2023) reply that transfer itself is well established; its ecological importance remains open.
 - **So in Understory:** sugar moves only by pressure differences.
   - Shaded seedlings are sinks and sunlit trees are sources.
   - Hub trees are simply the most connected at the moment.
@@ -342,6 +342,9 @@ This part is aesthetic, not biology. It keeps long listening from settling into 
 - F. Martin et al. (2008), *The genome of Laccaria bicolor provides insights into mycorrhizal symbiosis*, Nature 452.
 - S. Bödeker et al. (2014), *Ectomycorrhizal Cortinarius species participate in enzymatic oxidation of humus in northern forest ecosystems*, New Phytologist 203.
 - A. A. Kotlobay et al. (2018), *Genetically encodable bioluminescent system from fungi*, PNAS 115.
+- T. Klein, I. Rog, S. Livne-Luzon, M. G. A. van der Heijden, C. Körner (2023), *Belowground carbon transfer across mycorrhizal networks among trees: facts, not fantasy*, Open Research Europe 3: 168.
+- S. W. Simard, T. S. L. Ryan, D. A. Perry (2025), *Opinion: Response to questions about common mycorrhizal networks*, Frontiers in Forests and Global Change 7: 1512518.
+- R. Blatrix et al. (2024), *Does electrical activity in fungi function as a language?*, Fungal Ecology.
 - Y. Y. Song et al. (2015), *Defoliation of interior Douglas-fir elicits carbon transfer and stress signalling to ponderosa pine neighbors through ectomycorrhizal networks*, Scientific Reports 5.
 - E. A. Lilleskov, T. J. Fahey, T. R. Horton, G. M. Lovett (2002), *Belowground ectomycorrhizal fungal community change over a nitrogen deposition gradient in Alaska*, Ecology 83.
 - R. Molina, H. Massicotte, J. M. Trappe (1992), *Specificity phenomena in mycorrhizal symbioses*, in Mycorrhizal Functioning, Chapman & Hall.

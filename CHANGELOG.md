@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.2.0
+- A fixed frame. The notes keep one place and one smaller size, top right, and stop well above the listener. The icon rail, the tools, the play button and the notes never move; only the drawer opens, beside the rail and below the notes. Pages, the field guide, settings and the about text open below the notes, so nothing covers them.
+- New sounds: a spike train arriving at a tree (the fungus's pitch handed to the tree's), a damage signal arriving (in a dissonant interval), sugar and water delivered, a spore touching down, a mushroom collapsing, and a dead standing tree finally falling (creak, then thud), which is also noted.
+- Every species its own colour. Tree species keep their real foliage colours through the seasons but are pushed apart until each is clearly distinct; each fungal genus in a forest has its own tone (mycelium stays pale where it is pale in nature); fine roots differ by species (cream in birch and beech, red-brown in pine and spruce, orange in alder, dark in yew); nutcracker, jay, bat and bumblebee in their own colours.
+- Science brought up to date: spike trains are no longer described as "words" (a 2024 review found no support for a fungal language); the defence-signal entry says it was shown in pot experiments, not in grown forests; the carbon-transfer entry gives the Klein et al. (2016) result correctly (about 40% of fine-root carbon, staying in the roots) and the current debate (Karst et al. 2023; Klein et al. 2023; Simard et al. 2025), including that there is no good evidence for old trees preferentially feeding their own seedlings.
+
 ## 6.1.0
 - Opening: a two-second animation in which hyphae grow in from the edges and knit into the word "understory", then fade into the forest.
 - Smooth transitions everywhere: panels, drawers, pages, the mixer, the guide and settings fade and slide instead of snapping; the camera eases into zoom, roots view and a new seed; the forest crossfades when you load a seed, continue a forest or change the theme.

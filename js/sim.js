@@ -29,6 +29,7 @@
 //  - saprotrophs decompose litter into nutrient patches; some glow at night
 //    under circadian control (Oliveira et al. 2015)
 
+const TAU_S = Math.PI * 2;
 const K = { MODAL: 0, DRONE: 1, GRAIN: 2, TICK: 3, CHIRP: 4, NOISE: 5, PLUCK: 6, BLOW: 7, VOX: 8 };
 const LAYER = { TREES: 0, SIGNALS: 1, GROWTH: 2, FRUIT: 3, WEATHER: 4, FAUNA: 5 };
 const FG_MAX = 14; // most foreground sounds allowed at once, so the forest never gets crowded
@@ -441,7 +442,12 @@ function makeVoicebook(seed) {
   const prog = r.pick([[0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 6, 5, 4], [0, 2, 3, 4], [0, 3, 0, 4], [0, 5, 0, 3], [0, 1, 0, 4]]);
   const meter0 = r.pick([3, 4, 4, 5]); void meter0;
   const score = { bpm: clamp(bpm * pal.tempo, 24, 132), meter: pal.meter, sub: pal.sub, swing: pal.swing, pattern: pal.pattern, shape: pal.shape, echo: pal.echo, prog, chordBars: r.pick([2, 4, 4]), form: r.pick([[0.4, 0.7, 1, 0.65, 0.3], [0.5, 0.8, 0.55, 1, 0.35], [0.35, 0.6, 0.85, 1, 0.5, 0.25]]), sectionBars: r.pick([8, 12, 16]) };
+  // arrivals: a spike train reaching a tree, an alarm reaching a tree, sugar and water delivered, a spore touching down
+  const arrive = ev({ avoid: ['rattle', 'grains', 'whistle'] }), alarmIn = ev({ avoid: ['swell', 'dyad', 'grains'], octs: [0, 1] }), sugarIn = ev({ avoid: ['rattle', 'whistle'], octs: [-1, 0] }), waterIn = ev({ avoid: ['knock'], octs: [0, 1] });
+  alarmIn.interval = r.pick([1, 6, 11]);
+  const sporeTap = { set: r.pick(sets), f: r.range(2400, 5600), dec: r.range(0.12, 0.35) };
   return {
+    arrive, alarmIn, sugarIn, waterIn, sporeTap,
     score, sets, bright, decay, cold, wet, hard,
     bond, bondAlt: [pickG(), pickG()], fuse, clash, trade, graft,
     carbon: wpick(r, { blow: 1 + wet + (snd.worlds.includes('breath') ? 1 : 0), drone: 1, pluck: 0.6 + (snd.worlds.includes('string') ? 1 : 0), chirp: 0.6, bell: 0.4 + cold }),
@@ -1466,6 +1472,45 @@ class World {
     // a thin trickle of mineral nutrients reaches every hypha from the soil itself
     for (const g of this.genets.values()) if (g.sp.guild === 'ecm') g.nut += g.len * 0.00002 * dt * clamp(this.moist * 1.5, 0.2, 1.2);
   }
+  // a spike train arriving at a tree's root tips: the fungus's pitch handed to the tree's
+  arrivalSound(t, sig) {
+    const inten = (this.sc && this.sc.intensity) || 0.5;
+    if (!this.r.chance((sig.alarm ? 0.7 : 0.28) * (0.5 + inten)) || !this.canSpawn(this.budget.ping, 7)) return;
+    let g = this.genets.get(sig.g); if (!g) { for (const id of t.links.keys()) { g = this.genets.get(id); if (g) break; } } if (!g) return;
+    const E = sig.alarm ? this.vb.alarmIn : this.vb.arrive, L = this.seed.tun.ratios.length;
+    const fA = this.freq(t.deg + g.sp.degOff + this.dshift('signals'), g.sp.reg - 1 + E.oct), fB = sig.alarm ? fA * Math.pow(2, E.interval / 12) : this.freq(t.deg + L, E.oct);
+    this.gesture(E, t.x, t.y, -0.25, fA, fB, { gain: sig.alarm ? 0.22 : 0.13, layer: LAYER.SIGNALS, max: 7 });
+  }
+  // sugar or water delivered to a tree through the network
+  deliverSound(t, what) {
+    if (!this.r.chance(what === 'sugar' ? 0.6 : 0.45) || !this.canSpawn(this.budget.click, 4)) return;
+    const E = what === 'sugar' ? this.vb.sugarIn : this.vb.waterIn, f = this.freq(t.deg, -1 + E.oct + (what === 'water' ? 1 : 0)), f2 = f * Math.pow(2, E.interval / 12);
+    this.gesture(E, t.x, t.y, -0.3, f, f2, { gain: what === 'sugar' ? 0.12 : 0.09, layer: LAYER.SIGNALS, max: 4 });
+  }
+  // a spore touching down. A real spore weighs picograms and lands without a sound: this is a translation,
+  // a tiny high tap in the forest's own resonator, rare enough that a spore cloud settles like fine rain
+  sporeLandSound(s) {
+    if (!this.r.chance(0.22) || !this.canSpawn(this.budget.click, 4)) return;
+    const T = this.vb.sporeTap, set = PING_SETS[T.set] || PING_SETS.glass, f = T.f * this.r.range(0.8, 1.25) * (s.sp && s.sp.reg ? Math.pow(2, (s.sp.reg - 3) * 0.25) : 1);
+    this.fx(K.MODAL, { x: s.x, y: s.y, z: 0.03, f: Math.min(7000, f), r: set, d: set.map((_, i) => T.dec / (1 + i)), a: [1, 0.4, 0.2, 0.1], hard: 0.7, gain: 0.045, layer: LAYER.FRUIT, send: 0.35, prio: 0 }, 4, this.budget.click);
+  }
+  // a mushroom collapsing as it rots: a soft, damp settling
+  collapseSound(f) {
+    if (!this.r.chance(0.5) || !this.canSpawn(this.budget.fx, 6)) return;
+    this.fx(K.NOISE, { x: f.x, y: f.y, z: 0.05, bf: this.r.range(300, 700), bq: 2, lp: 0.25, srate: 0, sdep: 0, gust: 0, gain: 0.06, att: 0.08, rel: 0.7, dur: 0.35, layer: LAYER.FRUIT, send: 0.3, prio: 0 });
+  }
+  // a standing dead tree finally gives way: fibres creak, then the trunk hits the ground. A real, audible event.
+  snagFall(g) {
+    this.log(`The snag of tree ${g.id} gives way and falls. Its wood now feeds the decomposers on the ground.`, 'death');
+    if (!this.audio.ready) return; const r = this.r, big = clamp(g.size, 0.6, 1.6);
+    this.fx(K.TICK, { x: g.x, y: g.y, z: 3 * big, rate: 28, f: r.range(500, 900), q: 7, jit: 0.4, burst: 0.5, gain: 0.32, att: 0.4, rel: 0.4, dur: 1.6, layer: LAYER.WEATHER, send: 0.6, prio: 3 }, 8);
+    this.later(1.9, () => {
+      const a = r.range(0, TAU_S), x = g.x + Math.sin(a) * 2 * big, y = g.y + Math.cos(a) * 2 * big;
+      this.fx(K.MODAL, { x, y, z: 0.1, f: r.range(55, 85) / big, r: PING_SETS.drum, d: [0.9, 0.5, 0.3, 0.2], a: [1, 0.6, 0.3, 0.2], hard: 0.85, gain: 0.55, layer: LAYER.WEATHER, send: 0.8, prio: 3 }, 8);
+      this.fx(K.NOISE, { x, y, z: 0.2, bf: 400, bq: 0.8, lp: 0.45, srate: 0, sdep: 0, gust: 0, gain: 0.35, att: 0.01, rel: 1.4, dur: 0.25, layer: LAYER.WEATHER, send: 0.8, prio: 3 }, 8);
+    });
+    this.mark('snagfall');
+  }
   tradeSound(t, g, amt) {
     if (!this.canSpawn(this.budget.click, 4)) return;
     const E = this.vb.trade, f = this.freq(t.deg + g.sp.degOff, g.sp.reg + 1 + E.oct), f2 = f * Math.pow(2, E.interval / 12);
@@ -1607,7 +1652,8 @@ class World {
           const t = this.treeById(n.tree);
           if (t) {
             t.flash = Math.min(1.5, t.flash + 0.5);
-            if (s.alarm) { t.defense = Math.min(1.5, t.defense + 0.4); if (t.defense > 0.35 && this.r.chance(0.25)) this.log(`Tree ${t.id} received the alarm and is raising its defences.`, 'alarm'); }
+            this.arrivalSound(t, s);
+            if (s.alarm) { t.defense = Math.min(1.5, t.defense + 0.4); if (t.defense > 0.35 && this.r.chance(0.25)) this.log(`Tree ${t.id} received the damage signal and raises its defences, as seedlings did in pot experiments.`, 'alarm'); }
             else if (this.r.chance(0.25 * this.p.chatter)) n.u += 0.6;
           }
         }
@@ -1662,7 +1708,7 @@ class World {
     }
     if (!cur || cur.type !== 'tree' || cur.id === best.n.id || pts.length < 2) return;
     const dst = this.treeById(cur.tree); if (!dst) return;
-    const c = this.packet(pts, 1.6); c.src = best.t.id; c.dst = dst.id; c.onArrive = () => { const t = this.treeById(c.dst); if (t) t.flash = Math.min(1.5, t.flash + 0.6); };
+    const c = this.packet(pts, 1.6); c.src = best.t.id; c.dst = dst.id; c.onArrive = () => { const t = this.treeById(c.dst); if (t) { t.flash = Math.min(1.5, t.flash + 0.6); this.deliverSound(t, 'sugar'); } };
     this.carbon.push(c);
     if (this.canSpawn(this.budget.carbon, 2)) {
       const T = c.len / c.speed;
@@ -1690,7 +1736,7 @@ class World {
     for (let tries = 0; tries < 4; tries++) {
       const a = this.r.pick(donors), b = this.r.pick(needy);
       const pts = this.path(a.node, b.node); if (!pts) continue;
-      this.mark('water'); const c = this.packet(pts, 1.1); c.dst = b.id; c.onArrive = () => { const t = this.treeById(c.dst); if (t) { t.hyd = Math.min(0.4, t.hyd + 0.15); t.flash = Math.min(1.5, t.flash + 0.3); } };
+      this.mark('water'); const c = this.packet(pts, 1.1); c.dst = b.id; c.onArrive = () => { const t = this.treeById(c.dst); if (t) { t.hyd = Math.min(0.4, t.hyd + 0.15); t.flash = Math.min(1.5, t.flash + 0.3); this.deliverSound(t, 'water'); } };
       this.water.push(c);
       if (this.canSpawn(this.budget.carbon, 3)) {
         const T = c.len / c.speed;
@@ -1752,7 +1798,7 @@ class World {
         if (f.t > FRUIT_T.spore) { f.phase = 'decay'; f.t = 0; if (f.voice) { this.audio.rel(f.voice, 6); f.voice = null; } }
       } else if (f.phase === 'decay') {
         f.size = Math.max(0, 1 - f.t / FRUIT_T.decay);
-        if (f.t > FRUIT_T.decay) { if (f.voice) this.audio.rel(f.voice, 3); this.addLitter(f.x, f.y, 0.5); this.fruits.splice(i, 1); }
+        if (f.t > FRUIT_T.decay) { if (f.voice) this.audio.rel(f.voice, 3); this.addLitter(f.x, f.y, 0.5); this.fruits.splice(i, 1); this.collapseSound(f); }
       }
     }
   }
@@ -1789,6 +1835,7 @@ class World {
       const landed = s.z <= 0 || s.age > s.life;
       if (!landed) continue;
       this.spores.splice(i, 1); if (s.voice) this.audio.rel(s.voice, 0.6);
+      if (s.z <= 0) this.sporeLandSound(s);
       if (Math.hypot(s.x, s.y) > PLOT_R - 1 || this.guildFull(s.sp) || this.nearPoint(s.x, s.y, 1.2)) continue;
       // ectomycorrhizal spores germinate near host roots; saprotrophs need litter
       const host = s.sp.guild === 'ecm' ? this.trees.find(t => Math.hypot(t.x - s.x, t.y - s.y) < 4.5 && this.hostOk(s.sp, t)) : s.sp.stage === 'wood' ? this.woodNear(s.x, s.y, 3, this.woodFor(s.sp)) : this.litter.find(l => Math.hypot(l.x - s.x, l.y - s.y) < 3 && l.a > 0.1);
@@ -2250,7 +2297,7 @@ class World {
     for (let i = this.snags.length - 1; i >= 0; i--) {
       const g = this.snags[i]; g.t += dt;
       if (r.chance(dt * 0.002)) this.addLitter(g.x + r.range(-1, 1), g.y + r.range(-1, 1), 0.15 * g.size);
-      if (g.t > g.life) { this.addLitter(g.x, g.y, 0.8 * g.size); this.snags.splice(i, 1); }
+      if (g.t > g.life) { this.addLitter(g.x, g.y, 0.8 * g.size); this.snags.splice(i, 1); this.snagFall(g); }
     }
   }
   perch() {
