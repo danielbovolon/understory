@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.2.1
+- The opening animation is gone: the app opens straight onto the forest.
+
 ## 6.2.0
 - A fixed frame. The notes keep one place and one smaller size, top right, and stop well above the listener. The icon rail, the tools, the play button and the notes never move; only the drawer opens, beside the rail and below the notes. Pages, the field guide, settings and the about text open below the notes, so nothing covers them.
 - New sounds: a spike train arriving at a tree (the fungus's pitch handed to the tree's), a damage signal arriving (in a dissonant interval), sugar and water delivered, a spore touching down, a mushroom collapsing, and a dead standing tree finally falling (creak, then thud), which is also noted.

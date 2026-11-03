@@ -2129,66 +2129,7 @@ function attachControls(row, inp, o) {
   return () => { const f = frac(); k.style.setProperty('--f', f); k.querySelector('.kp').setAttribute('transform', `rotate(${-135 + 270 * f} 24 24)`); if (fd) fd.style.setProperty('--f', f); };
 }
 
-// ---------------------------------------------------------------- opening
-// Hyphae grow in from the edges, branch, and converge on the letters; the name emerges where they meet. About two seconds.
-function runSplash() {
-  const sp = $('splash'); if (!sp) return;
-  const done = () => { sp.classList.add('gone'); setTimeout(() => sp.remove(), 700); };
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setTimeout(done, 300); return; }
-  try {
-    const cv = $('splashC'), g = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight;
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const cs = getComputedStyle(document.documentElement), C = (n, d) => cs.getPropertyValue(n).trim() || d;
-    const bone = C('--bone', '#e6e1d1'), hy = C('--hypha', '#9fe6c8'), spore = C('--spore', '#e7b860'), soil = C('--soil', '#0c0f0b');
-    const src = document.querySelector('.brand .wordmark'); if (!src) { setTimeout(done, 600); return; }
-    const txt = new XMLSerializer().serializeToString(src).split('var(--hypha)').join(hy).split('var(--spore)').join(spore).split('currentColor').join(bone);
-    const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt);
-    const ww = Math.min(W * 0.74, 560), vb = src.viewBox.baseVal, wh = ww * vb.height / vb.width, wx = (W - ww) / 2, wy = (H - wh) / 2;
-    img.onload = () => {
-      // where the letters are: sample their strokes
-      const oc = document.createElement('canvas'); oc.width = Math.round(ww); oc.height = Math.round(wh); const og = oc.getContext('2d'); og.drawImage(img, 0, 0, ww, wh);
-      const data = og.getImageData(0, 0, oc.width, oc.height).data, pts = [];
-      for (let y = 0; y < oc.height; y += 5) for (let x = 0; x < oc.width; x += 5) if (data[(y * oc.width + x) * 4 + 3] > 120) pts.push([wx + x, wy + y]);
-      const rnd = (a, b) => a + Math.random() * (b - a), N = Math.min(90, pts.length), walkers = [];
-      for (let i = 0; i < N; i++) {
-        const tgt = pts[Math.floor(Math.random() * pts.length)], side = Math.random();
-        const start = side < 0.45 ? [rnd(0, W), H + 10] : side < 0.6 ? [rnd(0, W), -10] : side < 0.8 ? [-10, rnd(0, H)] : [W + 10, rnd(0, H)];
-        walkers.push({ p: start.slice(), t: tgt, pts: [start.slice()], a: Math.atan2(tgt[1] - start[1], tgt[0] - start[0]), sp: rnd(0.85, 1.15), br: [], col: Math.random() < 0.18 ? hy : bone });
-      }
-      const T0 = performance.now(), GROW = 1250;
-      const step = () => {
-        const t = performance.now() - T0, k = Math.min(1, t / GROW);
-        g.fillStyle = soil; g.fillRect(0, 0, W, H);
-        g.lineCap = 'round'; g.lineJoin = 'round';
-        for (const w of walkers) {
-          if (k < 1) {
-            // grow: wander, but steer toward the letter, faster as the end nears
-            const left = 1 - k, dx = w.t[0] - w.p[0], dy = w.t[1] - w.p[1], d = Math.hypot(dx, dy);
-            const want = Math.atan2(dy, dx); let da = want - w.a; da = Math.atan2(Math.sin(da), Math.cos(da));
-            w.wob = (w.wob || 0) * 0.9 + (Math.random() - 0.5) * 0.35; w.a += da * (0.05 + 0.55 * k * k) + w.wob * left;
-            const v = Math.min(d, (d / Math.max(1, left * GROW / 16)) * w.sp + 0.4);
-            w.p[0] += Math.cos(w.a) * v; w.p[1] += Math.sin(w.a) * v; w.pts.push(w.p.slice());
-            if (Math.random() < 0.09 && w.pts.length > 4) w.br.push({ o: w.p.slice(), a: w.a + (Math.random() < 0.5 ? -1 : 1) * rnd(0.6, 1.3), l: 0, L: rnd(8, 26) });
-            for (const b of w.br) if (b.l < b.L) b.l += 0.8;
-          }
-          g.strokeStyle = w.col; g.globalAlpha = (0.22 + 0.26 * (1 - Math.max(0, (t - GROW) / 700))); g.lineWidth = 0.8;
-          g.beginPath(); w.pts.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke();
-          for (const b of w.br) { g.beginPath(); g.moveTo(b.o[0], b.o[1]); g.lineTo(b.o[0] + Math.cos(b.a) * b.l, b.o[1] + Math.sin(b.a) * b.l); g.stroke(); }
-          if (k < 1) { g.globalAlpha = 0.9; g.fillStyle = spore; g.beginPath(); g.arc(w.p[0], w.p[1], 1.4, 0, Math.PI * 2); g.fill(); }
-        }
-        // the name emerges where the hyphae meet
-        const ap = Math.max(0, Math.min(1, (t - GROW * 0.75) / 600)); if (ap > 0) { g.globalAlpha = ap * ap * (3 - 2 * ap); g.drawImage(img, wx, wy, ww, wh); }
-        g.globalAlpha = 1;
-        if (t < 2050) requestAnimationFrame(step); else done();
-      };
-      requestAnimationFrame(step);
-    };
-    img.onerror = () => setTimeout(done, 600);
-    setTimeout(() => { if (document.getElementById('splash')) done(); }, 4000); // never stay longer than this
-  } catch (e) { setTimeout(done, 400); }
-}
 async function boot() {
-  runSplash();
   readPalette();
   const mq = window.matchMedia('(prefers-color-scheme: light)'); mq.addEventListener && mq.addEventListener('change', readPalette);
   new MutationObserver(readPalette).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
