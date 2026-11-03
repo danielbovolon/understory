@@ -23,13 +23,13 @@ Each layer has a level fader in the app and responds to the "lean" controls. The
 
 ## Pitch and tuning
 
-Every forest seed draws its own **tuning system**. It can be just intonation (5–7 pure ratios), a segment of the harmonic series (harmonics 8–15, 10–19, 12–23 or 16–31), an equal division of the octave other than 12 (5, 7, 9, 10, 11, 13, 15, 17, 19 or 22 steps), the **Bohlen–Pierce** scale (13 steps of the tritave 3:1, no octave), a golden-ratio spiral, or slendro- and pelog-like Javanese gamelan tunings with natural deviation.
+Every forest seed draws its own **tuning system**. It can be just intonation (5–7 pure ratios), a segment of the harmonic series (harmonics 8–15, 10–19, 12–23 or 16–31), an equal division of the octave other than 12 (5, 7, 9, 10, 11, 13, 15, 17, 19 or 22 steps), the **Bohlen–Pierce** scale (13 steps of the tritave 3:1, no octave), a golden-ratio spiral, slendro- and pelog-like Javanese gamelan tunings with natural deviation, and, for about a third of forests, one of seven further systems: a maqam-like scale with neutral thirds, just pentatonic modes, an otonal (harmonics 8–14) or utonal (undertone) row, quarter-comma meantone, a septimal Wilson-style scale, or Wendy Carlos's alpha steps of 78 cents, which repeat at the fifth rather than the octave.
 
 Every pitched voice is placed on a degree of that tuning above a root of 38–96 Hz. Species and fungal genera take fixed degree offsets and registers, so each has a recognisable intervallic identity inside the shared scale. Over long listening the **tonal centre drifts** to closely related keys (by 9:8, 6:5, 5:4, 4:3 or 3:2), and every voice glides there over minutes. This is a compositional layer, not biology, and it is the main reason the forest never settles into a loop.
 
 ## Synthesis
 
-All sound is synthesised in real time in an **AudioWorklet** (64 voices). Eight generator types are chosen for physical plausibility, not decoration:
+All sound is synthesised in real time in an **AudioWorklet** (64 voices; 24 on phones). Nine generator types are chosen for physical plausibility, not decoration:
 
 - **Modal synthesis** — Banks of damped resonators tuned to the inharmonic mode ratios of struck wood, metal, glass or stone. Used for signals, cones and nuts landing, frost cracks and canopy drops. Damping and mode spread follow the material.
 - **Additive drones** — Partials with slow detuning, tremolo and breath noise. The sustained voice of most trees, and also the wingbeat hum of bumblebees.
@@ -39,6 +39,7 @@ All sound is synthesised in real time in an **AudioWorklet** (64 voices). Eight 
 - **Ticks** — Peak-normalised filtered impulse trains with jitter and bursts. Hyphal tips, spore discharge, leaf fall, a squirrel stripping a cone.
 - **FM chirps** — Fast frequency sweeps. Birdsong, owl calls and bat echolocation (see below).
 - **Shaped noise** — Band-passed noise with gusts and crackle. Wind, rain, thunder, snow sliding off a branch, the roe deer's bark.
+- **Formant voice** — Two band-limited (polyBLEP) saw waves through a pair of vowel formants that drift slowly from one vowel to another. Reed-organ and choir forests, and the buzzing of wings when the formants are high and a fast tremolo beats them.
 
 **Physical-to-timbral mapping.** A tree's voice is not fixed. Its partial spread, brightness, vibrato and damping change with **age** (young trees are brighter and higher, old trees darker and slower), **wetness** (wetter ground damps high partials), **stone** (stony ground gives harder attacks), **nutrients**, **drought stress** (a stressed tree loses partials and becomes rough), and **mycorrhizal partners** (a connected tree gains beating partials, "voices joined"). A drought-stressed tree's xylem clicks are real: cavitation emits ultrasonic acoustic emissions, here transposed into the audible range.
 
@@ -46,7 +47,7 @@ All sound is synthesised in real time in an **AudioWorklet** (64 voices). Eight 
 
 Sound identity has four nested levels:
 
-1. **The seed** — Every forest blends two of six **sound worlds** (wood, glass, string, breath, metal, earth), which set material, mode ratios and generator preference.
+1. **The seed** — Every forest is played by its own **ensemble** (see below) and blends two of six **sound worlds** (wood, glass, string, breath, metal, earth), which set material, mode ratios and generator preference.
 2. **The species** — Every tree species is voiced after its wood and crown: dense beech and oak ring low and long, light birch and aspen bright and short, conifers through needles, so higher and more airy.
 3. **The individual** — Every tree carries a **genotype** (inharmonicity, brightness, detuning, vibrato, tremolo rate, partial jitter, filter Q, pick position, formant), and every fungal colony is a mutated copy of its parent.
 4. **The lineage** — Seed inherits its parent's genotype with mutation. A lineage that drifts far enough and adapts to its ground becomes a named **local variety** or **local form**, with a voice that exists only in that forest.
@@ -105,6 +106,41 @@ The events that use them:
 - **Drought clicks, signals, spores and fruit** — Clicks take the forest's resonator family and range; spike trains its frequency-modulation colour and glide; spores and fruiting grains its own register and density.
 
 The place colours the draw. Cold, high and rocky places lean to glass, ice and stone, with brighter, longer tails. Wet, low places lean to membrane, bark and breath, with damped tails, because water and wet wood absorb high frequencies. Limestone rings harder than peat. Fifteen resonator families are available (wood, marimba, glass, bell, string, membrane, stone, bamboo, bark, hollow, plate, shell, ice and their blends), so two forests rarely share a palette.
+
+## Every forest its own ensemble
+
+On top of its voicebook, every seed is played by one of sixteen **ensembles**, with a little of a second one leaking in. The ensemble decides which instruments the network's events become, and so how the whole forest sounds:
+
+- **Thumb-piano grove** — Strikes become short plucked tongues with kalimba and vibraphone overtones; quick, in sixes, with echoing figures.
+- **Reed organ** — Tree drones become reeds through slow vowels; strikes partly become blown pipes; slow and in four.
+- **Gamelan clearing** — Stretched, gong-like overtones, long tails, a strong sympathetic body, sixteenth-note patterns that interlock with their echoes.
+- **Woodblock clockwork** — Claves and seed pods, short and hard, fast in four with tight patterns.
+- **Choir of hollows** — Drones become voices on u, o and a; strikes become breath; very slow, wet and wide.
+- **Buzzing wings** — High vowels beaten by a fast tremolo; leaf and wire resonators; in threes and sixes.
+- **Glass harmonica** — Strikes become rubbed glass; very long and soft attacks, an octave up.
+- **Log drums** — Drum and membrane modes an octave down, swung patterns in four, six or seven.
+- **Harp of roots** — Nearly everything plucked, with arpeggiated echoes that walk up the scale.
+- **Dust and tape** — Dense small grains, some reversed, dark and loose in time.
+- **Stone xylophone** — Compressed (sub-harmonic) slab modes, hard, in five or seven.
+- **Bowed metal** — Strongly stretched plate and gong modes, very resonant formants, a ringing body.
+- **Water organ** — Pipes and blown tones on u and o, slightly swung.
+- **Pizzicato frost** — Short, very bright plucks and ice, an octave up and fast.
+- **Deep drone** — Everything an octave down, very slow, one beat at a time.
+- **Music box** — High chimes and tines with long echo figures.
+
+What an ensemble sets:
+
+- **Timbre** — Whether a strike stays a struck resonator or becomes a plucked string or a blown pipe; whether a tree drone becomes a formant voice; the inharmonicity of every resonator (its overtones are stretched or compressed by an exponent); the ring time, hardness and brightness; the FM ratios of spike trains; grain size, density and reversal; the Q and register of ticks.
+- **Register** — Network voices may sit an octave above or below the trees.
+- **Resonance** — A **sympathetic body**: four tuned comb resonators on the reverb send, tuned to the forest's own scale and damped by snow, ringing along with everything that passes, like the open strings of a viola d'amore or the hollow of a log. Some ensembles have almost none, gamelan and bowed metal a lot.
+- **Rhythm** — Tempo (from about 25 to 130 beats a minute, scaled from the place's pulse), metre (two to eight), subdivision (whole beats, halves, threes or fours), swing, a **euclidean accent pattern** (three in eight, five in eight, seven in sixteen and so on) on which most events wait, and **echo figures**: a ping may repeat on the pulse, stepping up or down the scale and dying away.
+- **Harmony** — The chord shape stacked on the progression: triads, sevenths, open fifths, fourths or clusters.
+
+The place biases which ensemble grows there: cold places lean to glass, frost and music box; wet ones to choir, water organ and log drums; limestone to stone xylophone and gamelan; warm, dry ones to buzzing wings, kalimba and clockwork. The description under the forest's name says which ensemble plays it, its tempo and metre.
+
+## Clean sound on every device
+
+Fast grains are read from band-limited copies of the forest's field recording (one per octave of playback speed), so spores and high fruit never fold their highs back down as aliasing. Spike-train FM keeps every sideband below Nyquist. On phones the voice pool is smaller (24), the picture is drawn at half rate and lower resolution so the audio thread never starves, and after a call, an alarm or a change of headphones the sound engine restarts itself once, at the phone's current sample rate.
 
 ## Soft by default, crisp in moments
 

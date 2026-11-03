@@ -29,7 +29,7 @@
 //  - saprotrophs decompose litter into nutrient patches; some glow at night
 //    under circadian control (Oliveira et al. 2015)
 
-const K = { MODAL: 0, DRONE: 1, GRAIN: 2, TICK: 3, CHIRP: 4, NOISE: 5, PLUCK: 6, BLOW: 7 };
+const K = { MODAL: 0, DRONE: 1, GRAIN: 2, TICK: 3, CHIRP: 4, NOISE: 5, PLUCK: 6, BLOW: 7, VOX: 8 };
 const LAYER = { TREES: 0, SIGNALS: 1, GROWTH: 2, FRUIT: 3, WEATHER: 4, FAUNA: 5 };
 const FG_MAX = 14; // most foreground sounds allowed at once, so the forest never gets crowded
 const SEASON_OF = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'autumn', 'autumn', 'autumn', 'winter'];
@@ -311,6 +311,8 @@ const PARTIAL_SETS = {
 const PING_SETS = { wood: [1, 2.57, 4.1, 6.9], glass: [1, 2.32, 4.25, 6.63], marimba: [1, 3.99, 9.0, 15.4], bell: [1, 2.76, 5.4, 8.93], string: [1, 2, 3, 4.01], membrane: [1, 1.59, 2.14, 2.3] };
 // more resonator families, so forests do not share the same few materials
 Object.assign(PING_SETS, { stone: [1, 2.15, 3.62, 5.31], bamboo: [1, 2.53, 4.68, 7.12], bark: [1, 1.83, 2.97, 4.41], hollow: [1, 3.01, 5.02, 7.04], plate: [1, 1.65, 2.35, 2.92], shell: [1, 1.42, 2.81, 3.97], ice: [1, 2.98, 5.65, 9.31] });
+Object.assign(PING_SETS, { gong: [1, 1.52, 2.03, 2.66], kalimba: [1, 5.93, 13.1, 21.4], bowl: [1, 2.71, 5.15, 8.21], slab: [1, 2.24, 3.9, 6.1], chime: [1, 2.82, 5.42, 8.86], pipe: [1, 2.99, 4.97, 7.01], clave: [1, 3.2, 6.5, 10.4], leaf: [1, 1.21, 1.47, 1.86], wire: [1, 2.005, 3.02, 4.04], seedpod: [1, 1.34, 1.97, 2.61], vibra: [1, 4, 10.1, 16.2], drum: [1, 1.5, 1.98, 2.44] });
+Object.assign(PARTIAL_SETS, { cluster: [1, 1.06, 1.5, 2.01], sub: [0.5, 1, 1.5, 2], spectral: [1, 2.25, 3.6, 5.2], organum: [1, 1.333, 2, 2.667], tritone: [1, 1.414, 2, 2.83], golden: [1, 1.618, 2.618, 4.236], reed: [1, 3, 5, 9], pipes: [1, 2, 4, 8] });
 const JI = [1, 16 / 15, 9 / 8, 7 / 6, 6 / 5, 5 / 4, 4 / 3, 7 / 5, 3 / 2, 8 / 5, 5 / 3, 7 / 4, 15 / 8];
 
 // Sound worlds: every seed draws two and blends them. They bias which
@@ -347,6 +349,69 @@ function voiceSpecies(sp, r, sound) {
   sp.spore = wpick(r, worldMix(sound, 'spore'));
   return sp;
 }
+// ------------------------------------------------------------ the palette
+// Each seed is played by its own instrument-ensemble: which generators the network's events become, how
+// stretched or harmonic its resonators are, how long they ring, their register, the vowels its drones sing,
+// its FM ratios and grain sizes, a sympathetic body tuned to its chord, and its own rhythm: tempo, metre,
+// subdivision, swing, a euclidean accent pattern and echo figures. The place biases which ensemble grows there.
+const VOWELS = { u: [300, 870], o: [430, 800], a: [730, 1090], e: [530, 1840], i: [280, 2250], y: [250, 1750], oe: [380, 1400], ae: [660, 1720] };
+const ENSEMBLES = {
+  kalimba: { name: 'thumb-piano grove', modalTo: { pluck: 0.55 }, ping: ['kalimba', 'vibra', 'marimba'], stretch: [0.98, 1.02], dec: [0.45, 0.8], hard: [1, 1.3], bright: [0, 0.2], reg: [0, 1], tempo: [1.25, 1.6], meters: [6, 3, 4], sub: [3, 2], swing: [0, 0.12], euclid: [[5, 8], [3, 8], [7, 12]], echo: [0.35, 2, 3], body: [0.05, 0.15], fm: [1, 2, 3], w: { warm: 1, dry: 1 } },
+  reed: { name: 'reed organ', droneTo: 0.85, modalTo: { blow: 0.3 }, ping: ['pipe', 'hollow', 'wood'], vowels: ['o', 'a', 'oe'], fq: [4, 9], stretch: [1, 1], dec: [0.9, 1.3], hard: [0.6, 0.9], bright: [-0.1, 0.1], reg: [0, 0], tempo: [0.7, 0.95], meters: [4, 3], sub: [2, 1], swing: [0, 0], euclid: [[4, 4], [3, 4]], echo: [0.1, 1, 2], body: [0.1, 0.22], fm: [1, 2], w: { wet: 1 } },
+  gamelan: { name: 'gamelan clearing', ping: ['gong', 'bowl', 'chime', 'bell'], stretch: [1.03, 1.09], dec: [1.2, 1.9], hard: [1, 1.25], bright: [0.05, 0.2], reg: [0, 1], tempo: [1.1, 1.5], meters: [4, 8], sub: [4, 2], swing: [0, 0], euclid: [[7, 16], [5, 16], [9, 16]], echo: [0.55, 3, 1], body: [0.18, 0.35], fm: [1.41, 2.76, 3.5], w: { hard: 1.2, warm: 0.5 } },
+  clockwork: { name: 'woodblock clockwork', ping: ['clave', 'wood', 'seedpod'], tickTo: 1, stretch: [0.97, 1.01], dec: [0.25, 0.45], hard: [1.2, 1.5], bright: [0.1, 0.25], reg: [0, 1], tempo: [1.4, 1.9], meters: [4, 2, 6], sub: [4], swing: [0, 0.08], euclid: [[3, 8], [5, 12], [5, 8]], echo: [0.4, 3, 0], tick: [1.4, 0.8], body: [0, 0.06], fm: [2, 3, 4], w: { dry: 1.3, hard: 0.6 } },
+  choir: { name: 'choir of hollows', droneTo: 1, vowels: ['u', 'o', 'a', 'oe'], fq: [5, 12], ping: ['hollow', 'pipe', 'bowl'], modalTo: { blow: 0.45 }, stretch: [1, 1], dec: [1.2, 1.8], hard: [0.4, 0.7], bright: [-0.2, 0], reg: [-1, 0], tempo: [0.55, 0.8], meters: [3, 4, 5], sub: [1, 2], swing: [0, 0], euclid: [[2, 3], [3, 5]], echo: [0.15, 1, 2], send: 1.35, att: 2, body: [0.12, 0.25], fm: [0.5, 1], w: { wet: 1, cold: 0.6 } },
+  insects: { name: 'buzzing wings', droneTo: 0.6, vowels: ['i', 'e', 'y'], fq: [8, 18], buzz: [6, 16], ping: ['leaf', 'seedpod', 'wire'], stretch: [1, 1.04], dec: [0.4, 0.7], hard: [0.9, 1.2], bright: [0.1, 0.25], reg: [0, 1], tempo: [1.3, 1.7], meters: [3, 6, 5], sub: [3, 4], swing: [0, 0.1], euclid: [[5, 9], [4, 7], [7, 12]], echo: [0.3, 2, 0], tick: [1.6, 1.25], body: [0, 0.08], fm: [3, 3.5, 5], w: { warm: 1.4, dry: 1 } },
+  glassharp: { name: 'glass harmonica', modalTo: { blow: 0.5 }, ping: ['glass', 'ice', 'bowl'], stretch: [1, 1.01], dec: [1.6, 2.4], hard: [0.3, 0.6], bright: [0.05, 0.2], reg: [1, 1], tempo: [0.6, 0.85], meters: [3, 4], sub: [1, 2], swing: [0, 0], euclid: [[3, 4], [2, 3]], echo: [0.2, 2, 2], att: 2.5, body: [0.2, 0.35], fm: [1, 2], w: { cold: 1.5 } },
+  logdrums: { name: 'log drums', ping: ['drum', 'membrane', 'hollow', 'bark'], stretch: [0.98, 1], dec: [0.35, 0.6], hard: [0.9, 1.2], bright: [-0.2, -0.05], reg: [-1, -1], tempo: [1.05, 1.35], meters: [4, 6, 7], sub: [4, 2], swing: [0.1, 0.22], euclid: [[3, 8], [5, 16], [7, 16]], echo: [0.45, 2, 0], body: [0.08, 0.2], fm: [0.5, 1], w: { wet: 1.2, warm: 0.6 } },
+  harp: { name: 'harp of roots', modalTo: { pluck: 0.85 }, ping: ['string', 'wire'], stretch: [1, 1.01], dec: [1.1, 1.7], hard: [0.7, 1], bright: [0, 0.15], reg: [0, 0], tempo: [0.85, 1.15], meters: [3, 6, 4], sub: [3, 2], swing: [0, 0.06], euclid: [[3, 4], [5, 6]], echo: [0.6, 3, 2], body: [0.15, 0.3], fm: [1, 2], w: { dry: 0.6, warm: 0.6 } },
+  dust: { name: 'dust and tape', grain: [0.4, 1.6, 0.45], droneTo: 0.25, vowels: ['oe', 'u'], fq: [2, 5], ping: ['bark', 'shell', 'seedpod'], stretch: [0.98, 1.02], dec: [0.7, 1.1], hard: [0.5, 0.8], bright: [-0.3, -0.1], reg: [0, 0], tempo: [0.75, 1.1], meters: [4, 5], sub: [1, 2], swing: [0.05, 0.2], euclid: [[4, 9], [3, 7]], echo: [0.1, 1, 0], body: [0, 0.05], fm: [0.5, 1, 1.41], w: { dry: 0.8 } },
+  stonexylo: { name: 'stone xylophone', ping: ['slab', 'stone', 'marimba'], stretch: [0.94, 0.99], dec: [0.5, 0.9], hard: [1.1, 1.4], bright: [0, 0.15], reg: [0, 1], tempo: [0.95, 1.3], meters: [5, 7, 4], sub: [2], swing: [0, 0], euclid: [[5, 7], [3, 5], [4, 7]], echo: [0.35, 2, 1], body: [0.05, 0.15], fm: [2, 2.76], w: { hard: 1.6, cold: 0.5 } },
+  bowedmetal: { name: 'bowed metal', droneTo: 0.5, vowels: ['ae', 'e', 'a'], fq: [14, 28], ping: ['plate', 'gong', 'chime'], stretch: [1.06, 1.14], dec: [1.8, 2.6], hard: [0.3, 0.6], bright: [0, 0.15], reg: [0, 0], tempo: [0.5, 0.75], meters: [5, 4, 7], sub: [1, 2], swing: [0, 0], euclid: [[2, 5], [3, 7]], echo: [0.15, 1, 1], att: 2.2, body: [0.25, 0.4], fm: [1.41, 2.76, 3.5], w: { cold: 1, hard: 0.6 } },
+  waterorgan: { name: 'water organ', modalTo: { blow: 0.6 }, droneTo: 0.45, vowels: ['u', 'o'], fq: [3, 7], ping: ['pipe', 'hollow', 'bowl'], stretch: [1, 1], dec: [0.9, 1.4], hard: [0.4, 0.7], bright: [-0.15, 0.05], reg: [0, 0], tempo: [0.7, 1], meters: [3, 4, 6], sub: [2, 3], swing: [0.05, 0.15], euclid: [[3, 4], [5, 8]], echo: [0.3, 2, 2], send: 1.2, body: [0.1, 0.2], fm: [1, 2], w: { wet: 1.6 } },
+  frost: { name: 'pizzicato frost', modalTo: { pluck: 0.7 }, ping: ['ice', 'glass', 'chime'], stretch: [1, 1.03], dec: [0.3, 0.55], hard: [1.1, 1.4], bright: [0.2, 0.3], reg: [1, 1], tempo: [1.3, 1.8], meters: [4, 6], sub: [4, 3], swing: [0, 0.05], euclid: [[5, 8], [7, 12], [9, 16]], echo: [0.45, 3, 3], body: [0.05, 0.12], fm: [2, 3, 4], w: { cold: 1.6 } },
+  deep: { name: 'deep drone', droneTo: 0.35, vowels: ['u', 'o'], fq: [3, 6], ping: ['hollow', 'drum', 'gong'], stretch: [0.99, 1.03], dec: [1.5, 2.3], hard: [0.3, 0.6], bright: [-0.3, -0.15], reg: [-1, -1], tempo: [0.45, 0.65], meters: [4, 5, 3], sub: [1], swing: [0, 0], euclid: [[2, 4], [3, 8]], echo: [0.1, 1, 0], send: 1.25, att: 2.5, body: [0.15, 0.3], fm: [0.5, 1], w: { wet: 0.8, cold: 0.8 } },
+  musicbox: { name: 'music box', ping: ['vibra', 'chime', 'ice', 'kalimba'], stretch: [1, 1.02], dec: [0.8, 1.2], hard: [0.9, 1.15], bright: [0.1, 0.25], reg: [1, 1], tempo: [0.9, 1.2], meters: [3, 4], sub: [2, 4], swing: [0, 0.04], euclid: [[5, 8], [3, 4], [7, 8]], echo: [0.5, 4, 2], body: [0.06, 0.14], fm: [2, 3], w: { cold: 0.7, dry: 0.6 } },
+};
+const ENSEMBLE_KEYS = Object.keys(ENSEMBLES);
+function euclid(k, n, rot = 0) { const o = []; for (let i = 0; i < n; i++) o.push(Math.floor((i + rot) * k / n) !== Math.floor((i + rot - 1) * k / n) ? 1 : 0); return o; }
+function extraTuning(r) {
+  const kind = r.pick(['maqam', 'penta', 'otonal', 'utonal', 'meantone', 'wilson', 'carlos']);
+  if (kind === 'maqam') return { ratios: [0, 150, 300, 500, 700, 850, 1000].map(c => Math.pow(2, c / 1200)), period: 2, name: 'maqam-like, with neutral thirds' };
+  if (kind === 'penta') return { ratios: r.pick([[1, 9 / 8, 5 / 4, 3 / 2, 5 / 3], [1, 6 / 5, 4 / 3, 3 / 2, 9 / 5], [1, 8 / 7, 4 / 3, 3 / 2, 7 / 4]]), period: 2, name: 'just pentatonic' };
+  if (kind === 'otonal') return { ratios: [8, 9, 10, 11, 12, 13, 14].map(h => h / 8), period: 2, name: 'otonal, harmonics 8–14' };
+  if (kind === 'utonal') return { ratios: [12, 11, 10, 9, 8, 7].map(h => 12 / h).map(x => x >= 2 ? x / 2 : x).sort((a, b) => a - b), period: 2, name: 'utonal, undertones' };
+  if (kind === 'meantone') { const f = Math.pow(5, 0.25); const o = []; for (let k = 0; k < 7; k++) { let x = Math.pow(f, k - 1); while (x >= 2) x /= 2; while (x < 1) x *= 2; o.push(x); } return { ratios: o.sort((a, b) => a - b), period: 2, name: 'quarter-comma meantone' }; }
+  if (kind === 'wilson') return { ratios: [1, 33 / 32, 9 / 8, 7 / 6, 21 / 16, 3 / 2, 49 / 32, 7 / 4].slice(0, r.int(6, 8)), period: 2, name: 'septimal, Wilson-style' };
+  const st = [0, 1, 2, 3, 4, 5, 6, 7, 8]; r.shuffle(st); const pick = [0, ...st.filter(x => x).slice(0, r.int(4, 6))].sort((a, b) => a - b);
+  return { ratios: pick.map(i => Math.pow(2, i * 78 / 1200)), period: Math.pow(2, 702 / 1200), name: 'Carlos alpha, repeating at the fifth' };
+}
+function makePalette(seed) {
+  const r = makeRng(hashStr((seed.code || 'X') + 'palette')), site = seed.site || { moist: 0.6, meanT: 7, ph: 5.5 };
+  const cold = clamp((6 - site.meanT) / 8, 0, 1), wet = clamp(site.moist, 0, 1), hard = clamp((site.ph - 4) / 3.5, 0, 1), warm = 1 - cold, dry = 1 - wet;
+  const fit = {}; for (const k of ENSEMBLE_KEYS) { const w = ENSEMBLES[k].w || {}; fit[k] = 0.35 + (w.cold || 0) * cold + (w.wet || 0) * wet + (w.hard || 0) * hard + (w.warm || 0) * warm * 0.6 + (w.dry || 0) * dry * 0.6; }
+  const key = wpick(r, fit); const E = ENSEMBLES[key];
+  let key2 = wpick(r, fit); if (key2 === key) key2 = r.pick(ENSEMBLE_KEYS.filter(k => k !== key)); const E2 = ENSEMBLES[key2];
+  const rg = (a) => r.range(a[0], a[1]), mix = r.range(0.1, 0.35); // a little of a second ensemble leaks in
+  const vk = E.vowels || E2.vowels || ['o', 'a']; const v1 = VOWELS[r.pick(vk)], v2 = VOWELS[r.pick(vk)];
+  const eu = r.pick(E.euclid), n = eu[1];
+  return {
+    key, key2, name: E.name, name2: E2.name, mix,
+    modalTo: blendW(E.modalTo || {}, E2.modalTo || {}, mix), droneTo: (E.droneTo || 0) * (1 - mix) + (E2.droneTo || 0) * mix, tickTo: E.tickTo || 0,
+    ping: [...(E.ping || ['wood']), r.pick(E2.ping || E.ping || ['wood'])], stretch: rg(E.stretch), dec: rg(E.dec), hard: rg(E.hard), bright: rg(E.bright), reg: r.int(E.reg[0], E.reg[1]),
+    vowel: [...v1, ...v2], fq: E.fq ? rg(E.fq) : 6, vrate: r.range(0.02, 0.12), buzz: E.buzz ? rg(E.buzz) : 0,
+    fm: E.fm, fmi: r.range(0.6, 1.4), grain: E.grain ? { size: E.grain[0] * r.range(0.8, 1.25), dens: E.grain[1] * r.range(0.8, 1.25), rev: E.grain[2] } : { size: r.range(0.7, 1.5), dens: r.range(0.7, 1.4), rev: r.range(0, 0.2) },
+    tick: E.tick ? { q: E.tick[0] * r.range(0.85, 1.2), f: E.tick[1] * r.range(0.9, 1.15) } : { q: r.range(0.7, 1.4), f: r.range(0.75, 1.3) },
+    send: (E.send || 1) * r.range(0.9, 1.1), att: (E.att || 1) * r.range(0.85, 1.2),
+    body: { amt: rg(E.body), fb: r.range(0.9, 0.975), damp: r.range(0.2, 0.6), degs: r.pick([[0, 2, 4, 7], [0, 4, 7, 9], [0, 3, 5, 7], [0, 2, 5, 8]]) },
+    tempo: rg(E.tempo), meter: r.pick(E.meters), sub: r.pick(E.sub), swing: rg(E.swing), pattern: euclid(eu[0], n, r.int(0, n - 1)), patLen: n,
+    echo: { p: E.echo[0] * r.range(0.7, 1.2), n: E.echo[1], int: E.echo[2] * r.pick([1, 1, -1]), beats: r.pick([0.5, 0.5, 1, 1 / 3, 0.75]) * (E.sub && E.sub[0] >= 3 ? 0.5 : 1), fb: r.range(0.5, 0.72) },
+    shape: r.pick([[0, 2, 4], [0, 2, 4], [0, 2, 4, 6], [0, 3], [0, 1, 4], [0, 4]]),
+    tuning: r.chance(0.35) ? extraTuning(r) : null,
+  };
+}
+function paletteOf(seed) { if (!seed.palette) seed.palette = makePalette(seed); return seed.palette; }
+
 // ------------------------------------------------------------ the voicebook
 // Every forest gets its own way of sounding each kind of event: which gesture a root meeting its fungus makes,
 // what a fusion, a clash, a trade, a graft, sugar, water, spores, fruit and drought clicks sound like, in which
@@ -362,7 +427,8 @@ function makeVoicebook(seed) {
   const pool = new Set(); for (const w of snd.worlds) for (const k of WORLDS[w].ping) pool.add(k);
   if (cold > 0.4) { pool.add('ice'); pool.add('glass'); } if (hard > 0.6) { pool.add('stone'); pool.add('bell'); } if (wet > 0.7) { pool.add('membrane'); pool.add('bark'); }
   if (site.key === 'pine' || site.key === 'oak') pool.add('bamboo'); if (site.key === 'spruce' || site.key === 'bog') pool.add('hollow'); if (site.key === 'beech' || site.key === 'firbeech') pool.add('plate'); pool.add(r.pick(['shell', 'bark', 'hollow', 'plate', 'stone', 'bamboo']));
-  const sets = r.shuffle([...pool]);
+  const pal = paletteOf(seed); for (const k of pal.ping) if (PING_SETS[k]) { pool.add(k); pool.add(k); }
+  const sets = r.shuffle([...pool]); for (const k of pal.ping) if (PING_SETS[k]) sets.unshift(k);
   const bright = clamp(0.5 + 0.3 * cold - 0.25 * wet + r.range(-0.2, 0.2), 0.1, 0.95), decay = clamp((1 + 0.5 * cold - 0.4 * wet + 0.3 * hard) * r.range(0.75, 1.3), 0.4, 2.2);
   // gestures: weighted by the place, then each event draws its own
   const gw = { knock: 1 + hard, pluckpair: 1 + (snd.worlds.includes('string') ? 1.5 : 0), swell: 1 + wet + (snd.worlds.includes('breath') ? 1.5 : 0), gliss: 1, bell: 0.5 + cold + (snd.worlds.includes('metal') || snd.worlds.includes('glass') ? 1.2 : 0), whistle: 0.6 + cold, rattle: 0.8 + (1 - wet), dyad: 1, grains: 0.7 + (snd.worlds.includes('earth') ? 1.2 : 0) + wet * 0.5, pulse: 0.8 };
@@ -373,7 +439,8 @@ function makeVoicebook(seed) {
   // the score: a pulse, a metre, a progression in the forest's own tuning, and a form of passages
   const bpm = ({ subalpine: 44, bog: 48, spruce: 50, pine: 54, firbeech: 56, beech: 60, alder: 64, oak: 66 }[site.key] || 56) * r.range(0.92, 1.08);
   const prog = r.pick([[0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 6, 5, 4], [0, 2, 3, 4], [0, 3, 0, 4], [0, 5, 0, 3], [0, 1, 0, 4]]);
-  const score = { bpm, meter: r.pick([3, 4, 4, 5]), prog, chordBars: r.pick([2, 4, 4]), form: r.pick([[0.4, 0.7, 1, 0.65, 0.3], [0.5, 0.8, 0.55, 1, 0.35], [0.35, 0.6, 0.85, 1, 0.5, 0.25]]), sectionBars: r.pick([8, 12, 16]) };
+  const meter0 = r.pick([3, 4, 4, 5]); void meter0;
+  const score = { bpm: clamp(bpm * pal.tempo, 24, 132), meter: pal.meter, sub: pal.sub, swing: pal.swing, pattern: pal.pattern, shape: pal.shape, echo: pal.echo, prog, chordBars: r.pick([2, 4, 4]), form: r.pick([[0.4, 0.7, 1, 0.65, 0.3], [0.5, 0.8, 0.55, 1, 0.35], [0.35, 0.6, 0.85, 1, 0.5, 0.25]]), sectionBars: r.pick([8, 12, 16]) };
   return {
     score, sets, bright, decay, cold, wet, hard,
     bond, bondAlt: [pickG(), pickG()], fuse, clash, trade, graft,
@@ -522,7 +589,9 @@ function makeSeed(code) {
   const vr = makeRng(hashStr(code + 'sv')); for (const sp of species) voiceSpecies(sp, vr, sound);
   // the night insects of this place: crickets keep time with the temperature (Dolbear 1897)
   const cricket = { f: makeRng(hashStr(code + 'c')).range(3800, 5400) };
-  return { site, treeSpecies, soil, birds, owl, cacher, code, name, tun, root, climate, rev, partialKeys, grainTrees, nTrees, species, patches, matParams, kinHue: r.range(15, 60), rngSeed: hashStr(code + 'w'), sound, cricket };
+  const out = { site, treeSpecies, soil, birds, owl, cacher, code, name, tun, root, climate, rev, partialKeys, grainTrees, nTrees, species, patches, matParams, kinHue: r.range(15, 60), rngSeed: hashStr(code + 'w'), sound, cricket };
+  const pal = paletteOf(out); if (pal.tuning) out.tun = pal.tuning;
+  return out;
 }
 
 // ------------------------------------------------------------ materials (procedural field recordings)
@@ -605,7 +674,7 @@ class World {
     // the network and the mushrooms speak softly most of the time; the crisp textures come only in moments
     this.crisp = 0; this.crispT = 0; this.crispNext = 900;
     const self = this;
-    this.audio = { get ready() { return audio.ready; }, spawn: (k, p) => audio.spawn(k, self.soften(k, p)), set: (id, p) => audio.set(id, p), rel: (id, r) => audio.rel(id, r), alive: (id) => audio.alive(id), move: (...a) => audio.move(...a) };
+    this.audio = { get ready() { return audio.ready; }, spawn: (k, p) => { const c = self.colour(k, p); return audio.spawn(c[0], self.soften(c[0], c[1])); }, set: (id, p) => audio.set(id, p), rel: (id, r) => audio.rel(id, r), alive: (id) => audio.alive(id), move: (...a) => audio.move(...a) };
     this.p = opts.params || { growth: 1, chatter: 1, bloom: 1, mutation: 1, moisture: 0.5, wind: 0.5, change: 0.5 };
     const now = opts.now || new Date();
     const jan = new Date(now.getFullYear(), 0, 1).getTimezoneOffset(), jul = new Date(now.getFullYear(), 6, 1).getTimezoneOffset();
@@ -942,7 +1011,7 @@ class World {
     sc.beat += dt * S.bpm / 60;
     const bar = Math.floor(sc.beat / S.meter), L = this.seed.tun.ratios.length;
     const root = S.prog[Math.floor(bar / S.chordBars) % S.prog.length];
-    sc.chord = [root % L, (root + 2) % L, (root + 4) % L];
+    sc.chord = (S.shape || [0, 2, 4]).map(x => (root + x) % L);
     const sec = Math.floor(bar / S.sectionBars) % S.form.length, target = S.form[sec];
     sc.intensity += (target - sc.intensity) * (1 - Math.exp(-dt / 20));
     if (sc.sec !== sec) { sc.sec = sec; if (this.r.chance(0.25) && this.t > 300) this.log(target > 0.8 ? 'The network swells into a fuller passage.' : target < 0.4 ? 'The network quiets into a resting passage.' : 'A new passage begins in the network.', 'drift'); }
@@ -953,7 +1022,16 @@ class World {
     return Math.round(deg) + best;
   }
   // seconds until the next pulse subdivision
-  toGrid(sub = 2) { const S = this.vb.score, sc = this.sc; if (!sc) return 0; const step = 1 / sub, ph = sc.beat / step; return (Math.ceil(ph + 1e-6) - ph) * step * 60 / S.bpm; }
+  // seconds until the next step this forest plays on: its own subdivision, swing and euclidean accent pattern
+  toGrid(sub) {
+    const S = this.vb.score, sc = this.sc; if (!sc) return 0; sub = sub || S.sub || 2;
+    const step = 1 / sub, ph = sc.beat / step, pat = S.pattern, sw = S.swing || 0;
+    let i = Math.ceil(ph + 1e-6);
+    // most events wait for an accented step; some fall between, so the pattern breathes
+    if (pat && pat.length && this.r.chance(0.8)) for (let k = 0; k < pat.length && !pat[((i % pat.length) + pat.length) % pat.length]; k++) i++;
+    const swing = (i & 1) ? sw * step : 0;
+    return Math.max(0, (i - ph) * step + swing) * 60 / S.bpm;
+  }
   beatHz() { return this.vb.score.bpm / 60; }
   scaleRatios(n, center) { const out = []; for (let i = 0; i < n; i++) out.push(ratioOf(this.seed.tun, (center || 0) + i) / ratioOf(this.seed.tun, center || 0)); return out; }
   meanSize() { return this.trees.length ? this.trees.reduce((a, t) => a + t.size, 0) / this.trees.length : 0; }
@@ -991,13 +1069,19 @@ class World {
     if (!now) { if (!this.r.chance(0.45 + 0.55 * ((this.sc && this.sc.intensity) || 0.5))) return; const w = this.toGrid(2); if (w > 0.02) { this.later(w, () => this.ping(x, y, z, node, sp, amt, budget, g, true)); return; } }
     const f = this.freq(node.deg + sp.degOff + this.dshift('signals'), sp.reg - 1);
     // a well-fed colony rings fuller and harder; an old one rings longer
-    const en = g ? clamp(g.energy / 2, 0, 1) : 0.5, nu = g ? clamp(g.nut / 1.5, 0, 1) : 0.3, old = g ? clamp((this.t - g.born) / 4000, 0, 1) : 0;
+    const gg = g && g.energy !== undefined ? g : null, en = gg ? clamp(gg.energy / 2, 0, 1) : 0.5, nu = gg ? clamp((gg.nut || 0) / 1.5, 0, 1) : 0.3, old = gg ? clamp((this.t - (gg.born || this.t)) / 4000, 0, 1) : 0;
     const gain = amt * (0.8 + 0.3 * en), hard = clamp(sp.hard + 0.25 * nu - 0.1, 0.05, 1), dec = 1 + 0.5 * old;
     let id = null; const gen = sp.pingGen || 'modal';
     if (gen === 'pluck' && sp.pluck) id = this.audio.spawn(K.PLUCK, { x, y, z, f: Math.max(60, f), damp: sp.pluck.damp * dec, bright: clamp(sp.pluck.bright + 0.2 * nu, 0.1, 1), pick: sp.pluck.pick, hard, gain: 0.95 * gain, layer: LAYER.SIGNALS, send: 0.65, prio: 1 });
     else if (gen === 'blow' && sp.blow) id = this.audio.spawn(K.BLOW, { x, y, z, f, q: sp.blow.q, r2: sp.blow.r2, tone: sp.blow.tone, breath: 0.85, bright: clamp(0.35 + 0.4 * nu, 0, 1), flut: 0.4, vib: 0.003, att: 0.04, rel: 0.5 * dec, dur: 0.25 + 0.5 * sp.pdec / 2.4, gain: 0.85 * gain, layer: LAYER.SIGNALS, send: 0.7, prio: 1 });
     else { const ps = (this.vb.ping.set && (hashStr(sp.genus) & 1)) ? PING_SETS[this.vb.ping.set] : sp.ping; id = this.audio.spawn(K.MODAL, { x, y, z, f, r: ps, d: ps.map((_, i) => sp.pdec * dec * this.vb.ping.dec / (1 + i * 1.3)), a: [1, 0.55, 0.3, 0.18], hard, gain: 0.6 * gain, layer: LAYER.SIGNALS, send: 0.7, prio: 1 }); }
     if (id) this.budget.ping.add(id);
+    // echo figures: some pings repeat on the forest's own pulse, stepping through its scale, dying away
+    const ec = this.vb.score.echo;
+    if (id && ec && !(g && g._echo) && amt > 0.08 && this.r.chance(ec.p * (0.6 + 0.6 * ((this.sc && this.sc.intensity) || 0.5)))) {
+      const dt = 60 / this.vb.score.bpm * ec.beats;
+      for (let k = 1; k <= ec.n; k++) this.later(dt * k, () => this.ping(x, y, z, { deg: node.deg + ec.int * k }, sp, amt * Math.pow(ec.fb, k), budget, Object.assign(Object.create(g || null), { _echo: true }), true));
+    }
   }
   // a crisp moment: rain arriving, a flush of mushrooms, a touch, a storm. Otherwise the soil is soft.
   moment(sec) { this.crispT = Math.max(this.crispT, sec); }
@@ -1005,6 +1089,36 @@ class World {
     this.crispT -= dt; this.crispNext -= dt;
     if (this.crispNext <= 0) { this.crispNext = this.r.range(600, 1500); this.moment(this.r.range(30, 70)); }
     const target = this.crispT > 0 ? 1 : 0; this.crisp += (target - this.crisp) * (1 - Math.exp(-dt / 6));
+  }
+  // the forest's ensemble: every network, tree and fruit voice passes through here and is played on this seed's instruments
+  colour(k, p) {
+    if (!p || p.layer === LAYER.WEATHER || p.layer === LAYER.FAUNA || p.layer === undefined) return [k, p];
+    const P = this.pal || (this.pal = paletteOf(this.seed)), r = this.r, q = Object.assign({}, p);
+    const st = (a) => Array.isArray(a) ? a.map((x, i) => i === 0 ? x : Math.pow(x, P.stretch)) : a;
+    const net = p.layer === LAYER.SIGNALS || p.layer === LAYER.GROWTH;
+    const reg = net && P.reg ? Math.pow(2, P.reg) : 1;
+    if (q.send !== undefined) q.send = Math.min(1.2, q.send * P.send);
+    if (k === K.MODAL) {
+      q.r = st(q.r); if (q.d) q.d = q.d.map(x => x * P.dec); q.hard = clamp((q.hard === undefined ? 0.5 : q.hard) * P.hard, 0.03, 1);
+      if (q.f && reg !== 1 && q.f * reg > 50 && q.f * reg < 3200) q.f *= reg;
+      const to = wpick(r, Object.assign({ modal: 1 }, P.modalTo));
+      if (to === 'pluck' && q.f > 40) return [K.PLUCK, { ...q, f: clamp(q.f, 50, 3500), damp: clamp((q.d ? q.d[0] : 1) * 1.6, 0.15, 8), bright: clamp(0.3 + 0.5 * q.hard + P.bright, 0.1, 1), pick: r.range(0.1, 0.4), hard: q.hard }];
+      if (to === 'blow' && q.f > 60) { const d0 = q.d ? q.d[0] : 1; return [K.BLOW, { ...q, f: Math.min(q.f, 4000), q: 14 + 20 * q.hard, r2: q.r ? q.r[1] : 2.76, tone: 0.55, breath: 0.35, bright: clamp(0.4 + P.bright, 0, 1), flut: 0.15, vib: 0.003, att: 0.03 * P.att, rel: clamp(d0 * 0.8, 0.2, 3), dur: clamp(d0 * 0.35, 0.08, 1.2), glide: 0.3, gain: (q.gain || 0.3) * 1.1 }]; }
+      return [k, q];
+    }
+    if (k === K.DRONE) {
+      q.r = st(q.r); if (q.att !== undefined) q.att *= P.att;
+      if (P.droneTo > 0 && r.chance(P.droneTo)) {
+        return [K.VOX, { ...q, F: P.vowel, fq: P.fq, vrate: P.vrate, breath: (q.breath || 0.1) * 0.6, trate: P.buzz || q.trate, tdep: P.buzz ? 0.55 : q.tdep, gain: (q.gain || 0.3) * 0.9 }];
+      }
+      return [k, q];
+    }
+    if (k === K.PLUCK) { q.damp = (q.damp || 2) * P.dec; q.bright = clamp((q.bright === undefined ? 0.5 : q.bright) + P.bright, 0.05, 1); if (q.f && reg !== 1 && q.f * reg > 50 && q.f * reg < 3500) q.f *= reg; return [k, q]; }
+    if (k === K.BLOW) { q.bright = clamp((q.bright === undefined ? 0.5 : q.bright) + P.bright, 0, 1); if (q.att !== undefined) q.att *= P.att; return [k, q]; }
+    if (k === K.GRAIN) { q.size = (q.size || 0.1) * P.grain.size; q.dens = (q.dens || 10) * P.grain.dens; q.rev = Math.max(q.rev || 0, P.grain.rev); return [k, q]; }
+    if (k === K.TICK) { q.q = (q.q || 8) * P.tick.q; q.f = clamp((q.f || 3000) * P.tick.f, 200, 9000); if (P.tickTo && net) q.burst = Math.min(0.8, (q.burst || 0.2) + 0.2); return [k, q]; }
+    if (k === K.CHIRP) { if (P.fm && P.fm.length) q.mr = P.fm[(Math.abs(hashStr(String(Math.round(q.f0 || 0)))) >>> 0) % P.fm.length]; q.mi = (q.mi === undefined ? 1 : q.mi) * P.fmi; if (reg !== 1) { q.f0 = clamp((q.f0 || 800) * reg, 80, 9000); q.f1 = clamp((q.f1 || 1200) * reg, 80, 9000); } return [k, q]; }
+    return [k, q];
   }
   // the mycelial and fungal layers, softened: tonal instead of clicky, lower, rounder, with slower attacks
   soften(k, p) {
@@ -2692,4 +2806,4 @@ function segX(ax, ay, bx, by, cx, cy, dx, dy) {
   return u >= 0 && u <= 1 && v >= 0 && v <= 1;
 }
 
-if (typeof module !== 'undefined') module.exports = { makeVoicebook, GESTURES, SITES, makeSite, ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };
+if (typeof module !== 'undefined') module.exports = { makeVoicebook, paletteOf, makePalette, ENSEMBLES, GESTURES, SITES, makeSite, ROOTS, rootReach, rootDepth, SEED_INFO, ARRIVALS, RARE_FUNGI, ALL_TREE_KEYS, MASTING, inMonths, WILD_FUNGI, WILD_SAPRO, WILD_TREES, WORLDS, soundOf, BROWSE, CATCHUP_MAX, World, makeSeed, makeMaterial, randomCode, flowerCenters, ratioOf, mutateSpecies, makeRng, hashStr, K, LAYER, PLOT_R, PETAL, FAMILY_NAMES, EXPLORATION, STAGES, MONTHS, CHAR_DEFAULT, SEASON_OF, FG_MAX, TREE_SPECIES, TREE_KEYS, FUNGI, FUNGUS, COVER, SOIL_N, SOIL_CELL, MAX_TREES, MAX_FUNGI, fruitSeason };

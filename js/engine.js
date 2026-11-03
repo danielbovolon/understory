@@ -24,6 +24,28 @@ function num(v, d) { return (typeof v === 'number' && isFinite(v)) ? v : d; }
 function arr4(a, d) { const o = new Float32Array(4); for (let i = 0; i < 4; i++) o[i] = (a && isFinite(a[i])) ? a[i] : d[i]; return o; }
 
 const MAT = [new Float32Array(SR), new Float32Array(SR)];
+// band-limited copies of each material: a grain read k octaves fast reads the copy filtered below Nyquist / 2^k,
+// so fast grains (spores, high fruit) never fold their highs back down as aliasing
+const MIP = [[MAT[0]], [MAT[1]]];
+function lpPass(x, fc) {
+  // two cascaded 2-pole lowpass sections, run forward then backward over the loop (zero phase, -48 dB/oct)
+  const L = x.length, g = Math.tan(Math.PI * Math.min(0.45, fc / SR)), k = 1.4142, a1 = 1 / (1 + g * (g + k)), a2 = g * a1;
+  const run = (from, step) => {
+    for (let sec = 0; sec < 2; sec++) {
+      let s1 = 0, s2 = 0;
+      for (let w = 0; w < 2; w++) for (let j = w ? 0 : L - Math.min(L, 4096); j < L; j++) {
+        const i = step > 0 ? j : L - 1 - j; const v3 = x[i] - s2, v1 = a1 * s1 + a2 * v3, v2 = s2 + g * v1;
+        s1 = 2 * v1 - s1; s2 = 2 * v2 - s2; if (w) x[i] = v2;
+      }
+    }
+  };
+  run(0, 1); run(0, -1); return x;
+}
+function buildMip(slot) {
+  const m = MAT[slot], lv = [m];
+  for (let k = 1; k <= 4; k++) lv.push(lpPass(new Float32Array(lv[k - 1]), SR * 0.45 / (1 << k)));
+  MIP[slot] = lv;
+}
 const PLUCK_TMP = new Float32Array(4096);
 const LAYERS = new Float32Array([1, 1, 1, 1, 1, 1]);
 
@@ -34,7 +56,7 @@ class Voice {
     this.w = 0;
     this.out = new Float32Array(BLK);
     this.grains = [];
-    for (let i = 0; i < 12; i++) this.grains.push({ on: false, ph: 0, inc: 1, len: 1, t: 0, amp: 0, pan: 0 });
+    for (let i = 0; i < 12; i++) this.grains.push({ on: false, ph: 0, inc: 1, len: 1, t: 0, amp: 0, pan: 0, lv: 0, mute: false });
     this.mre = new Float32Array(4); this.mim = new Float32Array(4);
     this.mcr = new Float32Array(4); this.mci = new Float32Array(4); this.ma = new Float32Array(4);
     this.ph = new Float64Array(8);
@@ -147,6 +169,20 @@ class Voice {
           if (p.strike) this.pluck(num(p.strike, 1));
         }
         break;
+      case 8: // VOX: two band-limited saws through a pair of drifting vowel formants: reed, choir, buzzing wing
+        if (init) {
+          q.f = clamp(num(p.f, 110), 20, 3000); q.ft = q.f; q.glide = num(p.glide, 1); q.r = arr4(p.r, [1, 2, 3, 4]); q.a = arr4(p.a, [1, 0.4, 0.2, 0.1]);
+          q.bright = num(p.bright, 0.5); q.breath = num(p.breath, 0.1); q.vib = num(p.vib, 0.003); q.trate = num(p.trate, 0.1); q.tdep = num(p.tdep, 0.1);
+          q.det = num(p.det, 4); q.flash = 0; q.F = arr4(p.F, [400, 800, 730, 1090]); q.fq = clamp(num(p.fq, 6), 1, 30); q.vrate = num(p.vrate, 0.05);
+          q.vph = rnd(); q.tph = rnd(); q.wph = rnd(); q.brc = q.bright; q.f1 = 0; q.f2 = 0; q.b1 = 0; q.b2 = 0; q.b3 = 0; q.b4 = 0; q.lp = 0;
+          this.ph[0] = rnd(); this.ph[1] = rnd();
+        } else {
+          if (p.f !== undefined) q.ft = clamp(num(p.f, q.ft), 20, 3000);
+          if (p.a) q.a = arr4(p.a, q.a); if (p.r) q.r = arr4(p.r, q.r); if (p.F) q.F = arr4(p.F, q.F);
+          for (const k of ['glide', 'bright', 'breath', 'vib', 'trate', 'tdep', 'det', 'fq', 'vrate']) if (p[k] !== undefined) q[k] = num(p[k], q[k]);
+          if (p.flash) q.flash = Math.min(1.5, q.flash + num(p.flash, 0));
+        }
+        break;
       case 7: // BLOW: breath through a resonant tube, with an optional tone
         if (init) {
           q.f = clamp(num(p.f, 220), 25, 6000); q.ft = q.f; q.r2 = num(p.r2, 3); q.q = clamp(num(p.q, 12), 1, 60); q.breath = num(p.breath, 0.6); q.tone = num(p.tone, 0.3);
@@ -241,28 +277,33 @@ class Voice {
         break;
       }
       case 2: {
-        const m = MAT[q.slot], L = m.length;
+        const mip = MIP[q.slot], L = mip[0].length;
         if (L < 64) { o.fill(0, 0, n); break; }
         const gl = Math.max(32, Math.round(q.size * SR));
         const lpc = 1 - Math.exp(-TAU * (200 + q.lp * q.lp * 15000) / SR);
+        const G = this.grains, NG = G.length;
         for (let i = 0; i < n; i++) {
           q.acc += q.dens / SR;
           if (q.acc >= 1) {
             q.acc -= 1 + (rnd() - 0.5) * 0.6;
-            for (const g of this.grains) if (!g.on) {
+            for (let gi = 0; gi < NG; gi++) { const g = G[gi]; if (g.on) continue;
               const r = q.ps[(rnd() * q.ps.length) | 0] * q.pitch;
+              const ar = Math.abs(r);
               g.on = true; g.t = 0; g.len = Math.round(gl * (0.7 + rnd() * 0.6));
               g.inc = r * (q.rev > 0 && rnd() < q.rev ? -1 : 1);
+              // reading faster than 16x cannot be band-limited here; such grains are silent rather than harsh
+              g.lv = ar <= 1 ? 0 : Math.min(4, Math.ceil(Math.log2(ar) - 1e-9)); g.mute = ar > 16;
               g.ph = ((q.pos + nrnd() * q.pj) % 1 + 1) % 1 * L; g.amp = 0.6 + rnd() * 0.4; break;
             }
           }
           let y = 0;
-          for (const g of this.grains) {
-            if (!g.on) continue;
+          for (let gi = 0; gi < NG; gi++) {
+            const g = G[gi]; if (!g.on) continue;
             const t = g.t / g.len; const w = Math.sin(Math.PI * t); const ww = w * w;
-            let p = g.ph; p = ((p % L) + L) % L;
-            const i0 = p | 0, fr = p - i0; const s = m[i0] + (m[(i0 + 1) % L] - m[i0]) * fr;
-            y += s * ww * g.amp;
+            let p = g.ph; if (p >= L || p < 0) { p = p % L; if (p < 0) p += L; g.ph = p; }
+            const m = mip[g.lv] || mip[0];
+            const i0 = p | 0, fr = p - i0, i1 = i0 + 1 < L ? i0 + 1 : 0; const s = m[i0] + (m[i1] - m[i0]) * fr;
+            if (!g.mute) y += s * ww * g.amp;
             g.ph += g.inc; g.t++;
             if (g.t >= g.len) g.on = false;
           }
@@ -306,8 +347,10 @@ class Voice {
               const gl = Math.min(1, bt);
               const f = q.f0 + (q.f1 - q.f0) * gl;
               q.mp += f * q.mr / SR; if (q.mp > 1) q.mp -= 1;
-              q.cp += (f + Math.sin(TAU * q.mp) * f * q.mi * env) / SR; q.cp -= Math.floor(q.cp);
-              y = Math.sin(TAU * q.cp) * env;
+              // keep every FM sideband below Nyquist: on 44.1 kHz devices high chirps otherwise fold back as aliasing
+              const miMax = Math.max(0, (SR * 0.42 / Math.max(20, f) - 1) / Math.max(0.5, q.mr)), mi = Math.min(q.mi, miMax);
+              q.cp += (f + Math.sin(TAU * q.mp) * f * mi * env) / SR; q.cp -= Math.floor(q.cp);
+              y = f < SR * 0.42 ? Math.sin(TAU * q.cp) * env : 0;
               this.blipT += 1 / SR;
             }
           }
@@ -390,7 +433,67 @@ class Voice {
         }
         break;
       }
+      case 8: {
+        const gk = 1 - Math.exp(-n / (Math.max(0.01, q.glide) * SR));
+        q.f += (q.ft - q.f) * gk; q.flash *= Math.exp(-n / (1.2 * SR));
+        q.brc += (q.bright - q.brc) * (1 - Math.exp(-n / (0.6 * SR)));
+        q.wph += q.vrate * n / SR; q.tph += q.trate * n / SR;
+        const wv = 0.5 - 0.5 * Math.cos(TAU * q.wph), trem = 1 - q.tdep * (0.5 + 0.5 * Math.sin(TAU * q.tph));
+        const F1 = clamp(q.F[0] + (q.F[2] - q.F[0]) * wv, 80, SR * 0.4), F2 = clamp(q.F[1] + (q.F[3] - q.F[1]) * wv, 150, SR * 0.4);
+        const g1 = Math.tan(Math.PI * F1 / SR), g2 = Math.tan(Math.PI * F2 / SR), k = 1 / q.fq;
+        const a11 = 1 / (1 + g1 * (g1 + k)), a12 = g1 * a11, a21 = 1 / (1 + g2 * (g2 + k)), a22 = g2 * a21;
+        const br = clamp(q.brc + q.flash * 0.3, 0, 1), lpc = 1 - Math.exp(-TAU * (300 + br * br * 7000) / SR);
+        const r1 = q.r[1] * (1 + q.det * 0.0006), a1 = q.a[1], norm = Math.sqrt(q.fq) * 0.55;
+        for (let i = 0; i < n; i++) {
+          q.vph += 5.1 / SR; const vib = 1 + q.vib * Math.sin(TAU * q.vph);
+          let y = 0;
+          for (let m = 0; m < 2; m++) {
+            const f = q.f * vib * (m ? r1 : 1); if (f > SR * 0.3) continue;
+            const dt = f / SR; let t = this.ph[m] + dt; if (t >= 1) t -= 1; this.ph[m] = t;
+            // polyBLEP saw: the step at the wrap is smoothed, so the saw stays clean high up
+            let v = 2 * t - 1;
+            if (t < dt) { const x = t / dt; v -= x + x - x * x - 1; } else if (t > 1 - dt) { const x = (t - 1) / dt; v -= x * x + x + x + 1; }
+            y += v * (m ? a1 : 1);
+          }
+          y = y * 0.5 + nrnd() * q.breath * 0.6;
+          let v3 = y - q.b2, v1 = a11 * q.b1 + a12 * v3, v2 = q.b2 + g1 * v1; q.b1 = 2 * v1 - q.b1; q.b2 = 2 * v2 - q.b2;
+          v3 = y - q.b4; const u1 = a21 * q.b3 + a22 * v3, u2 = q.b4 + g2 * u1; q.b3 = 2 * u1 - q.b3; q.b4 = 2 * u2 - q.b4;
+          const z = (v1 * k * norm + u1 * k * norm * 0.6 + y * 0.08) * trem * (1 + q.flash * 0.4);
+          q.lp += lpc * (z - q.lp);
+          o[i] = q.lp * 0.95;
+        }
+        break;
+      }
       default: o.fill(0, 0, n);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- sympathetic body
+// Four tuned comb resonators on the reverb send, tuned by each forest to its own chord: the forest's "body",
+// like the open strings of a viola d'amore or the hollow of a log, ringing along with whatever passes through.
+class Body {
+  constructor() { this.N = 4; this.buf = []; for (let i = 0; i < 4; i++) this.buf.push(new Float32Array(4096)); this.w = 0; this.d = new Float32Array([400, 300, 250, 200]); this.lp = new Float32Array(4); this.fb = 0.9; this.damp = 0.4; this.amt = 0; this.amtT = 0; }
+  configure(f, fb, damp, amt) {
+    for (let i = 0; i < 4; i++) { const fi = clamp(num(f && f[i], 110), 40, 2000); this.d[i] = clamp(SR / fi, 8, 4000); }
+    this.fb = clamp(num(fb, 0.9), 0, 0.985); this.damp = clamp(num(damp, 0.4), 0, 0.95); this.amtT = clamp(num(amt, 0), 0, 0.6);
+  }
+  clear() { for (const b of this.buf) b.fill(0); this.lp.fill(0); }
+  process(inL, inR, outL, outR, n) {
+    if (this.amtT <= 0 && this.amt < 1e-4) { this.amt = 0; return; }
+    const c = 1 - this.damp, fb = this.fb;
+    for (let s = 0; s < n; s++) {
+      this.amt += (this.amtT - this.amt) * 0.0005;
+      const x = (inL[s] + inR[s]) * 0.5; let yl = 0, yr = 0;
+      for (let i = 0; i < 4; i++) {
+        const b = this.buf[i]; let p = this.w - this.d[i]; if (p < 0) p += 4096; const i0 = p | 0, fr = p - i0;
+        const y = b[i0 & 4095] + (b[(i0 + 1) & 4095] - b[i0 & 4095]) * fr;
+        this.lp[i] += c * (y - this.lp[i]);
+        b[this.w] = x * 0.25 + this.lp[i] * fb;
+        if (i & 1) yr += y; else yl += y;
+      }
+      this.w = (this.w + 1) & 4095;
+      outL[s] += yl * this.amt; outR[s] += yr * this.amt;
     }
   }
 }
@@ -459,7 +562,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     super();
     this.voices = []; for (let i = 0; i < MAXV; i++) this.voices.push(new Voice());
     this.map = new Map();
-    this.rev = new FDN();
+    this.rev = new FDN(); this.body = new Body();
     this.lis = { x: 0, y: 0, z: 1.6, yaw: 0, tx: 0, ty: 0, tz: 1.6, tyaw: 0 };
     this.under = 0; this.underT = 0; this.absorb = 0; this.absorbT = 0; this.carry = 0; this.carryT = 0;
     this.mode = 0; this.depth = 1; this.wet = 0.35; this.master = 0.8; this.fade = 0; this.fadeT = 1; this.fadeRate = 1 / (1.5 * SR);
@@ -499,7 +602,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
         break;
       }
       case 'lis': { const l = this.lis; l.tx = num(m.x, l.tx); l.ty = num(m.y, l.ty); l.tz = num(m.z, l.tz); l.tyaw = num(m.yaw, l.tyaw); break; }
-      case 'mat': { if (m.data instanceof Float32Array && m.data.length > 64) MAT[clamp(m.slot | 0, 0, 1)] = m.data; break; }
+      case 'mat': { if (m.data instanceof Float32Array && m.data.length > 64) { const sl = clamp(m.slot | 0, 0, 1); MAT[sl] = m.data; MIP[sl] = Array.isArray(m.mip) && m.mip.length === 4 && m.mip.every(x => x instanceof Float32Array && x.length === m.data.length) ? [m.data, ...m.mip] : (buildMip(sl), MIP[sl]); } break; }
       case 'g': {
         if (m.mode !== undefined) this.mode = m.mode | 0;
         if (m.depth !== undefined) this.depth = clamp(num(m.depth, 1), 0.2, 2.5);
@@ -509,12 +612,13 @@ class UnderstoryEngine extends AudioWorkletProcessor {
         if (m.absorb !== undefined) this.absorbT = clamp(num(m.absorb, 0), 0, 1);
         if (m.carry !== undefined) this.carryT = clamp(num(m.carry, 0), 0, 1);
         if (m.layers) for (let i = 0; i < 6; i++) LAYERS[i] = clamp(num(m.layers[i], 1), 0, 2);
+        if (m.body) this.body.configure(m.body.f, m.body.fb, m.body.damp, m.body.amt);
         if (m.rev) this.rev.configure(num(m.rev.size, 1), num(m.rev.rt, 3), num(m.rev.damp, 0.5), num(m.rev.pre, 0.03));
         break;
       }
       case 'fade': this.fadeT = clamp(num(m.to, 1), 0, 1); this.fadeRate = 1 / (Math.max(0.01, num(m.time, 1)) * SR); break;
       case 'kill': for (const v of this.voices) if (v.on) { this.freed.push(v.id); v.on = false; v.reset(); } this.map.clear(); break;
-      case 'calm': this.rev.clear(); for (const v of this.voices) { v.buf.fill(0); } this.fade = 0; this.fadeT = 1; this.fadeRate = 1 / (2 * SR); break;
+      case 'calm': this.rev.clear(); this.body.clear(); for (const v of this.voices) { v.buf.fill(0); } this.fade = 0; this.fadeT = 1; this.fadeRate = 1 / (2 * SR); break;
       case 'rec': this.rec = !!m.on; if (!this.rec) this.flushRec(true); break;
       case 'seedrng': rs = (num(m.s, 1) | 0) || 1; break;
     }
@@ -527,7 +631,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
   }
   hardReset() {
     for (const v of this.voices) if (v.on) { this.freed.push(v.id); v.reset(); }
-    this.map.clear(); this.rev.clear(); this.laL.fill(0); this.laR.fill(0); this.lEnv = 1; this.lHeld = 1;
+    this.map.clear(); this.rev.clear(); this.body.clear(); this.laL.fill(0); this.laR.fill(0); this.lEnv = 1; this.lHeld = 1;
     this.dcL = this.dcR = this.dcxL = this.dcxR = 0; this.fade = 0; this.fadeT = 1;
     this.port.postMessage({ t: 'reset' });
   }
@@ -606,6 +710,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
       v.age += n;
       if (!v.gate && v.env <= 0) { this.freed.push(v.id); this.map.delete(v.id); v.on = false; }
     }
+    this.body.process(rvL, rvR, mixL, mixR, n);
     this.rev.process(rvL, rvR, this.revOL, this.revOR, n);
     const wet = this.wet, mg = this.master;
     let pkL = 0, pkR = 0, sqL = 0, sqR = 0, bad = false;

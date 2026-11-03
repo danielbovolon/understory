@@ -22,11 +22,21 @@ function paintPageLattice() {
 }
 
 // ---------------------------------------------------------------- audio bridge
+// phones share one CPU between drawing and the audio thread: draw lighter so the sound never starves
+const PHONE = matchMedia('(pointer: coarse)').matches;
 const audio = {
   ctx: null, node: null, started: false, mute: false, live: new Set(), nextId: 1, moves: [], meter: { pl: 0, pr: 0, rl: 0, rr: 0, gr: 1, nv: 0 }, onRec: null,
   get ready() { return this.started && !this.mute; },
   async ensureCtx() {
-    if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC({ latencyHint: 'playback' }); }
+    if (!this.ctx) {
+      // iOS: choose the audio session before the context exists; changing it afterwards can leave the context
+      // running at the wrong hardware rate, which sounds like crackle and aliasing
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+      const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC({ latencyHint: 'playback' });
+      // after a phone call, Siri, an alarm or a headphone change, iOS can hand back a context with a resampled,
+      // distorted output; rebuilding the context once is the only reliable cure
+      this.ctx.onstatechange = () => { const st = this.ctx && this.ctx.state; if (st === 'interrupted') this.wasInterrupted = true; else if (st === 'running' && this.wasInterrupted && PHONE) { this.wasInterrupted = false; this.rebuild(); } };
+    }
     if (this.ctx.state === 'suspended') { try { await this.ctx.resume(); } catch (e) { } }
     return this.ctx;
   },
@@ -40,7 +50,6 @@ const audio = {
     this.node = new AudioWorkletNode(this.ctx, 'understory-engine', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
     this.out = this.ctx.createGain(); this.node.connect(this.out);
     // on phones, play through a media element: the system then treats the forest like music and keeps it playing with the screen off
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
     // the media-element route lets phones keep playing with the screen off, but on many phones it resamples and crackles,
     // so it is opt-in (Settings); by default the forest plays straight to the speakers
     let bg = false; try { bg = localStorage.getItem('understory.bg') === '1'; } catch (e) { }
@@ -53,9 +62,23 @@ const audio = {
     }
     if (!this.viaElement) this.out.connect(this.ctx.destination);
     this.node.port.onmessage = (e) => this.onMsg(e.data);
+    if (PHONE && navigator.mediaDevices && !this.dcHooked) { this.dcHooked = true; try { navigator.mediaDevices.addEventListener('devicechange', () => { clearTimeout(this.dcT); this.dcT = setTimeout(() => this.rebuild(), 600); }); } catch (e) { } }
     this.post({ t: 'seedrng', s: (Math.random() * 2 ** 31) | 0 });
-    if (matchMedia('(pointer: coarse)').matches) this.post({ t: 'maxv', n: 36 });
+    if (matchMedia('(pointer: coarse)').matches) this.post({ t: 'maxv', n: 24 });
     this.started = true;
+  },
+  async rebuild() {
+    if (this.rebuilding || !this.ctx) return; this.rebuilding = true;
+    try {
+      const old = this.ctx; const was = old.sampleRate;
+      try { this.node && this.node.disconnect(); } catch (e) { }
+      if (this.el) { try { this.el.pause(); this.el.remove(); } catch (e) { } this.el = null; }
+      this.node = null; this.started = false; this.viaElement = false; this.live.clear(); this.ctx = null;
+      try { await old.close(); } catch (e) { }
+      await this.start(); sendGlobals(); sendMaterials(); if (world) world.dropVoices();
+      if (state.running) this.post({ t: 'fade', to: 1, time: 1.5 });
+      logLine(this.ctx.sampleRate !== was ? `Sound restarted at ${this.ctx.sampleRate / 1000} kHz to match the phone.` : 'Sound restarted cleanly after the interruption.', 'weather');
+    } catch (e) { } finally { this.rebuilding = false; }
   },
   onMsg(m) {
     if (m.freed) for (const id of m.freed) this.live.delete(id);
@@ -85,13 +108,34 @@ function sendGlobals() {
   if (!audio.node || !state.seed) return;
   const rv = state.seed.rev;
   const ab = world ? world.absorb : 0, tide = world ? world.tide : 0.5;
-  audio.post({ t: 'g', mode: state.mode, depth: P.depth, wet: P.wet * (0.85 + 0.3 * tide), master: P.master, layers: P.layers, under: state.height === 'under' ? 1 : 0, absorb: ab, carry: world ? world.carry : 0, rev: { size: rv.size * (0.55 + P.room * 0.9), rt: rv.rt * (0.35 + P.room * 1.3) * (1 - 0.45 * ab), damp: Math.min(1, rv.damp + 0.3 * ab), pre: rv.pre } });
+  audio.post({ t: 'g', mode: state.mode, depth: P.depth, wet: P.wet * (0.85 + 0.3 * tide), master: P.master, layers: P.layers, under: state.height === 'under' ? 1 : 0, absorb: ab, carry: world ? world.carry : 0, rev: { size: rv.size * (0.55 + P.room * 0.9), rt: rv.rt * (0.35 + P.room * 1.3) * (1 - 0.45 * ab), damp: Math.min(1, rv.damp + 0.3 * ab), pre: rv.pre }, body: bodyOf(state.seed, ab) });
+}
+// band-limited copies of a material (one per octave of grain speed), built here so the audio thread never stalls
+function matMip(x, sr) {
+  const out = []; let prev = x;
+  for (let k = 1; k <= 4; k++) {
+    const y = new Float32Array(prev), L = y.length, g = Math.tan(Math.PI * Math.min(0.45, 0.45 / (1 << k))), kk = 1.4142, a1 = 1 / (1 + g * (g + kk)), a2 = g * a1;
+    for (const dir of [1, -1]) for (let sec = 0; sec < 2; sec++) {
+      let s1 = 0, s2 = 0;
+      for (let w = 0; w < 2; w++) for (let j = w ? 0 : L - Math.min(L, 4096); j < L; j++) {
+        const i = dir > 0 ? j : L - 1 - j; const v3 = y[i] - s2, v1 = a1 * s1 + a2 * v3, v2 = s2 + g * v1;
+        s1 = 2 * v1 - s1; s2 = 2 * v2 - s2; if (w) y[i] = v2;
+      }
+    }
+    out.push(y); prev = y;
+  }
+  return out;
+}
+function postMat(slot, m) { const mip = matMip(m, audio.ctx.sampleRate); audio.post({ t: 'mat', slot, data: m, mip }, [m.buffer, ...mip.map(x => x.buffer)]); }
+// the forest's sympathetic body: four resonators tuned to its own scale, damped by snow
+function bodyOf(seed, ab) {
+  const pal = paletteOf(seed), b = pal.body, f = b.degs.map(d => { let x = seed.root * ratioOf(seed.tun, d); while (x < 90) x *= 2; while (x > 800) x /= 2; return x; });
+  return { f, fb: b.fb * (1 - 0.06 * ab), damp: Math.min(0.95, b.damp + 0.3 * ab), amt: b.amt * (PHONE ? 0.85 : 1) };
 }
 function sendMaterials() {
   if (!audio.ctx || !audio.node || !state.seed) return;
-  const m = makeMaterial(state.seed, audio.ctx.sampleRate);
-  audio.post({ t: 'mat', slot: 0, data: m }, [m.buffer]);
-  if (!state.matB) { const m2 = makeMaterial({ ...state.seed, matParams: { ...state.seed.matParams, seed: state.seed.matParams.seed ^ 0x5bd1e995, mix: 1 - state.seed.matParams.mix } }, audio.ctx.sampleRate); audio.post({ t: 'mat', slot: 1, data: m2 }, [m2.buffer]); }
+  postMat(0, makeMaterial(state.seed, audio.ctx.sampleRate));
+  if (!state.matB) postMat(1, makeMaterial({ ...state.seed, matParams: { ...state.seed.matParams, seed: state.seed.matParams.seed ^ 0x5bd1e995, mix: 1 - state.seed.matParams.mix } }, audio.ctx.sampleRate));
 }
 
 // the Ecosystem sliders start from the real conditions of this seed's place
@@ -120,19 +164,20 @@ function headerFor(seed) {
   const ecm = seed.species.filter(s => s.guild === 'ecm').map(s => s.genus), sap = seed.species.filter(s => s.guild === 'sapro').map(s => s.genus);
   const snd = soundOf(seed);
   $('siteNote').textContent = seed.site ? siteText(seed.site, true) : 'This forest was planted before places had their own conditions.';
-  $('seedMeta').textContent = `${seed.site ? siteText(seed.site) + ' · ' : ''}${WORLDS[snd.worlds[0]].name} with ${WORLDS[snd.worlds[1]].name} · ${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · spores of ${ecm.join(', ')} and ${sap.join(', ')} in the air · room ${seed.rev.rt.toFixed(1)} s`;
+  $('seedMeta').textContent = `${seed.site ? siteText(seed.site) + ' · ' : ''}played as ${paletteOf(seed).name}, with a touch of ${paletteOf(seed).name2} · ${WORLDS[snd.worlds[0]].name} with ${WORLDS[snd.worlds[1]].name} · ${(() => { const sc = makeVoicebook(seed).score; return `${Math.round(sc.bpm)} bpm in ${sc.meter}, ${['', 'whole', 'halved', 'in threes', 'in fours'][sc.sub] || ''} beats · `; })()}${seed.tun.name} on ${seed.root.toFixed(1)} Hz · ${FAMILY_NAMES[seed.matParams.fams[0]]} + ${FAMILY_NAMES[seed.matParams.fams[1]]} · spores of ${ecm.join(', ')} and ${sap.join(', ')} in the air · room ${seed.rev.rt.toFixed(1)} s`;
   try { history.replaceState(null, '', '#' + seed.code); } catch (e) { }
 }
 async function swapOut() { if (audio.node) { audio.post({ t: 'fade', to: 0, time: 0.5 }); await new Promise(r => setTimeout(r, 560)); audio.kill(); } }
 function seasonMonth() { return state.season === 'now' ? undefined : SEASON_MONTH[state.season]; }
 async function loadSeed(code) {
+  $('stage').classList.add('swapping');
   await saveForest();
   const seed = makeSeed(code);
   await swapOut();
   state.seed = seed; state.forestId = 'f' + Date.now(); state.forestName = seed.name; state.kept = false;
   applySite(seed);
   state.height = 'ground'; listener.z = HEIGHTS.ground; state.drift = false; state.ride = false; state.rideObj = null; if (state.walkMode) setWalk(null);
-  if (state.soil) toggleRoots(false); cam.dist = 36; cam.pitch = 0.92; cam.yaw = 0; listener.yaw = 0; if (typeof updateOptionButtons === 'function') updateOptionButtons();
+  if (state.soil) toggleRoots(false); cam.tDist = 36; cam.tPitch = 0.92; cam.yaw = 0; listener.yaw = 0; if (typeof updateOptionButtons === 'function') updateOptionButtons();
   // every forest starts as bare soil at the real time of day
   world = new World(seed, audio, { log: logLine, params: P, char: P.char, now: new Date(), month: seasonMonth() });
   world.matB = state.matB;
@@ -142,10 +187,12 @@ async function loadSeed(code) {
   if (audio.node) { sendGlobals(); sendMaterials(); if (state.running) audio.post({ t: 'fade', to: 1, time: 2.5 }); }
   buildToolOpts();
   showHint('Bare soil', 'Nothing has grown here yet. Seeds lie on the flower of life, and spores drift in on the wind, under the real sky of this hour.', 'Grow');
+  setTimeout(() => $('stage').classList.remove('swapping'), 60);
   logLine(`Seed ${code}. Bare soil, ${MONTHS[world.month]}, ${fmtClock(world.clockH)}. ${seed.nTrees} seeds lie on the flower of life. Nothing has grown yet.`, 'stage');
   renderForests();
 }
 async function continueForest(rec) {
+  $('stage').classList.add('swapping'); setTimeout(() => $('stage').classList.remove('swapping'), 1400);
   if (rec.id !== state.forestId) await saveForest();
   const saved = rec.data && rec.data.seed, seed = Object.assign(makeSeed(rec.code), saved || {}); if (saved && !saved.site) delete seed.site;
   await swapOut();
@@ -317,7 +364,7 @@ const cam = {
 // ---------------------------------------------------------------- scene
 const scene = { cv: null, g: null, w: 0, h: 0, dpr: 1, motes: [], cutLine: null };
 function resize() {
-  const cv = scene.cv, r = cv.getBoundingClientRect(); scene.dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cv = scene.cv, r = cv.getBoundingClientRect(); scene.dpr = Math.min(PHONE ? 1.25 : 2, window.devicePixelRatio || 1);
   scene.w = Math.max(10, r.width); scene.h = Math.max(10, r.height);
   cv.width = Math.round(scene.w * scene.dpr); cv.height = Math.round(scene.h * scene.dpr);
 }
@@ -565,7 +612,7 @@ function drawSurround(g, w, now) {
   const seed = state.seed; if (!seed) return;
   if (surround.code !== seed.code) {
     const r = seeded(hashStr(seed.code + 'land')), sp = seed.treeSpecies || ['spruce'];
-    surround.trees = []; for (let i = 0; i < 260; i++) { const a = r() * TAU, d = PLOT_R + 4 + Math.pow(r(), 0.7) * PLOT_R * 3.2, k = sp[Math.floor(Math.pow(r(), 1.6) * sp.length)]; surround.trees.push({ x: Math.sin(a) * d, y: Math.cos(a) * d, k, s: 0.6 + r() * 0.9, d }); }
+    surround.trees = []; for (let i = 0; i < (PHONE ? 110 : 260); i++) { const a = r() * TAU, d = PLOT_R + 4 + Math.pow(r(), 0.7) * PLOT_R * 3.2, k = sp[Math.floor(Math.pow(r(), 1.6) * sp.length)]; surround.trees.push({ x: Math.sin(a) * d, y: Math.cos(a) * d, k, s: 0.6 + r() * 0.9, d }); }
     surround.stars = []; for (let i = 0; i < 140; i++) surround.stars.push([r(), r(), 0.4 + r() * 1.2, r() * TAU]);
     surround.code = seed.code;
   }
@@ -981,7 +1028,7 @@ function initInput() {
     if (touches.has(e.pointerId)) touches.set(e.pointerId, pos(e));
     if (pinch && touches.size >= 2) {
       e.preventDefault(); const q = pair();
-      cam.dist = Math.max(10, Math.min(80, pinch.dist0 * pinch.d / Math.max(20, q.d)));
+      cam.tDist = null; cam.dist = Math.max(10, Math.min(80, pinch.dist0 * pinch.d / Math.max(20, q.d)));
       const da = q.ang - pinch.ang;
       const tw = Math.abs(da) > 0.06 ? da - Math.sign(da) * 0.06 : 0; if (state.follow) listener.yaw = pinch.yaw0 + tw; else cam.yaw = pinch.cyaw0 - tw;
       cam.pitch = Math.max(0.3, Math.min(1.5, pinch.pitch0 + (q.my - pinch.my) * 0.005));
@@ -1020,7 +1067,7 @@ function initInput() {
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', (e) => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; drag = null; scene.cutLine = null; });
   cv.addEventListener('pointermove', (e) => { const p = pos(e); scene.hover = cam.ground(p[0], p[1]); });
   cv.addEventListener('pointerleave', () => { scene.hover = null; });
-  cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = Math.max(10, Math.min(80, cam.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.tDist = null; cam.dist = Math.max(10, Math.min(80, cam.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
   // keyboard
   const keys = new Set();
   window.addEventListener('keydown', (e) => {
@@ -1032,9 +1079,9 @@ function initInput() {
     if (k === 'h') { toggleMode(); return; }
     if (k === 'f') { toggleGuide(); return; }
     if (k === 'v') { toggleRoots(); return; }
-    if (k === 'escape' && !$('guideSheet').hidden) { toggleGuide(false); return; }
-    if (k === 'escape' && !$('setSheet').hidden) { toggleSettings(false); return; }
-    if (k === 'escape' && $('mPage') && !$('mPage').hidden) { openPage(null); return; }
+    if (k === 'escape' && isOpen($('guideSheet'))) { toggleGuide(false); return; }
+    if (k === 'escape' && isOpen($('setSheet'))) { toggleSettings(false); return; }
+    if (k === 'escape' && isOpen($('mPage'))) { openPage(null); return; }
     if (k === 'escape' && MUI.section) { openSection(null); return; }
     if (k >= '1' && k <= '8') { setTool(TOOLS[+k - 1][0]); return; }
     if (k === 'g') { setWalk(state.walkMode ? null : 'rhythm'); return; }
@@ -1175,6 +1222,7 @@ function initGuide() {
 const THEME_KEY = 'understory.theme';
 const APP_URL = 'https://claude.ai/artifact/Y94SF7pTQ4Cdm9QVGCD3CX';
 function applyTheme(mode) {
+  const st = $('stage'); if (st && st.isConnected && world) { st.classList.add('swapping'); setTimeout(() => st.classList.remove('swapping'), 380); }
   const root = document.documentElement;
   if (mode === 'light' || mode === 'dark') root.dataset.theme = mode; else delete root.dataset.theme;
   for (const b of document.querySelectorAll('[data-theme-set]')) b.setAttribute('aria-pressed', String(b.dataset.themeSet === mode));
@@ -1204,17 +1252,24 @@ function initSettings() {
 function toggleRoots(on) {
   state.soil = on === undefined ? !state.soil : on; $('rootsBtn').setAttribute('aria-pressed', String(state.soil));
   // look in from lower down, so depth reads as depth
-  if (state.soil) { state.pitch0 = cam.pitch; cam.pitch = Math.min(cam.pitch, 0.42); logHelp('Roots and fungi below ground: each species grows its own root form, and the coloured tips are root tips wrapped by fungal partners.'); }
-  else if (state.pitch0) cam.pitch = state.pitch0;
+  if (state.soil) { state.pitch0 = cam.pitch; cam.tPitch = Math.min(cam.pitch, 0.42); logHelp('Roots and fungi below ground: each species grows its own root form, and the coloured tips are root tips wrapped by fungal partners.'); }
+  else if (state.pitch0) cam.tPitch = state.pitch0;
 }
+// panels, sheets, the drawer and the mixer open and close softly instead of popping
+function softShow(el, show) {
+  if (!el) return; clearTimeout(el._ft); el._open = !!show;
+  if (show) { el.classList.remove('leaving'); el.hidden = false; }
+  else if (!el.hidden) { el.classList.add('leaving'); el._ft = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, 280); }
+}
+const isOpen = (el) => !!el && (el._open !== undefined ? el._open : !el.hidden);
 function toggleSettings(open) {
-  const sh = $('setSheet'); if (open === undefined) open = sh.hidden;
-  sh.hidden = !open; $('setBtn').setAttribute('aria-expanded', String(open)); $('setBtn').setAttribute('aria-pressed', String(open));
-  if (open) { $('shareNote').textContent = ''; if (!$('guideSheet').hidden) toggleGuide(false); $('setClose').focus(); }
+  const sh = $('setSheet'); if (open === undefined) open = !isOpen(sh);
+  softShow(sh, open); $('setBtn').setAttribute('aria-expanded', String(open)); $('setBtn').setAttribute('aria-pressed', String(open));
+  if (open) { $('shareNote').textContent = ''; if (isOpen($('guideSheet'))) toggleGuide(false); $('setClose').focus(); }
 }
 function toggleGuide(open) {
-  const sh = $('guideSheet'); if (open === undefined) open = sh.hidden;
-  sh.hidden = !open; $('guideBtn').setAttribute('aria-expanded', String(open)); $('guideBtn').setAttribute('aria-pressed', String(open));
+  const sh = $('guideSheet'); if (open === undefined) open = !isOpen(sh);
+  softShow(sh, open); $('guideBtn').setAttribute('aria-expanded', String(open)); $('guideBtn').setAttribute('aria-pressed', String(open));
   if (open) { guide.lastFocus = document.activeElement; renderGuide(true); $('guideClose').focus(); }
   else if (guide.lastFocus && guide.lastFocus.focus) guide.lastFocus.focus();
 }
@@ -1530,7 +1585,7 @@ function renderForests() {
     el.querySelector('.fm').textContent = `${f.stage} · age ${fmtAge(f.age)} · ${f.trees} trees, ${f.fungi} fungi · seed ${f.code} · ${cur ? 'here now' : ago(f.visited)}`;
     const acts = el.querySelector('.fa');
     const B = (label, title, fn) => { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = label; b.title = title; b.onclick = fn; acts.appendChild(b); return b; };
-    if (!cur) B('Continue', 'Return to this forest', () => continueForest(f));
+    if (!cur) B('Continue', 'Return to this forest', () => { openPage(null); setTimeout(() => continueForest(f), 200); });
     const del = B('✕', 'Delete this forest', async () => {
       if (!del.dataset.arm) { del.dataset.arm = '1'; del.textContent = 'Delete?'; setTimeout(() => { if (del.isConnected) { delete del.dataset.arm; del.textContent = '✕'; } }, 2500); return; }
       await db.del(f.id, 'forests'); forests = forests.filter(x => x.id !== f.id);
@@ -1653,7 +1708,7 @@ async function bufferToSoil(buf, label) {
   const m = new Float32Array(n); for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) m[i] += d[start + i] / ch; }
   let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(m[i])); const g = pk > 0 ? 0.85 / pk : 0; const fl = Math.min(n >> 2, Math.floor(sr * 0.05));
   for (let i = 0; i < n; i++) { let w = 1; if (i < fl) w = i / fl; else if (i > n - fl) w = (n - i) / fl; m[i] *= g * w; }
-  audio.post({ t: 'mat', slot: 1, data: m }, [m.buffer]);
+  postMat(1, m);
   state.matB = true; state.matBName = label; if (world) world.matB = true;
   // half of the bark-voiced trees switch to the new material now
   if (world) for (const t of world.trees) if ((t.gen || t.type) === 'grain' && Math.random() < 0.6) audio.set(world.v.trees.get(t.id), { slot: 1 });
@@ -1752,7 +1807,11 @@ function frame(ts) {
     cam.tx += (listener.x - cam.tx) * 0.08; cam.ty += (listener.y - cam.ty) * 0.08;
     if (state.follow) { let a = listener.yaw - cam.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); cam.yaw += a * 0.12; }
     if (scene.brush && (scene.brush.t -= dt) <= 0) scene.brush = null;
-    draw(ts);
+    // the camera eases to where it is asked to go: zoom, tilt and resets glide instead of jumping
+    if (cam.tDist != null) { cam.dist += (cam.tDist - cam.dist) * Math.min(1, dt * 5); if (Math.abs(cam.tDist - cam.dist) < 0.02) cam.tDist = null; }
+    if (cam.tPitch != null) { cam.pitch += (cam.tPitch - cam.pitch) * Math.min(1, dt * 4); if (Math.abs(cam.tPitch - cam.pitch) < 0.002) cam.tPitch = null; }
+    // phones draw at half the frame rate, leaving the CPU to the sound
+    if (!PHONE || ((scene.fc = (scene.fc || 0) + 1) & 1) === 0) draw(ts);
   }
   hudT += dt; if (hudT > 0.25) { hudT = 0; updateHud(); if (world && (state.tool === 'plant' || state.tool === 'sow' || state.tool === 'gather') && (world.pouchV !== state.pouchV || (state.tool === 'gather' && Math.random() < 0.15))) buildToolOpts(); }
   guideT += dt; if (guideT > 1.5) { guideT = 0; renderGuide(); }
@@ -1905,7 +1964,7 @@ function initMobile() {
   const shp = document.createElement('button'); shp.className = 'btn'; shp.id = 'mShape'; shp.dataset.icon = 'shape'; shp.innerHTML = icon('shape') + '<span class="lb">Shape the layers</span>'; shp.setAttribute('aria-label', 'Shape the layers'); shp.setAttribute('aria-pressed', 'false'); shp.onclick = () => toggleShape(); MUI.shapeBtn = shp;
   MUI.doing = document.createElement('div'); MUI.doing.className = 'm-doing'; MUI.doing.id = 'mDoing'; MUI.doing.setAttribute('aria-live', 'polite');
   $('mDrawerX').onclick = () => openSection(null);
-  $('mName').onclick = () => { const a = $('mAbout'); a.hidden = !a.hidden; $('mName').setAttribute('aria-expanded', String(!a.hidden)); document.body.classList.toggle('m-info', !a.hidden); if (!a.hidden) renderAbout(); };
+  $('mName').onclick = () => { const a = $('mAbout'), op = !isOpen(a); softShow(a, op); $('mName').setAttribute('aria-expanded', String(op)); document.body.classList.toggle('m-info', op); if (op) renderAbout(); };
   // swipe up from the bottom edge opens the mixer; swipe down on it closes it
   let sy = null;
   $('mEdge').addEventListener('pointerdown', (e) => { sy = e.clientY; });
@@ -1936,21 +1995,21 @@ function setMobile(on) {
   resize(); updateMobileText(); fitNotes();
 }
 function openPage(k) {
-  const pg = $('mPage'); if (!pg) return; pg.hidden = !k;
-  for (const p of $('mPageBody').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
+  const pg = $('mPage'); if (!pg) return; softShow(pg, !!k);
+  if (k) for (const p of $('mPageBody').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
   for (const [s] of PAGES) MUI['pb_' + s] && MUI['pb_' + s].setAttribute('aria-pressed', String(s === k));
-  const t = PAGES.find(s => s[0] === k); $('mPageT').textContent = t ? t[1] : '';
+  const t = PAGES.find(s => s[0] === k); if (t) $('mPageT').textContent = t[1];
   if (k) { openSection(null); toggleMixer(false); if (k === 'forests') renderForests(); }
 }
 function openSection(k) {
-  MUI.section = k; $('mDrawer').hidden = !k; setTimeout(setDoing, 0); document.body.classList.toggle('m-open', !!k);
-  for (const p of $('mDrawer').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
+  MUI.section = k; softShow($('mDrawer'), !!k); setTimeout(setDoing, 0); document.body.classList.toggle('m-open', !!k);
+  if (k) for (const p of $('mDrawer').querySelectorAll('.panel')) p.hidden = p.dataset.sec !== k;
   for (const [s] of SECTIONS) $('msec-' + s).setAttribute('aria-pressed', String(s === k));
-  const t = SECTIONS.find(s => s[0] === k); $('mDrawerT').innerHTML = t ? icon(t[0]) + `<b>${t[1]}</b>` : '';
+  const t = SECTIONS.find(s => s[0] === k); if (t) $('mDrawerT').innerHTML = icon(t[0]) + `<b>${t[1]}</b>`;
   if (k) toggleMixer(false);
 }
 function toggleMixer(on) {
-  const el = $('mMixer'); if (!el) return; on = on === undefined ? el.hidden : on; el.hidden = !on; setTimeout(setDoing, 0); document.body.classList.toggle('m-mix', on); if (!on && document.body.classList.contains('m-shape')) toggleShape(false);
+  const el = $('mMixer'); if (!el) return; on = on === undefined ? !isOpen(el) : on; softShow(el, on); setTimeout(setDoing, 0); document.body.classList.toggle('m-mix', on); if (!on && document.body.classList.contains('m-shape')) toggleShape(false);
   $('msec-mixer') && $('msec-mixer').setAttribute('aria-pressed', String(on)); if (on) openSection(null);
 }
 function renderAbout() {
@@ -1986,8 +2045,8 @@ function setDoing() {
   let t = DOING[state.tool] || '';
   if (!state.running) t = 'Paused: press play to let the forest grow';
   if (MUI.section) t = 'Drag a knob up or down · double-tap it to return to this place';
-  if (!$('mMixer').hidden) t = document.body.classList.contains('m-shape') ? 'Shaping each layer: two knobs per layer · double-tap resets' : 'Layer levels: drag a fader · swipe down to close';
-  if (state.soil && !MUI.section && $('mMixer').hidden) t = 'Roots view: roots and fungal partners below ground · ' + t.split(': ').slice(1).join(': ');
+  if (isOpen($('mMixer'))) t = document.body.classList.contains('m-shape') ? 'Shaping each layer: two knobs per layer · double-tap resets' : 'Layer levels: drag a fader · swipe down to close';
+  if (state.soil && !MUI.section && !isOpen($('mMixer'))) t = 'Roots view: roots and fungal partners below ground · ' + t.split(': ').slice(1).join(': ');
   if (state.recording) t = '● Recording · ' + t;
   if (MUI.doing.textContent !== t) { MUI.doing.textContent = t; fitNotes(); }
 }
@@ -2027,7 +2086,66 @@ function attachControls(row, inp, o) {
   return () => { const f = frac(); k.style.setProperty('--f', f); k.querySelector('.kp').setAttribute('transform', `rotate(${-135 + 270 * f} 24 24)`); if (fd) fd.style.setProperty('--f', f); };
 }
 
+// ---------------------------------------------------------------- opening
+// Hyphae grow in from the edges, branch, and converge on the letters; the name emerges where they meet. About two seconds.
+function runSplash() {
+  const sp = $('splash'); if (!sp) return;
+  const done = () => { sp.classList.add('gone'); setTimeout(() => sp.remove(), 700); };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setTimeout(done, 300); return; }
+  try {
+    const cv = $('splashC'), g = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cs = getComputedStyle(document.documentElement), C = (n, d) => cs.getPropertyValue(n).trim() || d;
+    const bone = C('--bone', '#e6e1d1'), hy = C('--hypha', '#9fe6c8'), spore = C('--spore', '#e7b860'), soil = C('--soil', '#0c0f0b');
+    const src = document.querySelector('.brand .wordmark'); if (!src) { setTimeout(done, 600); return; }
+    const txt = new XMLSerializer().serializeToString(src).split('var(--hypha)').join(hy).split('var(--spore)').join(spore).split('currentColor').join(bone);
+    const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(txt);
+    const ww = Math.min(W * 0.74, 560), vb = src.viewBox.baseVal, wh = ww * vb.height / vb.width, wx = (W - ww) / 2, wy = (H - wh) / 2;
+    img.onload = () => {
+      // where the letters are: sample their strokes
+      const oc = document.createElement('canvas'); oc.width = Math.round(ww); oc.height = Math.round(wh); const og = oc.getContext('2d'); og.drawImage(img, 0, 0, ww, wh);
+      const data = og.getImageData(0, 0, oc.width, oc.height).data, pts = [];
+      for (let y = 0; y < oc.height; y += 5) for (let x = 0; x < oc.width; x += 5) if (data[(y * oc.width + x) * 4 + 3] > 120) pts.push([wx + x, wy + y]);
+      const rnd = (a, b) => a + Math.random() * (b - a), N = Math.min(90, pts.length), walkers = [];
+      for (let i = 0; i < N; i++) {
+        const tgt = pts[Math.floor(Math.random() * pts.length)], side = Math.random();
+        const start = side < 0.45 ? [rnd(0, W), H + 10] : side < 0.6 ? [rnd(0, W), -10] : side < 0.8 ? [-10, rnd(0, H)] : [W + 10, rnd(0, H)];
+        walkers.push({ p: start.slice(), t: tgt, pts: [start.slice()], a: Math.atan2(tgt[1] - start[1], tgt[0] - start[0]), sp: rnd(0.85, 1.15), br: [], col: Math.random() < 0.18 ? hy : bone });
+      }
+      const T0 = performance.now(), GROW = 1250;
+      const step = () => {
+        const t = performance.now() - T0, k = Math.min(1, t / GROW);
+        g.fillStyle = soil; g.fillRect(0, 0, W, H);
+        g.lineCap = 'round'; g.lineJoin = 'round';
+        for (const w of walkers) {
+          if (k < 1) {
+            // grow: wander, but steer toward the letter, faster as the end nears
+            const left = 1 - k, dx = w.t[0] - w.p[0], dy = w.t[1] - w.p[1], d = Math.hypot(dx, dy);
+            const want = Math.atan2(dy, dx); let da = want - w.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+            w.wob = (w.wob || 0) * 0.9 + (Math.random() - 0.5) * 0.35; w.a += da * (0.05 + 0.55 * k * k) + w.wob * left;
+            const v = Math.min(d, (d / Math.max(1, left * GROW / 16)) * w.sp + 0.4);
+            w.p[0] += Math.cos(w.a) * v; w.p[1] += Math.sin(w.a) * v; w.pts.push(w.p.slice());
+            if (Math.random() < 0.09 && w.pts.length > 4) w.br.push({ o: w.p.slice(), a: w.a + (Math.random() < 0.5 ? -1 : 1) * rnd(0.6, 1.3), l: 0, L: rnd(8, 26) });
+            for (const b of w.br) if (b.l < b.L) b.l += 0.8;
+          }
+          g.strokeStyle = w.col; g.globalAlpha = (0.22 + 0.26 * (1 - Math.max(0, (t - GROW) / 700))); g.lineWidth = 0.8;
+          g.beginPath(); w.pts.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke();
+          for (const b of w.br) { g.beginPath(); g.moveTo(b.o[0], b.o[1]); g.lineTo(b.o[0] + Math.cos(b.a) * b.l, b.o[1] + Math.sin(b.a) * b.l); g.stroke(); }
+          if (k < 1) { g.globalAlpha = 0.9; g.fillStyle = spore; g.beginPath(); g.arc(w.p[0], w.p[1], 1.4, 0, Math.PI * 2); g.fill(); }
+        }
+        // the name emerges where the hyphae meet
+        const ap = Math.max(0, Math.min(1, (t - GROW * 0.75) / 600)); if (ap > 0) { g.globalAlpha = ap * ap * (3 - 2 * ap); g.drawImage(img, wx, wy, ww, wh); }
+        g.globalAlpha = 1;
+        if (t < 2050) requestAnimationFrame(step); else done();
+      };
+      requestAnimationFrame(step);
+    };
+    img.onerror = () => setTimeout(done, 600);
+    setTimeout(() => { if (document.getElementById('splash')) done(); }, 4000); // never stay longer than this
+  } catch (e) { setTimeout(done, 400); }
+}
 async function boot() {
+  runSplash();
   readPalette();
   const mq = window.matchMedia('(prefers-color-scheme: light)'); mq.addEventListener && mq.addEventListener('change', readPalette);
   new MutationObserver(readPalette).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -2051,7 +2169,7 @@ async function boot() {
   $('followBtn').onclick = () => { state.follow = !state.follow; $('followBtn').setAttribute('aria-pressed', String(state.follow)); if (!state.follow) cam.yaw = 0; };
   $('rootsBtn').onclick = () => toggleRoots();
   $('siteReset').onclick = () => { applySite(state.seed); logLine('The ecosystem is back to the real conditions of this place.', 'weather'); };
-  $('zoomIn').onclick = () => { cam.dist = Math.max(10, cam.dist / 1.2); }; $('zoomOut').onclick = () => { cam.dist = Math.min(80, cam.dist * 1.2); };
+  $('zoomIn').onclick = () => { cam.tDist = Math.max(10, (cam.tDist || cam.dist) / 1.25); }; $('zoomOut').onclick = () => { cam.tDist = Math.min(80, (cam.tDist || cam.dist) * 1.25); };
   $('pPlay').onclick = togglePlay; $('pSave').onclick = () => { const t = takes.find(x => x.id === player.id); if (t) saveTake(t); };
   $('pwave').addEventListener('click', seekPlayer); $('saveAll').onclick = saveAll;
   $('season').onchange = (e) => setSeason(e.target.value); timeNote();

@@ -1,5 +1,18 @@
 # Changelog
 
+## 6.1.0
+- Opening: a two-second animation in which hyphae grow in from the edges and knit into the word "understory", then fade into the forest.
+- Smooth transitions everywhere: panels, drawers, pages, the mixer, the guide and settings fade and slide instead of snapping; the camera eases into zoom, roots view and a new seed; the forest crossfades when you load a seed, continue a forest or change the theme.
+- The Forests page closes on its own, softly, when you continue a forest, and no longer blurs the forest behind it.
+- Phone sound, especially iPhone: fast grains (spores, high fruit) are read from band-limited copies of the field recording, one per octave of speed, so they no longer fold back as aliasing; spike-train FM keeps every sideband below Nyquist; a smaller voice pool (24) and lighter drawing (half frame rate, lower resolution, fewer distant trees) so the audio thread never starves; the audio session is set before the sound starts, and after a call, an alarm or a headphone change the engine restarts itself once at the phone's current sample rate.
+- A far wider sound palette. Every seed is now played by one of sixteen ensembles (thumb-piano grove, reed organ, gamelan clearing, woodblock clockwork, choir of hollows, buzzing wings, glass harmonica, log drums, harp of roots, dust and tape, stone xylophone, bowed metal, water organ, pizzicato frost, deep drone, music box), with a touch of a second. The ensemble decides which instruments the events become (struck, plucked, blown or sung), how stretched or compressed the overtones are, ring time, hardness, brightness, register, FM ratios, grain size and reversal, and tick colour.
+- A new generator, the formant voice: band-limited saws through two drifting vowel formants, for reed, choir and buzzing-wing forests.
+- A sympathetic body: four comb resonators tuned to the forest's own scale ring along with everything sent to the room, strong in gamelan and bowed-metal forests, nearly absent in dry ones.
+- Rhythm per seed: tempo from about 25 to 130 bpm, metres from two to eight, subdivisions in halves, threes or fours, swing, a euclidean accent pattern most events wait for, and echo figures that repeat a ping on the pulse while stepping through the scale. Chord shapes vary too: triads, sevenths, open fifths, fourths, clusters.
+- Twelve new resonator families (gong, kalimba, singing bowl, slab, chime, pipe, clave, leaf, wire, seed pod, vibraphone, drum), eight new partial sets, and seven further tunings for about a third of seeds (maqam-like, just pentatonic, otonal, utonal, quarter-comma meantone, septimal, Carlos alpha).
+- The description under the forest's name says which ensemble plays it, its tempo and metre.
+- New test: `npm run test:palette`.
+
 ## 6.0.0
 - One layout on every screen. The map fills the window on desktop too; larger screens get a roomy drawer with all knobs in a grid (no scrolling), a larger mixer and larger text.
 - Forests and Archive open as pages of their own, from icons between Seed and the field guide.

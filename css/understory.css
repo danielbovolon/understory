@@ -543,3 +543,33 @@ body.m #mui { --rail: calc(max(8px, env(safe-area-inset-top, 0px)) + 300px); }
 .m.m-wide .m-mixer .nudge .knob { width: 36px; height: 36px; }
 .setcheck { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 10.5px; }
 .setcheck input { width: 16px; height: 16px; accent-color: var(--hypha); }
+
+/* ================================================================ soft transitions */
+.leaving { animation: softOut 0.28s ease forwards !important; pointer-events: none !important; }
+@keyframes softOut { to { opacity: 0; } }
+.m .m-drawer.leaving { animation: drawerOut 0.28s ease forwards !important; }
+@keyframes drawerOut { to { opacity: 0; transform: translateX(24px); } }
+.m .m-mixer.leaving { animation: mixOut 0.28s ease forwards !important; }
+@keyframes mixOut { to { opacity: 0; transform: translateY(16px); } }
+.sheet:not(.leaving) .sheetin { animation: sheetRise 0.32s ease-out; }
+@keyframes sheetRise { from { transform: translateY(10px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.m .m-about:not([hidden]) { animation: fadeIn 0.3s ease-out; }
+.m .m-drawer .panel:not([hidden]), .pagebody .panel:not([hidden]) { animation: fadeIn 0.3s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.log p { animation: noteIn 0.5s ease-out; }
+@keyframes noteIn { from { opacity: 0; transform: translateY(-3px); } }
+.m .m-opts .toolopts:not([hidden]) { animation: fadeIn 0.3s ease-out; }
+#stage canvas { transition: opacity 0.55s ease; }
+#stage.swapping canvas { opacity: 0; }
+.m-tools .tool, .m-ic, .m-view .btn, .m-topi .btn, .chip, .btn { transition: color 0.25s, background-color 0.25s, border-color 0.25s, opacity 0.25s, transform 0.15s; }
+html { transition: background-color 0.4s; }
+body { transition: background-color 0.4s, color 0.4s; }
+/* the forests and archive page lets the forest show through, unblurred */
+#mPage { -webkit-backdrop-filter: none; backdrop-filter: none; background: color-mix(in srgb, var(--soil) 22%, transparent); }
+#mPage .sheetin { background: color-mix(in srgb, var(--humus) 72%, transparent); }
+@media (prefers-reduced-motion: reduce) { .leaving, .sheet .sheetin, .log p, .m .m-drawer .panel { animation-duration: 0.01s !important; } #stage canvas { transition: none; } }
+
+/* opening: a mycelium grows into the name */
+#splash { position: fixed; inset: 0; z-index: 200; background: var(--soil); transition: opacity 0.6s ease; }
+#splash canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#splash.gone { opacity: 0; pointer-events: none; }
