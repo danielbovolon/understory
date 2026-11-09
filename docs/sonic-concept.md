@@ -142,6 +142,30 @@ What an ensemble sets:
 
 The place biases which ensemble grows there: cold places lean to glass, frost and music box; wet ones to choir, water organ and log drums; limestone to stone xylophone and gamelan; warm, dry ones to buzzing wings, kalimba and clockwork. The description under the forest's name says which ensemble plays it, its tempo and metre.
 
+## Every forest its own tone
+
+After its generator, every network, tree and fruit voice passes through one more stage, set per forest: the forest's **tone**. Weather and animals are left as they are, because they are the place itself, not the forest's instrument. The stage has four parts:
+
+- **Waveform** — A waveshaper turns whatever the generator makes into another family: clean; saturated (soft clipping, warm odd and even harmonics); folded (a wavefolder, bright and metallic as the drive rises); rectified (the octave above, hollow); odd (a Chebyshev polynomial adding the third harmonic, clarinet-like); square (a pulse-like flattening); or ring-modulated (sidebands at a fixed ratio to each voice's pitch, bell- and gong-like and inharmonic). Its input is gently band-limited first, so the new harmonics stay below Nyquist.
+- **Filter** — Every voice passes through a filter of the forest's type: low-pass, band-pass, high-pass, notch, or a two-formant vowel. Cutoff and resonance are the forest's own; the cutoff follows each voice's pitch a little (key tracking) and is swept by its own envelope, opening or closing at the start of each sound before it settles.
+- **Tremolo** — A trembling of every voice, slow or fast, shallow or deep.
+- **Envelope** — Attacks and releases are scaled per forest: some swell in, some strike; some fade at once, some ring on.
+
+A slow automatic gain keeps each voice near its dry level, so a resonant or heavily shaped forest is no louder than a clean one.
+
+**The preset comes from the place.** The forest's ensemble chooses the family (a gamelan clearing leans to ring modulation and band-pass, a reed organ to square waves and vowels, log drums to saturation and a low-pass that snaps open, glass harmonica to clean tones through a high-pass). The place sets the details: wet places sound darker and softer (lower cutoff, slower attacks), cold places brighter with longer tails, windy places tremble faster and deeper, rich soil drives harder, acid soil rings more. This mapping is an artistic translation, not a measurement. Across 400 seeds, 32 of the 35 waveform and filter combinations occur.
+
+**The Tone panel** (the waveform icon on the right) shows the forest's tone as ten knobs: wave, drive, filter, cutoff, resonance, sweep, tremolo depth and rate, attack and release. Turn them to retune the forest; "The forest's own tone" returns to the place's preset, and "Another tone" draws a new one with the same leanings. A forest you return to keeps the tone you left it with.
+
+## New sounds of the happenings
+
+- **Late frost** — Ice needles growing in the litter: glassy ticks and fine crackles close to the ground.
+- **Honey fungus** — A low, rough, slowly gliding drone creeping under the soil as the rhizomorphs advance; at night a faint glassy shimmer where they glow.
+- **Thaw** — Meltwater: drops, trickles and small gurgles all around.
+- **Lightning** — A sharp crack at the struck tree, and thunder arriving after the true delay for its distance at 343 m/s, then rain.
+- **Springtails** — A fine, high pattering at the soil (their jumps are silent to us: a translation).
+- **Wood ants** — The dry rustle of the mound and faint ticking up the trunk.
+
 ## Clean sound on every device
 
 Fast grains are read from band-limited copies of the forest's field recording (one per octave of playback speed), so spores and high fruit never fold their highs back down as aliasing. Spike-train FM keeps every sideband below Nyquist. On phones the voice pool is smaller (24), the picture is drawn at half rate and lower resolution so the audio thread never starves, and after a call, an alarm or a change of headphones the sound engine restarts itself once, at the phone's current sample rate.

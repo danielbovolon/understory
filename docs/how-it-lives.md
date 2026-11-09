@@ -64,7 +64,14 @@ Every tree grows the root architecture of its species, after the classic forestr
 
 **Root grafts.** Where roots of two trees of the same species cross, they can fuse. Grafted spruce, fir, pine and beech share water and sugar directly; a stump can stay alive for decades on its grafted neighbours.
 
-**Roots view.** Press Roots (V): the camera drops, the crowns fade, and the root systems hang below the ground in 3D. Fine root tips glow in the colour of the fungus that has wrapped them, with its hyphae fanning out into the soil.
+**Roots view.** Press Roots (V): the camera drops, the crowns fade, and the root systems hang below the ground in 3D, drawn after their real architecture:
+
+- **Structure.** Roots taper from the collar outward and bend under gravity: laterals sag with distance, sinkers hang straight down from the plate roots of spruce, a taproot falls from fir, oak and pine. They branch again into finer laterals.
+- **Fine roots.** Short fine roots stand along the outer two thirds of every lateral in a herring-bone pattern, not only at the ends, mostly in the top layer of soil where the litter and humus are.
+- **Mycorrhizal tips.** Each fine root tip a fungus has colonised is swollen and wrapped in that fungus's own colour. The tip form follows the host: pines fork their mycorrhizal tips dichotomously into Y- and coral-shaped clusters, a hallmark of *Pinus*; spruce, fir and larch branch them pinnately; broadleaves in small pyramids. Maple, rowan and yew are arbuscular-mycorrhizal hosts: their fungi live inside the root and form no mantle, so only fine hyphae show outside. Alder's orange *Frankia* nodules sit in clusters near the surface; aspen's suckers rise from its shallow cords.
+- **Hyphae by exploration type** (Agerer 2001). From each mantle the fungus's hyphae leave in the pattern of its type: contact types have a smooth mantle with almost none; short-distance types a dense halo of short hyphae; medium-distance types fans of hyphae (a fringe); long-distance types a few thick rhizomorphs that run far out into the soil.
+- **Where the network meets the tree.** A hypha that bonds with a tree is drawn down through the soil to the root tip it has wrapped, not to the trunk. Close up, hyphae branch at acute angles along their length, as real mycelium does, and only cords that carry a lot thicken into visible strands.
+- **Root grafts** show as two roots fused into one where they cross.
 
 ## Exploration types
 Agerer classified ectomycorrhizal mycelium by how far it reaches out from the root tip. Each species here has one of these body plans:
@@ -229,6 +236,14 @@ A forest can hold 64 trees and 128 fungal individuals, with networks of up to ab
   - The spores survive the gut and are deposited elsewhere in the droppings. Many truffle-forming ectomycorrhizal fungi, such as *Rhizopogon*, rely on this.
   - The squirrel eats a fruit body if one is standing, digs near trees, disturbs a few hyphae, and leaves spores that may germinate a minute or two later.
 
+## Six more happenings
+- **Late frost.** A clear, still night below zero after budburst freezes the soft new leaves of beech, oak and ash. The trees flush again from reserve buds, which costs stored carbon, and send less sugar to their fungi for a while. Beech has low resistance but high resilience to late frost (Príncipe et al. 2017). Sound: ice needles growing in the litter, faint glassy ticks and crackles.
+- **Honey fungus** (*Armillaria*). It creeps through the soil on black rhizomorph "bootlaces" toward a weakened tree; a weak tree's roots rot and it dies, a healthy one walls it off. Its mycelium in rotting wood and the growing tips of its rhizomorphs glow pale green in the dark, the foxfire of old woods (Mihail 2015), by a fungal luciferin (Kotlobay et al. 2018). Sound: a low, rough drone creeping under the soil; at night a faint glassy shimmer where it glows.
+- **Thaw.** Warm air and rain melt the snowpack (if there is none, a late wet snowfall comes first). Meltwater floods the soil, and the microbes that grew under the snow die off and release their nitrogen in one pulse that roots and fungi take up (Lipson, Schmidt & Monson 1999). Sound: drops, trickles and small gurgles everywhere.
+- **Lightning.** It strikes the tallest tree. The current runs down the trunk and out through the roots, splitting bark, burning the hyphae around it and shaking its neighbours; lightning is a major cause of death for large trees (Yanoviak et al. 2020). Sound: a crack at the tree, and thunder arriving later at the speed of sound, about three seconds per kilometre; then rain.
+- **Springtails** (Collembola). Tens of thousands per square metre of litter. They graze the finest hyphae of one fungus, preferring some species over others, and carry its spores on their bodies and through their guts to new ground (Hopkin 1997; Anslan et al. 2016). Sound: their jumps are silent to us, so here they are a fine, high pattering at the soil.
+- **Red wood ants** (*Formica rufa* group). They raise a needle mound at the foot of a conifer, farm aphids in its crown for honeydew (costing the tree some sugar), hunt the insects that eat it, and make the mound a nutrient hotspot in the soil (Frouz & Jílková 2008). The mound stays. Sound: the dry rustle of thousands of ants, and faint ticking up the trunk.
+
 ## Wild boar, bark beetles and fog
 - **Wild boar** root for truffles, bulbs and grubs. They mix litter into the mineral soil, which speeds decomposition and gives tree seeds bare ground to establish on, and they spread truffle spores in their dung. Here a boar visits a few trees, turns the litter into nutrient patches, tears some hyphae, improves germination around it and plants truffle spores.
 - **Bark beetles** (*Ips typographus*) breed under the bark of weakened spruce. They carry blue-stain fungi that help them overcome the tree's defences; a healthy tree drowns them in resin. Here they choose the weakest grown conifer, spruce first. A thirsty or old tree usually dies and stands as a snag; a vigorous one survives. Many bark beetles stridulate, and the larvae chew audibly.
@@ -327,6 +342,16 @@ This part is aesthetic, not biology. It keeps long listening from settling into 
 - Y. Fukasawa, D. Akai, M. Ushio, T. Takehi (2023), *Electrical potentials in the ectomycorrhizal fungus Laccaria bicolor after a rainfall event*, Fungal Ecology.
 - P. Högberg et al. (2001), *Large-scale forest girdling shows that current photosynthesis drives soil respiration*, Nature.
 - A. Jumpponen, J. M. Trappe, E. Cázares (2002), *Occurrence of ectomycorrhizal fungi on the forefront of retreating Lyman Glacier*, Mycorrhiza.
+- R. Agerer (2001), *Exploration types of ectomycorrhizae*, Mycorrhiza 11.
+- A. Príncipe et al. (2017), *Low resistance but high resilience in growth of a major deciduous forest tree (Fagus sylvatica L.) in response to late spring frost in southern Germany*, Trees 31.
+- J. T. Mihail (2015), *Comparative bioluminescence dynamics among multiple Armillaria species*, Mycologia 107.
+- A. A. Kotlobay et al. (2018), *Genetically encodable bioluminescent system from fungi*, PNAS 115.
+- D. A. Lipson, S. K. Schmidt, R. K. Monson (1999), *Links between microbial population dynamics and nitrogen availability in an alpine ecosystem*, Ecology 80.
+- S. P. Yanoviak et al. (2020), *Lightning is a major cause of large tree mortality in a lowland neotropical forest*, New Phytologist 225.
+- S. P. Hopkin (1997), *Biology of the Springtails*, Oxford University Press.
+- S. Anslan, M. Bahram, L. Tedersoo (2016), *Temporal changes in fungal communities associated with guts and appendages of Collembola*, Soil Biology & Biochemistry 96.
+- J. Frouz, V. Jílková (2008), *The effect of ants on soil properties and processes*, Myrmecological News 11.
+- A. Polomski, R. Kuhn (1998), *Wurzelsysteme*, Haupt.
 - J. Karst, M. D. Jones, J. D. Hoeksema (2023), *Positive citation bias and overinterpreted results lead to misinformation on common mycorrhizal networks in forests*, Nature Ecology & Evolution.
 - I. Khait et al. (2023), *Sounds emitted by plants under stress are airborne and informative*, Cell.
 - E. T. Kiers et al. (2011), *Reciprocal rewards stabilize cooperation in the mycorrhizal symbiosis*, Science.

@@ -49,6 +49,38 @@ function buildMip(slot) {
 const PLUCK_TMP = new Float32Array(4096);
 const LAYERS = new Float32Array([1, 1, 1, 1, 1, 1]);
 
+// ---------------------------------------------------------------- the forest's tone
+// Every network, tree and fruit voice passes through one more stage after its generator, set per forest:
+//  - a waveshaper that turns the generator's waveform into another family: soft saturation, wavefolding,
+//    rectification (the octave), Chebyshev odd harmonics, a pulse-like squaring, or ring modulation;
+//    its input is gently band-limited first, so the new harmonics stay below Nyquist;
+//  - a filter of the forest's type (low-, band-, high-pass, notch or a two-formant vowel), with cutoff,
+//    resonance, key tracking and its own decaying envelope;
+//  - a tremolo, and attack and release scaled by the forest.
+// Weather and animals are left as they are: they are the place itself, not the forest's instrument.
+const SHAPES = ['clean', 'saturate', 'fold', 'rectify', 'odd', 'square', 'ring'];
+const FTYPES = ['low', 'band', 'high', 'notch', 'vowel'];
+const TONE = { on: false, shape: 0, drive: 0, ftype: 0, cut: 16000, res: 0.7, kt: 0, fenv: 0, fdec: 0.3, amr: 0, amd: 0, att: 1, rel: 1, ring: 1.5, v2: 1.6, mix: 1 };
+const TONE_W = [0.7, 1, 1, 0.9, 0, 0]; // how strongly each layer takes the forest's tone (trees a little less)
+function setTone(m) {
+  const n = (k, d, a, b) => { if (m[k] !== undefined) TONE[k] = clamp(num(m[k], d), a, b); };
+  n('shape', 0, 0, SHAPES.length - 1); TONE.shape |= 0; n('drive', 0, 0, 1); n('ftype', 0, 0, FTYPES.length - 1); TONE.ftype |= 0;
+  n('cut', 16000, 60, 18000); n('res', 0.7, 0.5, 14); n('kt', 0, 0, 1); n('fenv', 0, -4, 5); n('fdec', 0.3, 0.01, 4);
+  n('amr', 0, 0, 14); n('amd', 0, 0, 0.9); n('att', 1, 0.25, 6); n('rel', 1, 0.25, 4); n('ring', 1.5, 0.25, 7); n('v2', 1.6, 1, 4); n('mix', 1, 0, 1);
+  TONE.on = TONE.mix > 0.001 && (TONE.drive > 0.001 || TONE.ftype !== 0 || TONE.cut < 15000 || TONE.fenv !== 0 || TONE.amd > 0.001 || TONE.res > 0.8);
+}
+function shapeSample(k, x, d, rp) {
+  switch (k) {
+    case 1: { const g = 1 + d * 7; return Math.tanh(x * g) / Math.tanh(g); }
+    case 2: { const g = 1 + d * 2.6; return Math.sin(x * g * 1.5707963); }
+    case 3: { const a = Math.abs(x); return x * (1 - d) + (a * 2 - 0.6) * d; }
+    case 4: { const c = clamp(x * (1 + d), -1.2, 1.2); const t3 = 4 * c * c * c - 3 * c; return x * (1 - d) + t3 * d * 0.7; }
+    case 5: { const g = 1 - d * 0.92; return Math.sign(x) * Math.pow(Math.min(1.5, Math.abs(x) * 1.6), g) * 0.7; }
+    case 6: return x * (1 - d) + x * Math.sin(rp) * d * 1.4;
+  }
+  return x;
+}
+
 // ---------------------------------------------------------------- generators
 class Voice {
   constructor() {
@@ -70,6 +102,7 @@ class Voice {
     this.dL = 0; this.dR = 0; this.gL = 0; this.gR = 0; this.cL = 0.5; this.cR = 0.5;
     this.lL = 0; this.lR = 0; this.rv = 0; this.rvL = 0; this.rvR = 0; this.first = true;
     this.s1 = 0; this.s2 = 0; this.s3 = 0; this.s4 = 0; this.n1 = 0; this.n2 = 0;
+    this.t1 = 0; this.t2 = 0; this.t3 = 0; this.t4 = 0; this.tpre = 0; this.trp = 0; this.tam = rnd(); this.tsc = 1; this.tdc = 0; this.tdx = 0;
     this.mre.fill(0); this.mim.fill(0); this.ph.fill(0);
     for (const g of this.grains) g.on = false;
   }
@@ -78,6 +111,7 @@ class Voice {
     this.on = true; this.id = id; this.k = k; this.gate = 1;
     this.gain = num(p.gain, 0.3); this.layer = clamp(num(p.layer, 0) | 0, 0, 5);
     this.att = Math.max(0.001, num(p.att, 0.01)); this.rel = Math.max(0.005, num(p.rel, 0.4));
+    { const tw = TONE.on ? TONE_W[clamp(num(p.layer, 0) | 0, 0, 5)] : 0; if (tw > 0) { this.att *= 1 + (TONE.att - 1) * tw; this.rel *= 1 + (TONE.rel - 1) * tw; } }
     this.dur = num(p.dur, 0); this.send = num(p.send, 0.5);
     this.tx = this.px = num(p.x, 0); this.ty = this.py = num(p.y, 0); this.tz = this.pz = num(p.z, 0);
     this.prio = num(p.prio, 1);
@@ -214,6 +248,47 @@ class Voice {
   }
   release(t) { this.gate = 0; if (t !== undefined) this.rel = Math.max(0.005, t); }
 
+  // the forest's tone stage, applied in place to this block
+  tone(n) {
+    const tw = TONE_W[this.layer] * TONE.mix; if (tw <= 0) return;
+    const o = this.out, q = this.p, T = TONE;
+    const vf = clamp(num(q.f, num(q.f0, num(q.bf, 500))), 30, 8000);
+    const t = this.age / SR;
+    // cutoff: forest value, key-tracked, swept by the filter envelope; computed once a block
+    let fc = T.cut * Math.pow(vf / 300, T.kt) * Math.pow(2, T.fenv * Math.exp(-t / T.fdec));
+    fc = clamp(fc, 40, SR * 0.42);
+    const g = Math.tan(Math.PI * fc / SR), k = 1 / T.res, a1 = 1 / (1 + g * (g + k)), a2 = g * a1, a3 = g * a2;
+    let g2 = 0, b1 = 0, b2 = 0, b3 = 0;
+    if (T.ftype === 4) { const f2 = clamp(fc * T.v2, 60, SR * 0.42); g2 = Math.tan(Math.PI * f2 / SR); b1 = 1 / (1 + g2 * (g2 + k)); b2 = g2 * b1; b3 = g2 * b2; }
+    const d = T.drive * tw, sh = T.shape, pre = 1 - Math.exp(-TAU * Math.min(SR * 0.4, 2600 + 9000 * (1 - d)) / SR);
+    const rinc = TAU * Math.min(SR * 0.3, vf * T.ring) / SR;
+    const amInc = T.amr / SR, amd = T.amd * tw;
+    // a slow automatic gain: shaping and resonance change loudness, so each voice is levelled back towards its dry level
+    let sumIn = 0, sumOut = 0;
+    let t1 = this.t1, t2 = this.t2, t3 = this.t3, t4 = this.t4, lp = this.tpre, rp = this.trp, am = this.tam, sc = this.tsc;
+    for (let i = 0; i < n; i++) {
+      const x = o[i]; sumIn += x * x;
+      let y = x;
+      if (d > 0.001 && sh > 0) { lp += pre * (x - lp); y = x + (shapeSample(sh, lp, d, rp) - lp); rp += rinc; if (rp > TAU) rp -= TAU; }
+      // state-variable filter (topology-preserving, stable at any cutoff)
+      const v3 = y - t2, v1 = a1 * t1 + a2 * v3, v2 = t2 + a2 * t1 + a3 * v3; t1 = 2 * v1 - t1; t2 = 2 * v2 - t2;
+      let f;
+      switch (T.ftype) {
+        case 1: f = v1 * k; break;
+        case 2: f = y - k * v1 - v2; break;
+        case 3: f = y - k * v1; break;
+        case 4: { const w3 = y - t4, w1 = b1 * t3 + b2 * w3, w2 = t4 + b2 * t3 + b3 * w3; t3 = 2 * w1 - t3; t4 = 2 * w2 - t4; f = (v1 + w1 * 0.7) * k; break; }
+        default: f = v2;
+      }
+      if (amd > 0) { am += amInc; if (am > 1) am -= 1; f *= 1 - amd * (0.5 + 0.5 * Math.sin(TAU * am)); }
+      const out = x + (f - x) * tw;
+      sumOut += out * out; o[i] = out * sc;
+    }
+    // level: follow the dry/wet energy ratio slowly, limited to +-12 dB
+    if (sumOut > 1e-12 && sumIn > 1e-12) { const want = clamp(Math.sqrt(sumIn / sumOut), 0.25, 4); sc += (want - sc) * 0.05; }
+    this.t1 = t1; this.t2 = t2; this.t3 = t3; this.t4 = t4; this.tpre = lp; this.trp = rp; this.tam = am; this.tsc = sc;
+    if (!(Math.abs(t1) < 1e6 && Math.abs(t2) < 1e6 && Math.abs(t3) < 1e6 && Math.abs(t4) < 1e6)) { this.t1 = this.t2 = this.t3 = this.t4 = 0; o.fill(0, 0, n); }
+  }
   render(n) {
     const o = this.out, q = this.p;
     switch (this.k) {
@@ -593,6 +668,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
         if (!v) { this.freed.push(m.id); return; }
         v.start(m.id, m.k | 0, m.p || {}); this.map.set(m.id, v); break;
       }
+      case 'tone': setTone(m); break;
       case 'maxv': { this.maxv = clamp(num(m.n, MAXV) | 0, 8, MAXV); break; }
       case 'set': { const v = this.map.get(m.id); if (v) v.set(m.p || {}, false); break; }
       case 'rel': { const v = this.map.get(m.id); if (v) v.release(m.r); break; }
@@ -651,6 +727,7 @@ class UnderstoryEngine extends AudioWorkletProcessor {
     for (const v of this.voices) {
       if (!v.on) continue;
       v.render(n);
+      if (TONE.on) v.tone(n);
       // envelope
       const o = v.out; v.cg += (v.gain - v.cg) * 0.08; const ga = v.cg * LAYERS[v.layer];
       const up = n / (v.att * SR), dn = n / (v.rel * SR);

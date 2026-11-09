@@ -104,8 +104,19 @@ let world = null;
 const listener = { x: 0, y: 0, z: 1.6, yaw: 0 };
 const HEIGHTS = { ground: 1.6, under: -0.7, canopy: 11 };
 
+// the forest's tone stage: phones get a little less drive, to keep the audio thread light and clean
+function sendTone() {
+  if (!audio.node || !state.seed) return; if (!P.tone) P.tone = { ...toneOf(state.seed) };
+  const t = P.tone; audio.post({ t: 'tone', ...t, drive: t.drive * (PHONE ? 0.8 : 1) });
+}
+function toneNoteUpdate() {
+  const n = document.getElementById('toneNote'); if (!n || !state.seed || !P.tone) return;
+  const own = toneOf(state.seed), same = ['shape', 'ftype', 'cut', 'drive', 'res'].every(k => Math.abs((P.tone[k] || 0) - (own[k] || 0)) < 1e-6);
+  n.textContent = `${describeTone(P.tone)[0].toUpperCase() + describeTone(P.tone).slice(1)}${same ? ', as this place gives it' : ', retuned by you'}. Wet places sound darker and softer, cold ones brighter and longer, windy ones tremble; the ensemble chooses the family.`;
+}
 function sendGlobals() {
   if (!audio.node || !state.seed) return;
+  sendTone();
   const rv = state.seed.rev;
   const ab = world ? world.absorb : 0, tide = world ? world.tide : 0.5;
   audio.post({ t: 'g', mode: state.mode, depth: P.depth, wet: P.wet * (0.85 + 0.3 * tide), master: P.master, layers: P.layers, under: state.height === 'under' ? 1 : 0, absorb: ab, carry: world ? world.carry : 0, rev: { size: rv.size * (0.55 + P.room * 0.9), rt: rv.rt * (0.35 + P.room * 1.3) * (1 - 0.45 * ab), damp: Math.min(1, rv.damp + 0.3 * ab), pre: rv.pre }, body: bodyOf(state.seed, ab) });
@@ -147,6 +158,7 @@ function applySite(seed) {
   for (const k of ['time', 'spin', 'depth', 'wet', 'room', 'change']) if (typeof pr[k] === 'number') P[k] = pr[k];
   if (Array.isArray(pr.layers)) pr.layers.forEach((v, i) => { P.layers[i] = v; });
   if (pr.char) for (const l in P.char) for (const k in P.char[l]) P.char[l][k] = pr.char[l] && typeof pr.char[l][k] === 'number' ? pr.char[l][k] : 0;
+  P.tone = { ...toneOf(seed) }; toneNoteUpdate();
   if (typeof timeNote === 'function') timeNote();
   if (typeof refreshSliders === 'function' && UI.sliders.length) refreshSliders();
   if (typeof audio !== 'undefined' && audio.node) sendGlobals();
@@ -200,6 +212,7 @@ async function continueForest(rec) {
   // the forest's temperament and the listener's nudges come back with it
   if (rec.P) { for (const k in rec.P) if (k !== 'char' && k in P) P[k] = Array.isArray(rec.P[k]) ? rec.P[k].slice() : rec.P[k]; while (P.layers.length < 6) P.layers.push(0.9); }
   if (rec.char) for (const l in P.char) Object.assign(P.char[l], rec.char[l] || {});
+  P.tone = rec.P && rec.P.tone ? { ...toneOf(seed), ...rec.P.tone } : { ...toneOf(seed) }; toneNoteUpdate();
   state.season = rec.season || 'now'; $('season').value = state.season;
   world = new World(seed, audio, { log: logLine, params: P, char: P.char, now: new Date(), month: seasonMonth() });
   try { world.loadState(rec.data); } catch (e) { setStatus('This forest could not be restored. A new one begins.'); return loadSeed(randomCode()); }
@@ -433,6 +446,14 @@ function groundCircle(g, x, y, r, z = 0, n = 64) {
   let first = true; g.beginPath();
   for (let i = 0; i <= n; i++) { const a = i / n * TAU; const p = cam.proj(x + Math.sin(a) * r, y + Math.cos(a) * r, z); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); }
 }
+// hyphae curve: draw through the midpoints of their points with quadratic segments, so nets read as threads, not wire
+function polylineSmooth(g, pts, z) {
+  const P = []; for (const q of pts) { const p = cam.proj(q[0], q[1], q.length > 2 && z === undefined ? q[2] : z); if (p) P.push(p); }
+  g.beginPath(); if (P.length < 2) return; g.moveTo(P[0][0], P[0][1]);
+  if (P.length === 2) { g.lineTo(P[1][0], P[1][1]); return; }
+  for (let i = 1; i < P.length - 1; i++) { const mx = (P[i][0] + P[i + 1][0]) / 2, my = (P[i][1] + P[i + 1][1]) / 2; g.quadraticCurveTo(P[i][0], P[i][1], mx, my); }
+  g.lineTo(P[P.length - 1][0], P[P.length - 1][1]);
+}
 function polyline(g, pts, z) {
   let first = true; g.beginPath();
   for (const q of pts) { const p = cam.proj(q[0], q[1], z); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); }
@@ -478,6 +499,7 @@ function draw(now) {
     const near = clamp01(1 - (b.t - w.t) / 40); const pulse = 0.5 + 0.5 * Math.sin(now / 600 + b.x);
     g.fillStyle = PAL.spore; g.globalAlpha = 0.25 + near * 0.5 * pulse; g.beginPath(); g.arc(q[0], q[1], Math.max(1.5, 0.08 * q[2]), 0, TAU); g.fill(); g.globalAlpha = 1;
   }
+  drawEvents(g, w, now);
   drawRoots(g, w, now);
   // hyphae
   g.globalCompositeOperation = 'source-over'; g.lineCap = 'round'; g.lineJoin = 'round';
@@ -485,10 +507,18 @@ function draw(now) {
     const gn = w.genets.get(e.g); const mid = e.pts[(e.pts.length / 2) | 0]; const pm = cam.proj(mid[0], mid[1], -0.05); if (!pm) continue;
     const young = Math.min(1, (w.t - e.born) / 3);
     // single hyphae are finer than a hair; only cords (rhizomorphs) that carry a lot thicken into visible strands
-    g.lineWidth = Math.max(0.4, (0.01 + 0.03 * Math.min(3, e.D)) * pm[2]);
-    g.strokeStyle = gcol(gn, Math.min(1, (0.22 + 0.25 * Math.min(1, e.D) + 0.5 * e.act) * young * (PAL.dark ? 1 : 1.7)) * (1 - 0.45 * soilMix), e.act);
-    polyline(g, e.pts, -0.05); g.stroke();
+    g.lineWidth = clamp((0.004 + 0.011 * Math.min(3, e.D)) * pm[2], 0.35, 2.2);
+    g.strokeStyle = gcol(gn, Math.min(1, (0.22 + 0.25 * Math.min(1, e.D) + 0.5 * e.act) * young * (PAL.dark ? 1 : 1.7)) * (1 - 0.3 * soilMix), e.act);
+    const hp = e._tree !== undefined ? hyphaPath(e, w, soilMix) : null;
+    if (hp) polylineSmooth(g, hp); else polylineSmooth(g, e.pts, -0.05); g.stroke();
+    // close up, a hypha is not a tube: short side branches leave it at acute angles every few millimetres
+    if (pm[2] > 34 && !hp && e.pts.length > 2 && !(PHONE && pm[2] < 70)) {
+      const lw = g.lineWidth; g.lineWidth = Math.max(0.3, lw * 0.45); g.beginPath();
+      for (let i = 1; i < e.pts.length - 1; i += 1) { const q = e.pts[i], q2 = e.pts[i + 1], h = ((e.id * 31 + i * 17) % 100) / 100; if (h > 0.55) continue; const dx = q2[0] - q[0], dy = q2[1] - q[1], L = Math.hypot(dx, dy) || 1, sd = h < 0.27 ? 1 : -1, bl = 0.12 + h * 0.35; const a = cam.proj(q[0], q[1], -0.05), b = cam.proj(q[0] + (dx / L * 0.6 - dy / L * 0.8 * sd) * bl, q[1] + (dy / L * 0.6 + dx / L * 0.8 * sd) * bl, -0.05); if (a && b) { g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); } }
+      g.stroke(); g.lineWidth = lw;
+    }
     if (gn && gn.glow > 0.05 && PAL.dark) { g.strokeStyle = `hsla(105,95%,62%,${0.35 * gn.glow})`; g.lineWidth += 3; g.stroke(); }
+    delete e._tree; delete e._tip;
   }
   for (const tip of w.tips) {
     const gn = w.genets.get(tip.g); g.strokeStyle = gcol(gn, 0.55); const p0 = cam.proj(tip.x, tip.y, -0.05); if (!p0) continue;
@@ -500,7 +530,7 @@ function draw(now) {
     if (n.fl < 0.05 && n.edges.size < 3) continue; const p = cam.proj(n.x, n.y, -0.05); if (!p) continue;
     const gn = w.genets.get(n.genet);
     if (n.fl > 0.05) { g.strokeStyle = gcol(gn, n.fl * 0.8, 1); g.lineWidth = 1.2; g.beginPath(); g.arc(p[0], p[1], (0.2 + (1 - n.fl) * 0.9) * p[2], 0, TAU); g.stroke(); }
-    if (n.edges.size >= 3 && n.type !== 'tree') { g.fillStyle = gcol(gn, 0.6); g.beginPath(); g.arc(p[0], p[1], Math.max(1, 0.06 * p[2]), 0, TAU); g.fill(); }
+    if (n.edges.size >= 3 && n.type !== 'tree' && n.fl > 0.05) { g.fillStyle = gcol(gn, 0.5 * n.fl); g.beginPath(); g.arc(p[0], p[1], Math.min(2.2, Math.max(0.8, 0.025 * p[2])), 0, TAU); g.fill(); }
   }
   // signals and sugar
   for (const s of w.signals) { const p = cam.proj(s.x, s.y, -0.05); if (!p) continue; glowDot(g, p[0], p[1], Math.max(1.6, (s.alarm ? 0.14 : 0.1) * p[2]), s.alarm ? PAL.alarm : gcol(w.genets.get(s.g), 1, 1.5), true); }
@@ -569,33 +599,64 @@ function drawNatureMotes(g, w, now) {
 // Each species grows its own architecture (taproot, heart root, plate root, flat laterals), generated once per tree
 // in units of its reach (x, y) and depth (z), then scaled as the tree grows. Fine root tips carry the fungal mantles.
 const rootCache = new Map();
+// Root architecture, after the classic types (Köstler, Brückner & Bibelriether 1968; Polomski & Kuhn 1998):
+//  tap   - one taproot straight down, laterals from its upper part (fir, oak, pine, stone pine)
+//  heart - many strong roots fanning obliquely down into a hemisphere (beech, larch, birch, alder, maple, rowan, yew)
+//  plate - long horizontal laterals in the topsoil with vertical sinkers hanging from them (spruce)
+//  flat  - very long, shallow cord roots that send up suckers (aspen, willow)
+// Roots taper, bend under gravity (laterals sag, sinkers fall straight) and branch again; fine roots stand along the
+// laterals in a herring-bone pattern, and their tips are where the fungi meet the tree. Tip form follows the host:
+// pines fork their mycorrhizal tips dichotomously into Y and coral shapes, other Pinaceae branch them pinnately,
+// broadleaves in small pyramids; maple, rowan and yew are arbuscular hosts, with no mantle at all.
+const TIP_FORM = { pine: 'fork', stonepine: 'fork', spruce: 'pinnate', fir: 'pinnate', larch: 'pinnate', maple: 'am', rowan: 'am', yew: 'am' };
 function rootArch(t) {
   const key = t.id + ':' + t.sp; let a = rootCache.get(key); if (a) return a;
   const R = (typeof ROOTS !== 'undefined' && ROOTS[t.sp]) || { form: 'heart' }, rnd = seeded(t.id * 7919 + 101), rr = (lo, hi) => lo + (hi - lo) * rnd();
-  const roots = [], tips = [];
-  // a root from p0 heading outward along angle ang, ending at horizontal distance h1 and depth z1, wavering a little
-  const grow = (p0, ang, h1, z1, w, order, n = 7) => {
-    const pts = [p0]; const h0 = Math.hypot(p0[0], p0[1]);
-    for (let i = 1; i <= n; i++) { const f = i / n, e = f * f * (3 - 2 * f), aa = ang + Math.sin(f * 5 + w * 9) * 0.12 * order + rr(-0.05, 0.05), h = h0 + (h1 - h0) * f; pts.push([Math.sin(aa) * h, Math.cos(aa) * h, p0[2] + (z1 - p0[2]) * (order === 0 && R.form !== 'tap' ? Math.pow(f, 0.8) : e) + rr(-0.02, 0.02)]); }
-    roots.push({ pts, w, order });
-    if (order < 2) for (let b = 0; b < (order ? 1 : 2); b++) { const q = pts[2 + Math.floor(rnd() * (n - 3))]; const hq = Math.hypot(q[0], q[1]); grow(q, ang + (rnd() < 0.5 ? -1 : 1) * rr(0.35, 0.8), hq + (h1 - hq) * rr(0.35, 0.6) + 0.08, Math.min(q[2], q[2] + rr(-0.15, 0.05)), w * 0.5, order + 1, 4); }
-    // a fan of fine roots at the end: this is where the fungi meet the tree
-    const e = pts[pts.length - 1]; for (let k = 0; k < (order ? 2 : 3); k++) { const fa = ang + rr(-0.9, 0.9), fl = rr(0.04, 0.09); const tip = [e[0] + Math.sin(fa) * fl, e[1] + Math.cos(fa) * fl, Math.min(-0.01, e[2] + rr(-0.04, 0.04))]; roots.push({ pts: [e, tip], w: 0.12, order: 3 }); tips.push(tip); }
+  const roots = [], fine = [], tips = [], nod = [], tipForm = TIP_FORM[t.sp] || 'pyramid';
+  // one root: from p0, horizontal heading az, dip el (0 = level, pi/2 = straight down), length L (reach units)
+  const grow = (p0, az, el, L, w0, order, kind) => {
+    const n = Math.max(4, Math.round(L * (order ? 10 : 14))), step = L / n, pts = [p0], ws = [w0];
+    let x = p0[0], y = p0[1], z = p0[2], tgt = kind === 'sinker' ? 1.5 : kind === 'tap' ? 1.55 : kind === 'level' ? 0.06 : el;
+    for (let i = 1; i <= n; i++) {
+      const f = i / n;
+      az += rr(-0.28, 0.28) * (0.7 + order * 0.4); el += (tgt - el) * 0.14 + rr(-0.12, 0.12); // tortuosity and gravitropism
+      if (kind === 'lat' || kind === 'level') tgt = Math.min(0.9, tgt + 0.012); // laterals sag with distance
+      x += Math.sin(az) * Math.cos(el) * step; y += Math.cos(az) * Math.cos(el) * step; z -= Math.sin(el) * step * 0.9;
+      z = Math.max(-1.05, Math.min(-0.015, z));
+      pts.push([x, y, z]); ws.push(w0 * (1 - 0.78 * f));
+    }
+    const r = { pts, ws, order, kind }; roots.push(r);
+    // branches: higher-order laterals, and sinkers from plate and flat laterals
+    if (order < 2) {
+      const nb = order === 0 ? 3 + Math.floor(rnd() * 2) : 2;
+      for (let b = 0; b < nb; b++) { const k = 1 + Math.floor((0.18 + 0.7 * rnd()) * (pts.length - 2)), q = pts[k]; grow(q, az + (rnd() < 0.5 ? -1 : 1) * rr(0.5, 1.2), Math.max(0.05, el * 0.7), L * rr(0.28, 0.5) * (1 - k / pts.length * 0.5), ws[k] * 0.55, order + 1, kind === 'tap' ? 'lat' : kind); }
+      if ((R.form === 'plate' || R.form === 'flat') && order === 0) for (let b = 0; b < 2; b++) { const k = 2 + Math.floor(rnd() * (pts.length - 3)), q = pts[k]; grow(q, az, 1.4, rr(0.35, 0.75) * (R.form === 'plate' ? 1 : 0.5), ws[k] * 0.45, 2, 'sinker'); }
+    }
+    // herring-bone fine roots along the distal two thirds of every lateral, each ending in a tip
+    if (kind !== 'tap') for (let i = Math.floor(pts.length * 0.35); i < pts.length; i++) {
+      if (rnd() > (order === 0 ? 0.55 : 0.8)) continue;
+      const q = pts[i], fa = az + (rnd() < 0.5 ? -1 : 1) * rr(0.7, 1.5), fl = rr(0.035, 0.08), ze = q[2] + rr(-0.04, 0.03);
+      const tp = [q[0] + Math.sin(fa) * fl, q[1] + Math.cos(fa) * fl, Math.min(-0.012, ze)];
+      fine.push([q, tp]); if (tips.length < 90) tips.push({ p: tp, az: fa, el: (q[2] - ze) });
+    }
+    const e = pts[pts.length - 1]; for (let k = 0; k < 2 && tips.length < 90; k++) { const fa = az + rr(-0.8, 0.8), fl = rr(0.04, 0.08); const tp = [e[0] + Math.sin(fa) * fl, e[1] + Math.cos(fa) * fl, Math.min(-0.012, e[2] + rr(-0.03, 0.03))]; fine.push([e, tp]); tips.push({ p: tp, az: fa, el: 0 }); }
+    if (R.nodules && order >= 1 && rnd() < 0.6) { const q = pts[Math.floor(pts.length * rr(0.2, 0.6))]; if (q[2] > -0.4) nod.push(q); }
+    return r;
   };
-  const top = [0, 0, -0.03];
+  const top = [0, 0, -0.02];
   if (R.form === 'tap') {
-    const pts = [top]; let x = 0, y = 0; for (let i = 1; i <= 9; i++) { x += rr(-0.03, 0.03); y += rr(-0.03, 0.03); pts.push([x, y, -i / 9]); } roots.push({ pts, w: 1, order: 0 });
-    for (let k = 0; k < 2; k++) { const q = pts[3 + k * 3]; grow(q, rr(0, TAU), rr(0.25, 0.4), q[2] - rr(0.05, 0.15), 0.35, 1, 4); }
-    const n = 5 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -rr(0.04, 0.12)], (k + rr(-0.3, 0.3)) / n * TAU, rr(0.6, 1), -rr(0.12, 0.25), 0.55, 0);
+    grow(top, rr(0, TAU), 1.55, 1.0, 1, 0, 'tap');
+    const n = 4 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -rr(0.03, 0.18)], (k + rr(-0.3, 0.3)) / n * TAU, rr(0.15, 0.5), rr(0.55, 0.85), 0.55, 0, 'lat');
   } else if (R.form === 'heart') {
-    const n = 6 + Math.floor(rnd() * 4); for (let k = 0; k < n; k++) { const dip = rr(0.25, 1.15), L = rr(0.7, 1); grow(top, (k + rr(-0.3, 0.3)) / n * TAU, Math.cos(dip) * L, -Math.sin(dip) * L * 0.95, 0.7, 0); }
+    const n = 6 + Math.floor(rnd() * 4); for (let k = 0; k < n; k++) grow(top, (k + rr(-0.3, 0.3)) / n * TAU, rr(0.25, 0.85), rr(0.75, 1.0), 0.7, 0, 'heart');
   } else if (R.form === 'plate') {
-    const n = 8 + Math.floor(rnd() * 4); for (let k = 0; k < n; k++) grow([0, 0, -0.04], (k + rr(-0.25, 0.25)) / n * TAU, rr(0.75, 1.05), -rr(0.08, 0.2), 0.6, 0);
-    for (let k = 0; k < 3; k++) { const r0 = roots[Math.floor(rnd() * roots.length)]; if (r0.order) continue; const q = r0.pts[3]; roots.push({ pts: [q, [q[0], q[1], -rr(0.6, 1)]], w: 0.25, order: 2 }); }
+    const n = 8 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -0.03], (k + rr(-0.25, 0.25)) / n * TAU, 0.04, rr(0.75, 1.0), 0.6, 0, 'level');
   } else {
-    const n = 5 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -0.05], (k + rr(-0.3, 0.3)) / n * TAU, rr(0.8, 1.1), -rr(0.06, 0.16), 0.5, 0, 9);
+    const n = 5 + Math.floor(rnd() * 3); for (let k = 0; k < n; k++) grow([0, 0, -0.04], (k + rr(-0.3, 0.3)) / n * TAU, 0.05, rr(0.85, 1.1), 0.5, 0, 'level');
   }
-  a = { roots, tips, form: R.form, nodules: !!R.nodules, suckers: !!R.suckers }; rootCache.set(key, a);
+  // suckers of aspen rise from the shallow cords
+  const suck = R.suckers ? roots.filter(r => r.order === 0).slice(0, 3).map(r => r.pts[Math.floor(r.pts.length * 0.7)]) : [];
+  a = { roots, fine, tips, nod, suck, form: R.form, tipForm }; rootCache.set(key, a);
   if (rootCache.size > 400) rootCache.delete(rootCache.keys().next().value);
   return a;
 }
@@ -608,42 +669,144 @@ const ROOT_BASE = { larch: [24, 40, 66], stonepine: [14, 42, 58], spruce: [18, 4
 let ROOT_COL = null;
 function rootTone(sp) { if (!ROOT_COL) { const ks = Object.keys(ROOT_BASE), c = spreadColours(ks.map(k => ROOT_BASE[k]), 12); ROOT_COL = {}; ks.forEach((k, i) => ROOT_COL[k] = c[i]); } return ROOT_COL[sp] || [32, 36, 70]; }
 function hslRGB(h, s, l) { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))]; }
+// the six happenings that leave a mark on the ground: honey-fungus bootlaces (glowing at night), wood-ant mounds,
+// springtails, rime of a late frost, and the flash of lightning
+function drawEvents(g, w, now) {
+  const H = w.rhizo;
+  if (H) {
+    const n = Math.max(1, Math.floor(H.grow * (H.path.length - 1))), fade = H.done ? clamp01(H.fade) : 1;
+    const strokePath = (pts) => { let first = true; g.beginPath(); for (const p of pts) { const q = cam.proj(p[0], p[1], -0.12); if (!q) { first = true; continue; } if (first) { g.moveTo(q[0], q[1]); first = false; } else g.lineTo(q[0], q[1]); } };
+    const main = H.path.slice(0, n + 1), sc = cam.proj(main[0][0], main[0][1], 0), lw = sc ? Math.max(1.2, 0.05 * sc[2]) : 1.5;
+    // rhizomorphs are dark, almost black, with a reddish-brown rind
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = PAL.dark ? 'rgba(92,58,40,' + (0.85 * fade) + ')' : 'rgba(40,24,16,' + (0.8 * fade) + ')'; g.lineWidth = lw; strokePath(main); g.stroke();
+    for (const b of H.branches) { if (b.at > n) continue; const p = H.path[b.at], q = H.path[Math.min(H.path.length - 1, b.at + 1)], ang = Math.atan2(q[1] - p[1], q[0] - p[0]) + b.a; const pts = [p]; for (let k = 1; k <= 5; k++) pts.push([p[0] + Math.cos(ang + Math.sin(k) * 0.3) * b.len * k / 5, p[1] + Math.sin(ang + Math.sin(k) * 0.3) * b.len * k / 5]); g.lineWidth = lw * 0.55; strokePath(pts); g.stroke(); }
+    if (H.glow > 0.05) {
+      // foxfire: the growing tips glow a pale green, about 530 nm
+      const tip = main[main.length - 1], q = cam.proj(tip[0], tip[1], -0.12), puls = 0.7 + 0.3 * Math.sin(now / 900);
+      g.save(); g.globalCompositeOperation = PAL.dark ? 'lighter' : 'source-over'; g.shadowColor = 'rgba(150,255,170,0.9)'; g.shadowBlur = 10;
+      g.strokeStyle = 'rgba(150,255,170,' + (0.35 * H.glow * fade * puls) + ')'; g.lineWidth = lw * 0.6; strokePath(main.slice(-4)); g.stroke();
+      if (q) { g.fillStyle = 'rgba(170,255,190,' + (0.6 * H.glow * fade * puls) + ')'; g.beginPath(); g.arc(q[0], q[1], Math.max(2, 0.08 * q[2]), 0, TAU); g.fill(); }
+      g.restore();
+    }
+  }
+  for (const m of w.mounds || []) {
+    const q = cam.proj(m.x, m.y, 0); if (!q) continue; const r = Math.max(4, 0.6 * m.size * q[2]) * 0.5;
+    g.save(); g.globalAlpha = 0.9; g.fillStyle = PAL.dark ? '#6b4a2e' : '#8a6440'; g.beginPath(); g.ellipse(q[0], q[1], r * 1.4, r * 0.75, 0, Math.PI, 0); g.closePath(); g.fill();
+    g.strokeStyle = PAL.dark ? 'rgba(190,150,100,0.6)' : 'rgba(60,40,24,0.6)'; g.lineWidth = 0.7;
+    for (let k = 0; k < 14; k++) { const a = Math.PI + (k + 0.5) / 14 * Math.PI, x = q[0] + Math.cos(a) * r * 1.2 * ((k * 37 % 10) / 10), y = q[1] + Math.sin(a) * r * 0.6 * ((k * 53 % 10) / 10); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(k) * r * 0.25, y + Math.sin(k) * r * 0.12); g.stroke(); }
+    if (w.ants && w.ants.m === m) { g.fillStyle = PAL.dark ? '#2a1610' : '#1e100a'; for (let k = 0; k < 18; k++) { const a = k * 2.4 + now / (600 + k * 30), d = r * (0.2 + ((k * 7) % 10) / 9); g.fillRect(q[0] + Math.cos(a) * d * 1.3, q[1] - Math.abs(Math.sin(a)) * d * 0.6, 1.4, 1.1); } }
+    g.restore();
+  }
+  if (w.graze) { const G = w.graze; g.save(); g.fillStyle = PAL.dark ? 'rgba(220,210,190,0.75)' : 'rgba(70,60,50,0.75)'; for (let k = 0; k < 26; k++) { const ph = (now / 380 + k * 0.37) % 1, hop = Math.sin(ph * Math.PI) * 0.25, x = G.x + Math.sin(k * 12.9) * 2.2, y = G.y + Math.cos(k * 7.7) * 2.2; const q = cam.proj(x, y, hop); if (q) g.fillRect(q[0], q[1], 1.3, 1.3); } g.restore(); }
+  if (w.frostT > 0) { const L = listener, a = clamp01(Math.min(w.frostT, 240 - w.frostT) / 40); g.save(); g.fillStyle = 'rgba(235,245,255,' + (0.7 * a) + ')'; for (let k = 0; k < 140; k++) { const x = L.x + Math.sin(k * 91.7) * 9, y = L.y + Math.cos(k * 53.3) * 9, q = cam.proj(x, y, 0.01); if (q) g.fillRect(q[0], q[1], 1.2, 1.2); } g.restore(); }
+  if (w.bolt > 0 && w.boltAt) {
+    const B = w.boltAt, top = cam.proj(B.x + 3, B.y - 2, 40), bot = cam.proj(B.x, B.y, B.h); if (top && bot) {
+      g.save(); g.strokeStyle = 'rgba(240,245,255,' + w.bolt + ')'; g.shadowColor = 'rgba(200,220,255,1)'; g.shadowBlur = 16; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(top[0], top[1]); for (let k = 1; k < 9; k++) { const u = k / 9; g.lineTo(top[0] + (bot[0] - top[0]) * u + Math.sin(k * 77.1 + B.x) * 14, top[1] + (bot[1] - top[1]) * u); } g.lineTo(bot[0], bot[1]); g.stroke(); g.restore();
+    }
+    g.save(); g.fillStyle = 'rgba(235,240,255,' + (0.28 * w.bolt) + ')'; g.fillRect(0, 0, g.canvas.width, g.canvas.height); g.restore();
+  }
+}
+// where each partner fungus meets this tree: the root tip nearest the direction its hyphae come from
+const tipLinks = new Map(); let treeByNode = new Map();
+function linkTips(w, sv) {
+  tipLinks.clear(); treeByNode = new Map(); for (const t of w.trees) if (t.node !== undefined) treeByNode.set(t.node, t);
+  for (const e of w.edges.values()) {
+    const ta = treeByNode.get(e.a), tb = treeByNode.get(e.b), t = ta || tb; if (!t) continue;
+    const pts = e.pts, from = ta ? pts[Math.min(pts.length - 1, 1)] : pts[Math.max(0, pts.length - 2)];
+    const A = rootArch(t), reach = rootReach(t), ang = Math.atan2(from[0] - t.x, from[1] - t.y);
+    let best = -1, bs = 1e9; A.tips.forEach((tp, i) => { const ta2 = Math.atan2(tp.p[0], tp.p[1]); let d = Math.abs(((ta2 - ang + Math.PI * 3) % TAU) - Math.PI); const hr = Math.hypot(tp.p[0], tp.p[1]); d += Math.abs(hr - 0.7) * 0.4 + tp.p[2] * -0.3 + (hr < 0.3 ? 3 : 0); const m = tipLinks.get(t.id); if (m && m.has(i) && m.get(i) !== e.g) d += 2; if (d < bs) { bs = d; best = i; } });
+    if (best < 0) continue; let m = tipLinks.get(t.id); if (!m) { m = new Map(); tipLinks.set(t.id, m); } m.set(best, e.g); e._tip = best; e._tree = t.id; e._atA = !!ta;
+  }
+}
+// a hypha that ends at a tree is drawn down to the root tip it has wrapped, not to the trunk
+function hyphaPath(e, w, sv) {
+  const t = e._tree !== undefined ? w.treeById(e._tree) : null; if (!t || e._tip === undefined) return null;
+  const A = rootArch(t), tp = A.tips[e._tip]; if (!tp) return null;
+  const reach = rootReach(t), depth = rootDepth(t) * (0.9 + 0.7 * sv), T = [t.x + tp.p[0] * reach, t.y + tp.p[1] * reach, tp.p[2] * depth];
+  const pts = e._atA ? e.pts.slice().reverse() : e.pts, rT = Math.hypot(T[0] - t.x, T[1] - t.y);
+  const out = []; for (const q of pts) { if (Math.hypot(q[0] - t.x, q[1] - t.y) < rT * 0.95 && out.length > 1) break; out.push([q[0], q[1], -0.05]); }
+  const L = out[out.length - 1] || [T[0], T[1], -0.05];
+  for (let k = 1; k <= 6; k++) { const u = k / 6, ez = u * u * (3 - 2 * u); out.push([L[0] + (T[0] - L[0]) * u + Math.sin(u * Math.PI) * 0.08, L[1] + (T[1] - L[1]) * u, -0.05 + (T[2] + 0.05) * ez]); }
+  return out;
+}
+function polyline3(g, pts) { let first = true; g.beginPath(); for (const q of pts) { const p = cam.proj(q[0], q[1], q[2]); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); } }
 function drawRoots(g, w, now) {
   const target = state.soil ? 1 : clamp01((1.6 - listener.z) / 2.3) * 0.8;
   soilMix += (target - soilMix) * 0.08;
   const sv = soilMix;
-  const alpha = 0.16 + 0.74 * sv; if (typeof rootReach !== 'function') return;
+  const alpha = 0.14 + 0.8 * sv; if (typeof rootReach !== 'function') return;
+  linkTips(w, sv);
   g.lineCap = 'round'; g.lineJoin = 'round';
-  if (sv > 0.05) { // depth reference: faint rings one and two units down
-    g.setLineDash([3, 6]); g.strokeStyle = PAL.dim; g.lineWidth = 1;
-    for (const z of [-1, -2]) { g.globalAlpha = 0.25 * sv; groundCircle(g, listener.x, listener.y, 6, z, 48); g.stroke(); }
+  if (sv > 0.05) { // soil horizons: the litter and humus layer, and depth rings one and two units down
+    g.setLineDash([2, 7]); g.strokeStyle = PAL.dim; g.lineWidth = 1;
+    for (const z of [-0.25, -1, -2]) { g.globalAlpha = (z === -0.25 ? 0.35 : 0.22) * sv; groundCircle(g, listener.x, listener.y, 6, z, 48); g.stroke(); }
     g.setLineDash([]); g.globalAlpha = 1;
   }
+  const detail = sv > 0.12 ? 1 : 0, lite = PHONE && sv < 0.5;
   for (const t of w.trees) {
-    const rc = rootTone(t.sp), base = PAL.dark ? hslRGB(rc[0], rc[1], rc[2]) : hslRGB(rc[0], Math.min(70, rc[1] + 8), Math.max(22, rc[2] - 38));
-    const a = rootArch(t), reach = rootReach(t), depth = rootDepth(t) * (1.25 + 1.6 * sv);
+    const rc = rootTone(t.sp), dk = PAL.dark;
+    const base = dk ? hslRGB(rc[0], rc[1] * 0.62, rc[2]) : hslRGB(rc[0], Math.min(55, rc[1] * 0.8), Math.max(22, rc[2] - 38));
+    const fineC = dk ? hslRGB(rc[0], Math.max(10, rc[1] - 12), Math.min(90, rc[2] + 12)) : hslRGB(rc[0], rc[1], Math.max(30, rc[2] - 28));
+    const A = rootArch(t), reach = rootReach(t), depth = rootDepth(t) * (0.9 + 0.7 * sv);
     const P = (q) => cam.proj(t.x + q[0] * reach, t.y + q[1] * reach, q[2] * depth);
-    for (const r of a.roots) {
-      let first = true; g.beginPath(); let pw = 0;
-      for (const q of r.pts) { const p = P(q); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); pw = p[2]; }
-      g.strokeStyle = r.order === 3 ? (PAL.dark ? `rgba(226,210,182,${alpha * 0.85})` : `rgba(150,120,85,${alpha * 0.85})`) : `rgba(${base[0]},${base[1]},${base[2]},${alpha})`;
-      g.lineWidth = Math.max(r.order === 3 ? 0.5 : 0.8, r.w * (0.025 + 0.05 * t.size) * (1 + 0.9 * sv) * pw * (r.order === 0 ? 1 : 0.8)); g.stroke();
+    const pc = cam.proj(t.x, t.y, 0); if (!pc) continue; const sz = pc[2];
+    // structural roots, tapering: each drawn in three sections of falling width
+    for (const r of A.roots) {
+      if (!detail && r.order > 1) continue;
+      const n = r.pts.length, cuts = [0, Math.floor(n / 3), Math.floor(2 * n / 3), n - 1];
+      g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha * (r.order ? 0.85 : 1)})`;
+      for (let c = 0; c < 3; c++) {
+        const a0 = cuts[c], a1 = cuts[c + 1]; if (a1 <= a0) continue; let first = true; g.beginPath();
+        for (let i = a0; i <= a1; i++) { const p = P(r.pts[i]); if (!p) { first = true; continue; } if (first) { g.moveTo(p[0], p[1]); first = false; } else g.lineTo(p[0], p[1]); }
+        g.lineWidth = Math.max(0.5, r.ws[a0] * (0.03 + 0.05 * t.size) * (1 + 0.8 * sv) * sz); g.stroke();
+      }
     }
-    if (a.nodules && sv > 0.05) { g.fillStyle = PAL.dark ? `rgba(235,214,170,${0.8 * sv})` : `rgba(150,110,60,${0.8 * sv})`; for (const r of a.roots) if (r.order === 1) for (const q of r.pts.slice(1, 4)) { const p = P(q); if (p) { g.beginPath(); g.arc(p[0], p[1], Math.max(1.2, 0.04 * p[2]), 0, TAU); g.fill(); } } }
-    // mycorrhizal mantles: the root tips each partner fungus has wrapped, with its hyphae fanning out into the soil
-    const partners = [...t.links.keys()].map(id => w.genets.get(id)).filter(Boolean);
-    if (partners.length) {
-      const share = Math.min(1, 0.25 + 0.2 * partners.length);
-      a.tips.forEach((q, i) => {
-        if ((i * 0.618) % 1 > share) return; const gn = partners[i % partners.length], p = P(q); if (!p) return;
-        const col = gcol(gn, Math.min(1, 0.35 + 0.65 * sv) * (PAL.dark ? 1 : 1.2), 0.6);
-        glowDot(g, p[0], p[1], Math.max(1.1, 0.035 * p[2]), col, false);
-        if (sv > 0.1) { g.strokeStyle = gcol(gn, 0.55 * sv); g.lineWidth = 0.8; for (let k = 0; k < 3; k++) { const fa = i * 2.1 + k * 2.09, q2 = cam.proj(t.x + q[0] * reach + Math.sin(fa) * 0.35, t.y + q[1] * reach + Math.cos(fa) * 0.35, q[2] * depth * 0.6); if (q2) { g.beginPath(); g.moveTo(p[0], p[1]); g.quadraticCurveTo((p[0] + q2[0]) / 2 + 3, (p[1] + q2[1]) / 2 - 3, q2[0], q2[1]); g.stroke(); } } }
-      });
+    if (detail && !lite) {
+      // fine roots, one path for all
+      g.strokeStyle = `rgba(${fineC[0]},${fineC[1]},${fineC[2]},${alpha * 0.8})`; g.lineWidth = Math.max(0.45, 0.012 * sz); g.beginPath();
+      for (const [q0, q1] of A.fine) { const p0 = P(q0), p1 = P(q1); if (p0 && p1) { g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); } }
+      g.stroke();
+      // alder's root nodules: clusters of Frankia, orange-brown, close to the surface
+      if (A.nod.length) { g.fillStyle = dk ? `rgba(226,150,90,${0.85 * sv})` : `rgba(160,90,40,${0.85 * sv})`; for (const q of A.nod) { const p = P(q); if (!p) continue; const r0 = Math.max(1.1, 0.025 * p[2]); for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(p[0] + Math.sin(k * 2.4) * r0 * 1.3, p[1] + Math.cos(k * 2.4) * r0 * 1.1, r0, 0, TAU); g.fill(); } } }
+      if (A.suck.length) { g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha})`; g.lineWidth = Math.max(0.7, 0.015 * sz); for (const q of A.suck) { const p = P(q), up = cam.proj(t.x + q[0] * reach, t.y + q[1] * reach, 0.35); if (p && up) { g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(up[0], up[1]); g.stroke(); } } }
     }
-    // root grafts with neighbours of the same species
-    if (t.grafts && t.grafts.length) for (const id of t.grafts) { if (id < t.id) continue; const o = w.treeById(id); if (!o) continue; const m = cam.proj((t.x + o.x) / 2, (t.y + o.y) / 2, -0.25 * depth), pa = cam.proj(t.x, t.y, -0.12), pb = cam.proj(o.x, o.y, -0.12); if (!m || !pa || !pb) continue;
-      g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha})`; g.lineWidth = Math.max(1, 0.06 * m[2]); g.beginPath(); g.moveTo(pa[0], pa[1]); g.quadraticCurveTo(m[0], m[1] + 6, pb[0], pb[1]); g.stroke(); glowDot(g, m[0], m[1] + 3, Math.max(1.5, 0.06 * m[2]), PAL.spore, sv > 0.3); }
+    // root tips: mycorrhizal ones wrapped in their fungus's mantle, with its hyphae leaving in that fungus's own pattern
+    const links = tipLinks.get(t.id), partners = [...t.links.keys()].map(id => w.genets.get(id)).filter(Boolean);
+    const share = partners.length ? Math.min(0.85, 0.3 + 0.18 * partners.length) : 0;
+    A.tips.forEach((tp, i) => {
+      let gn = links && links.has(i) ? w.genets.get(links.get(i)) : null; const direct = !!gn;
+      if (!gn && partners.length && ((i * 0.618) % 1) < share) gn = partners[i % partners.length];
+      if (!gn && !detail) return;
+      if (!direct && Math.hypot(tp.p[0], tp.p[1]) < 0.3) gn = null; if (!gn && !detail) return;
+      const p = P(tp.p); if (!p) return; const r0 = Math.min(2.6, Math.max(0.9, 0.022 * p[2]));
+      if (!gn || A.tipForm === 'am') {
+        // a bare tip, or an arbuscular host: the fungus lives inside the root, only fine hyphae show outside
+        g.fillStyle = dk ? `rgba(240,232,214,${alpha * 0.9})` : `rgba(120,96,70,${alpha * 0.9})`; g.beginPath(); g.arc(p[0], p[1], r0 * 0.7, 0, TAU); g.fill();
+        if (gn && detail) { g.strokeStyle = gcol(gn, 0.45 * sv); g.lineWidth = 0.5; g.beginPath(); for (let k = 0; k < 5; k++) { const fa = i + k * 1.26, L = (6 + (k * 7 % 5)) * (p[2] / 60); g.moveTo(p[0], p[1]); g.quadraticCurveTo(p[0] + Math.sin(fa) * L * 0.6 + 2, p[1] + Math.cos(fa) * L * 0.6, p[0] + Math.sin(fa) * L, p[1] + Math.cos(fa) * L); } g.stroke(); }
+        return;
+      }
+      const mc = gcol(gn, Math.min(1, (direct ? 0.55 : 0.35) + 0.6 * sv), 0.8), ax = Math.sin(tp.az), ay = Math.cos(tp.az);
+      // the mantle: a swollen, blunt tip; forked in pines, pinnate in other conifers, a little pyramid in broadleaves
+      g.strokeStyle = mc; g.lineCap = 'round';
+      const seg = (dx, dy, L, wd) => { g.lineWidth = wd; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + dx * L, p[1] - dy * L * 0.6); g.stroke(); };
+      const L0 = r0 * 3.2, W0 = Math.max(1.4, r0 * 1.7);
+      if (A.tipForm === 'fork') { seg(Math.sin(tp.az - 0.45), Math.cos(tp.az - 0.45), L0, W0); seg(Math.sin(tp.az + 0.45), Math.cos(tp.az + 0.45), L0, W0); if (detail && i % 3 === 0) { const ex = p[0] + Math.sin(tp.az + 0.45) * L0, ey = p[1] - Math.cos(tp.az + 0.45) * L0 * 0.6; g.lineWidth = W0 * 0.85; g.beginPath(); g.moveTo(ex, ey); g.lineTo(ex + Math.sin(tp.az) * L0 * 0.7, ey - Math.cos(tp.az) * L0 * 0.42); g.stroke(); } }
+      else if (A.tipForm === 'pinnate') { seg(ax, ay, L0 * 1.3, W0); for (const sd of [-1, 1]) seg(Math.sin(tp.az + sd * 1.1), Math.cos(tp.az + sd * 1.1), L0 * 0.7, W0 * 0.85); }
+      else { seg(ax, ay, L0, W0); seg(Math.sin(tp.az + 0.8), Math.cos(tp.az + 0.8), L0 * 0.6, W0 * 0.8); }
+      if (!detail || lite) return;
+      // extramatrical hyphae by exploration type (Agerer 2001): contact - a smooth mantle, almost none; short - a dense
+      // halo of short hyphae; medium - fans of hyphae (fringe); long - a few thick rhizomorphs that run far into the soil
+      const ex = gn.sp.expl || 'short', ha = Math.min(1, 0.25 + 0.7 * sv);
+      if (ex === 'short') { g.strokeStyle = gcol(gn, 0.5 * ha); g.lineWidth = 0.45; g.beginPath(); for (let k = 0; k < 9; k++) { const fa = k * 0.7 + i, L = r0 * (2.2 + (k % 3)); g.moveTo(p[0] + Math.sin(fa) * r0, p[1] + Math.cos(fa) * r0 * 0.6); g.lineTo(p[0] + Math.sin(fa) * (r0 + L), p[1] + Math.cos(fa) * (r0 + L) * 0.6); } g.stroke(); }
+      else if (ex === 'medium') { g.strokeStyle = gcol(gn, 0.42 * ha); g.lineWidth = 0.5; g.beginPath(); for (let k = 0; k < 5; k++) { const fa = tp.az + (k - 2) * 0.35 + Math.sin(i * 3.1) * 0.3, L = r0 * (7 + (k * 5 % 4) * 2.5); const mx = p[0] + Math.sin(fa) * L * 0.5 + Math.sin(fa + 1.6) * 3, my = p[1] - Math.cos(fa) * L * 0.3; const exx = p[0] + Math.sin(fa) * L, eyy = p[1] - Math.cos(fa) * L * 0.6; g.moveTo(p[0], p[1]); g.quadraticCurveTo(mx, my, exx, eyy); g.moveTo((p[0] + exx) / 2 + 1, (p[1] + eyy) / 2); g.lineTo((p[0] + exx) / 2 + Math.sin(fa + 0.9) * L * 0.3, (p[1] + eyy) / 2 - Math.cos(fa + 0.9) * L * 0.18); } g.stroke(); }
+      else if (ex === 'long' && !direct && i % 2 === 0) { g.strokeStyle = gcol(gn, 0.55 * ha); g.lineWidth = Math.max(0.9, r0 * 0.9); const fa = tp.az + Math.sin(i) * 0.4, L = r0 * 16; g.beginPath(); g.moveTo(p[0], p[1]); g.bezierCurveTo(p[0] + Math.sin(fa) * L * 0.3 + 4, p[1] + 3, p[0] + Math.sin(fa) * L * 0.7 - 3, p[1] - Math.cos(fa) * L * 0.3, p[0] + Math.sin(fa) * L, p[1] - Math.cos(fa) * L * 0.55); g.stroke(); }
+    });
+    // root grafts with neighbours of the same species: two roots fused into one where they cross
+    if (t.grafts && t.grafts.length) for (const id of t.grafts) { if (id < t.id) continue; const o = w.treeById(id); if (!o) continue; const m = cam.proj((t.x + o.x) / 2, (t.y + o.y) / 2, -0.22 * depth), pa = cam.proj(t.x, t.y, -0.1 * depth), pb = cam.proj(o.x, o.y, -0.1 * depth); if (!m || !pa || !pb) continue;
+      g.strokeStyle = `rgba(${base[0]},${base[1]},${base[2]},${alpha})`; g.lineWidth = Math.max(1, 0.035 * m[2]); g.beginPath(); g.moveTo(pa[0], pa[1]); g.quadraticCurveTo(m[0], m[1] + 6, pb[0], pb[1]); g.stroke();
+      g.fillStyle = `rgba(${base[0]},${base[1]},${base[2]},${Math.min(1, alpha * 1.2)})`; g.beginPath(); g.ellipse(m[0], m[1] + 3, Math.max(2, 0.05 * m[2]), Math.max(1.4, 0.03 * m[2]), 0, 0, TAU); g.fill(); }
   }
 }
 // ---------------------------------------------------------------- the land around the forest
@@ -1181,6 +1344,20 @@ function buildSliders() {
   S(eco, 'seeds', 'Seed rain', 0, 2.5, 1, mul, 'Tree seeds arriving from the valley on the wind and with birds. More seeds, more young trees in every gap.');
   S(eco, 'spores', 'Spore rain', 0, 2.5, 1, mul, 'Fungal spores drifting in from outside. More spores, more new fungal individuals; none, and the forest lives only on the fungi it has.');
   S(eco, 'grazing', 'Grazing', 0, 2.5, 1, mul, 'How many deer. They browse trees (an alarm runs through the network) and bite off seedlings, fir and oak first, spruce last.');
+  const tn = $('toneS');
+  if (tn) {
+    const T = (id, label, min, max, step, key, fmt, help, conv) => slider(tn, { id, label, min, max, step, fmt, help, get def() { const o = state.seed ? toneOf(state.seed) : null; return o ? (conv ? conv[0](o[key]) : o[key]) : min; }, get: () => P.tone ? (conv ? conv[0](P.tone[key]) : P.tone[key]) : min, set: (v) => { if (!P.tone) return; P.tone[key] = conv ? conv[1](v) : v; sendTone(); toneNoteUpdate(); } });
+    T('tshape', 'Wave', 0, 6, 1, 'shape', (v) => SHAPE_NAMES[Math.round(v)], 'The waveform family the voices are shaped into: clean, saturated, folded, rectified (an octave up), odd harmonics, square, or ring-modulated (metallic).');
+    T('tdrive', 'Drive', 0, 1, 0.01, 'drive', pct, 'How hard the voices are pushed into that shape.');
+    T('tftype', 'Filter', 0, 4, 1, 'ftype', (v) => FILTER_NAMES[Math.round(v)], 'The kind of filter every voice passes through.');
+    T('tcut', 'Cutoff', Math.log2(120), Math.log2(12000), 0.01, 'cut', (v) => { const f = Math.pow(2, v); return f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz'; }, 'Where the filter sits. It follows each voice\'s pitch a little.', [Math.log2, (v) => Math.pow(2, v)]);
+    T('tres', 'Resonance', 0.5, 12, 0.01, 'res', (v) => v.toFixed(1), 'How sharply the filter rings at its cutoff.');
+    T('tfenv', 'Sweep', -3, 4, 0.01, 'fenv', (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + ' oct', 'How far the filter opens (or closes) at the start of each sound before it settles.');
+    T('tamd', 'Tremolo', 0, 0.8, 0.01, 'amd', pct, 'Depth of a slow or fast trembling of every voice.');
+    T('tamr', 'Rate', 0.1, 12, 0.01, 'amr', (v) => v.toFixed(1) + ' Hz', 'Speed of the tremolo.');
+    T('tatt', 'Attack', 0.3, 4, 0.01, 'att', mul, 'How slowly sounds swell in.');
+    T('trel', 'Release', 0.4, 2.6, 0.01, 'rel', mul, 'How long sounds take to fade.');
+  }
   S(sp, 'depth', 'Distance', 0.3, 2.2, 1, mul, 'Scales every distance you hear: small makes the forest intimate, large makes it vast (more delay, doppler and reverb).', sendGlobals);
   S(sp, 'spin', 'Autopan', -1, 1, 0, (v) => (v === 0 ? 'off' : (v > 0 ? '↻ ' : '↺ ') + Math.abs(v * 14.3).toFixed(1) + '°/s'), 'Turns your head continuously so the whole field revolves around you.');
   S(sp, 'wet', 'Reverb', 0, 1.2, 0.45, pct, 'Level of the forest room.', sendGlobals);
@@ -1228,6 +1405,12 @@ const HAPPEN = [
   ['squirrel', () => 'Squirrel', () => 'eats fungi, plants spores', 'A red squirrel eats mushrooms and digs truffles. The spores pass its gut and start new fungi where it goes.', () => world.squirrels('user')],
   ['boar', () => 'Wild boar', () => 'roots and turns the soil', 'A wild boar roots for truffles: it turns litter into the soil, tears hyphae, opens bare ground where seeds take, and spreads truffle spores.', () => world.boar('user')],
   ['beetles', () => 'Bark beetles', () => 'test the weakest conifer', 'Bark beetles bore into the weakest conifer, drought-stressed spruce first. A strong tree drowns them in resin; a weak one dies and stands as a snag.', () => world.beetles('user')],
+  ['latefrost', () => 'Late frost', () => 'young leaves freeze', 'A clear night below zero after the leaves open: fresh beech and oak leaves freeze; trees flush again from reserves and feed their fungi less for a while. Ice crackles in the litter.', () => world.lateFrost('user')],
+  ['honeyfungus', () => 'Honey fungus', () => 'glowing bootlaces', 'Armillaria creeps toward a weakened tree on black bootlace rhizomorphs that glow faintly at night. A weak tree rots; a strong one walls it off.', () => world.honeyFungus('user')],
+  ['snowmelt', () => 'Thaw', () => 'meltwater, nitrogen pulse', 'The snow melts (if there is none, a late wet snowfall comes first): meltwater soaks the soil and the microbes under the snow release their nitrogen in a pulse.', () => world.snowmelt('user')],
+  ['lightning', () => 'Lightning', () => 'strikes the tallest tree', 'Lightning strikes the tallest tree: bark splits, hyphae around its roots burn, neighbours are shaken. Thunder follows at the speed of sound, then rain.', () => world.lightning('user')],
+  ['springtails', () => 'Springtails', () => 'graze hyphae, carry spores', 'Thousands of springtails graze the finest hyphae of one fungus and carry its spores to new ground.', () => world.springtails('user')],
+  ['woodants', () => 'Wood ants', () => 'mound, aphids, rich soil', 'Red wood ants raise a needle mound by a conifer, farm aphids in its crown (costing it some sugar), and enrich the soil of the mound.', () => world.woodAnts('user')],
   ['fog', () => 'Fog', () => 'still air, sound carries', 'Fog settles in: the air goes still, crowns comb water from the cloud, and distant sounds carry further.', () => world.fog('user')],
 ];
 function buildHappenings() {
@@ -1240,10 +1423,11 @@ function buildHappenings() {
   }
   updateHappenings();
 }
+const HAP_EV = { latefrost: 'frost', honeyfungus: 'armillaria', snowmelt: 'melt', woodants: 'ants' };
 function updateHappenings() {
   if (!world) return;
   for (const [k, label, sub] of HAPPEN) {
-    const b = $('hap-' + k); if (!b) continue; const v = world.ev[k] || 0, m = world.evMax[k] || 1;
+    const ek = HAP_EV[k] || k, b = $('hap-' + k); if (!b) continue; const v = world.ev[ek] || 0, m = world.evMax[ek] || 1;
     b.querySelector('b').textContent = label(); b.querySelector('small').textContent = v > 0 ? 'happening now' : sub();
     b.disabled = v > 0; b.style.setProperty('--p', v > 0 ? clamp01(v / m) : 0);
   }
@@ -1911,6 +2095,7 @@ const ICON = {
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
   eco: '<path d="M5 19c0-8 6-13 14-14-1 8-6 14-14 14z"/><path d="M5 19l8-8"/>',
   space: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
+  tone: '<path d="M2.5 12h2.2l1.8-5.5 3 11 3-14 3 13 2.2-7 1.6 2.5h2.2"/>',
   mixer: '<path d="M6 4v16M12 4v16M18 4v16"/><path d="M4 14h4M10 8h4M16 12h4"/>',
   forests: '<path d="M7 3 3 11h8z"/><path d="M7 11v8"/><circle cx="16" cy="9" r="5"/><path d="M16 14v5"/><path d="M2 21h20"/>',
   archive: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="15.5" cy="12" r="2.2"/><path d="M8.5 14.2h7"/>',
@@ -1927,6 +2112,12 @@ const ICON = {
   boar: '<path d="M4 15c0-4 3-7 8-7s7 2 8 4l2 1-2 2c-1 2-3 3-6 3H8c-2 0-4-1-4-3z"/><path d="M7 18v3M16 18v3"/><path d="M19 12h.01"/>',
   beetles: '<ellipse cx="12" cy="13" rx="5" ry="7"/><path d="M12 6v14M9 4l1.5 2M15 4l-1.5 2M7 10H4M7 14H3M7 18H4M17 10h3M17 14h4M17 18h3"/>',
   fog: '<path d="M3 8h14M6 12h15M3 16h12M8 20h10"/>',
+  latefrost: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M10 4.5l2 1.5 2-1.5M10 19.5l2-1.5 2 1.5"/>',
+  honeyfungus: '<path d="M5 11a7 4 0 0 1 14 0z"/><path d="M11 11v4c0 3-3 3-6 6M13 11v3c0 2 3 3 4 6"/>',
+  snowmelt: '<path d="M12 3c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z"/><path d="M10 14a2 2 0 0 0 2 2"/>',
+  lightning: '<path d="M13 2 5 14h6l-2 8 9-12h-6z"/>',
+  springtails: '<ellipse cx="11" cy="12" rx="5" ry="3"/><path d="M16 12c2 0 3 2 4 4M6 11l-2-3M8 10l-1-3M9 15l-2 4"/>',
+  woodants: '<path d="M3 20c2-6 5-9 9-9s7 3 9 9z"/><circle cx="9" cy="16" r=".6"/><circle cx="14" cy="15" r=".6"/><circle cx="12" cy="18" r=".6"/>',
   drift: '<path d="M4 18c3-6 6-2 8-6s5-6 8-6"/><circle cx="20" cy="6" r="1.5"/>',
   ride: '<path d="M3 12h13"/><path d="m12 7 5 5-5 5"/><circle cx="20" cy="12" r="1.5"/>',
   under: '<path d="M2 8h20"/><path d="M12 11v9M8 16l4 4 4-4"/>',
@@ -1957,11 +2148,11 @@ function setBtnText(b, t) { const lb = b.querySelector('.lb'); if (lb) lb.textCo
 const MOBILE_Q = 'all';
 const WIDE_Q = '(min-width: 900px) and (min-height: 560px)';
 const MUI = { on: false, homes: new Map(), section: null };
-const SECTIONS = [['eco', 'Ecosystem'], ['happen', 'Happenings'], ['space', 'Space']];
+const SECTIONS = [['eco', 'Ecosystem'], ['happen', 'Happenings'], ['space', 'Space'], ['tone', 'Tone']];
 const PAGES = [['forests', 'Forests'], ['archive', 'Archive']];
 function panelFor(key) {
   const ps = [...document.querySelectorAll('.side > .panel, #mDrawer > .panel, #mMixer > .panel')];
-  const name = { eco: 'Ecosystem', space: 'Space', mixer: 'Layers', forests: 'Forests', archive: 'Archive', happen: 'Happenings' }[key];
+  const name = { eco: 'Ecosystem', space: 'Space', tone: 'Tone', mixer: 'Layers', forests: 'Forests', archive: 'Archive', happen: 'Happenings' }[key];
   const ps2 = [...ps, ...document.querySelectorAll('#mPageBody > .panel')];
   return ps2.find(p => { const h = p.querySelector('h2'); return h && h.textContent.trim() === name; });
 }
@@ -2029,7 +2220,7 @@ function setMobile(on) {
     for (const id of ['grow']) park($(id), $('mTrans')); $('mTools').appendChild(MUI.mixBtn);
     for (const id of ['rec', 'rtime', 'meter']) park($(id), $('mRec'));
     park($('hint'), $('mNotes')); $('mNotes').appendChild(MUI.doing); park($('underfoot'), $('mNotes')); park($('log'), $('mNotes'));
-    for (const k of ['eco', 'space']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
+    for (const k of ['eco', 'space', 'tone']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mDrawer')); } }
     // the happenings leave the ecosystem panel for a section of their own
     const hap = $('happen'); if (hap) { const sub = hap.previousElementSibling, h3 = sub && sub.previousElementSibling; MUI.happenPanel.dataset.sec = 'happen'; $('mDrawer').appendChild(MUI.happenPanel); if (h3 && h3.tagName === 'H3') park(h3, MUI.happenPanel); if (sub && sub.classList.contains('sub')) park(sub, MUI.happenPanel); park(hap, MUI.happenPanel); }
     for (const k of ['forests', 'archive']) { const p = panelFor(k); if (p) { p.dataset.sec = k; park(p, $('mPageBody')); } }
@@ -2152,6 +2343,8 @@ async function boot() {
   $('calmBtn').onclick = () => { audio.post({ t: 'calm' }); logLine('Calm: reverb tails cleared, fading back in.', 'weather'); };
   $('followBtn').onclick = () => { state.follow = !state.follow; $('followBtn').setAttribute('aria-pressed', String(state.follow)); if (!state.follow) cam.yaw = 0; };
   $('rootsBtn').onclick = () => toggleRoots();
+  $('toneReset').onclick = () => { if (!state.seed) return; P.tone = { ...toneOf(state.seed) }; refreshSliders(); sendTone(); toneNoteUpdate(); logLine('The forest is back to its own tone.', 'drift'); };
+  $('toneDice').onclick = () => { if (!state.seed) return; P.tone = makeTone(state.seed, String(Date.now())); refreshSliders(); sendTone(); toneNoteUpdate(); logLine(`A new tone from the same place: ${describeTone(P.tone)}.`, 'drift'); };
   $('siteReset').onclick = () => { applySite(state.seed); logLine('The ecosystem is back to the real conditions of this place.', 'weather'); };
   $('zoomIn').onclick = () => { cam.tDist = Math.max(10, (cam.tDist || cam.dist) / 1.25); }; $('zoomOut').onclick = () => { cam.tDist = Math.min(80, (cam.tDist || cam.dist) * 1.25); };
   $('pPlay').onclick = togglePlay; $('pSave').onclick = () => { const t = takes.find(x => x.id === player.id); if (t) saveTake(t); };

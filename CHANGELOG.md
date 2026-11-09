@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.3.0
+- Every forest its own tone. A new stage in the sound engine shapes every network, tree and fruit voice per forest: a waveform family (clean, saturated, folded, rectified, odd-harmonic, square or ring-modulated, band-limited so it stays clean), a filter of the forest's type (low-, band-, high-pass, notch or a two-formant vowel) with resonance, key tracking and its own sweeping envelope, a tremolo, and attack and release scaled per forest, with automatic level matching. The preset comes from the forest's ensemble and its place: wet is darker and softer, cold brighter and longer, windy trembles, rich soil drives, acid soil rings.
+- A Tone panel (the waveform icon on the right) with ten knobs to retune the forest, "The forest's own tone" to go back, and "Another tone" for a new draw from the same place. Saved forests keep their tone.
+- Six new happenings, each with its own ecology and sound: late frost, honey fungus (with glowing foxfire bootlaces at night), thaw (meltwater and a nitrogen pulse), lightning (thunder arrives at the speed of sound), springtails grazing hyphae, and red wood ants with a lasting mound. They also happen on their own in their seasons. Field-guide entries and sources added.
+- Roots redrawn after real root architecture: tapering, gravity-bent roots with sinkers, taproots and suckers; herring-bone fine roots; mycorrhizal tips swollen in their fungus's colour and shaped by host (forked in pines, pinnate in other conifers, small pyramids in broadleaves, no mantle on arbuscular maple, rowan and yew); alder's Frankia nodules; hyphae leaving the mantles by exploration type (contact, short, medium fringe, long rhizomorphs).
+- Hyphae now run down through the soil to the root tips they have wrapped instead of to the trunk; they are finer, curve smoothly, branch at acute angles close up, and junction dots only show where signals fire.
+
 ## 6.2.1
 - The opening animation is gone: the app opens straight onto the forest.
 
